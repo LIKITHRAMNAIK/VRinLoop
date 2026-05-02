@@ -7,6 +7,7 @@ import { formatCurrency } from '../utils/format';
 
 
 
+
 const getColor = (name) => {
   const colors = ['#e3f2fd', '#fce4ec', '#e8f5e9', '#fff3e0'];
   return colors[name.charCodeAt(0) % colors.length];
@@ -28,6 +29,10 @@ function TransactionList({ refresh }) {
   const [payId, setPayId] = useState(null);
 const [payType, setPayType] = useState('');
 const [payAmount, setPayAmount] = useState(0);
+
+const [showExportPopup, setShowExportPopup] = useState(false);
+const [exportType, setExportType] = useState('all'); // all | normal | rotation
+const [exportMonth, setExportMonth] = useState('');
 
   // ✅ EDIT STATE
   const [editId, setEditId] = useState(null);
@@ -185,106 +190,169 @@ const [payAmount, setPayAmount] = useState(0);
   }
 };
 
-  const handleExport = () => {
+  const handleExport = (type, month) => {
 
     const rows = [];
   
-    const filteredSortedData = [...data]
-  .filter(tx => {
-        if (!selectedMonth) return true;
-        const txDate = new Date(tx.start_date);
-        return txDate.toISOString().slice(0, 7) === selectedMonth;
-      })
-      .sort((a, b) => {
-        if (a.person_name !== b.person_name) {
-          return a.person_name.localeCompare(b.person_name);
-        }
-        return new Date(a.start_date) - new Date(b.start_date);
-      });
-  
-    filteredSortedData.forEach((tx, index, arr) => {
-  
-      // 🔹 ORIGINAL
-      rows.push({
-        Name: tx.person_name,
-        Type: tx.type,
-        Stage: 'Original',
-        Principal: tx.principal_amount.toLocaleString('en-IN'),
-        Start: new Date(tx.start_date).toLocaleDateString('en-GB'),
-        Due: new Date(
-          tx.extensions.length > 0
-            ? tx.extensions[0].old_due_date
-            : tx.due_date
-        ).toLocaleDateString('en-GB'),
-        Interest: tx.base_interest.toLocaleString('en-IN'),
-        Total: (tx.principal_amount + tx.base_interest).toLocaleString('en-IN'),
-        Status: tx.status
-      });
-  
-      // 🔹 EXTENSIONS
-      tx.extensions.forEach((ext, i) => {
-        rows.push({
-          Name: tx.person_name,
-          Type: tx.type,
-          Stage: `Extended ${i + 1}`,
-          Principal: tx.principal_amount.toLocaleString('en-IN'),
-          Start: new Date(ext.old_due_date).toLocaleDateString('en-GB'),
-          Due: new Date(
-            i === tx.extensions.length - 1
-              ? tx.due_date
-              : tx.extensions[i + 1].old_due_date
-          ).toLocaleDateString('en-GB'),
-          Interest: ext.extra_interest.toLocaleString('en-IN'),
-          Total: calculateTotal(tx, i).toLocaleString('en-IN'),
-  Status: 'extended'
-        });
-      });
-  
-      // 🔥 EMPTY ROW (ONLY ONCE)
-      const nextTx = arr[index + 1];
+    let filteredSortedData = [...data];
 
-// 🔥 NEW LOGIC: group by transaction (not just user)
-if (
-  !nextTx ||
-  nextTx.person_name !== tx.person_name ||   // different user
-  nextTx._id !== tx._id                     // different transaction
-) {
-  rows.push({
-    Name: '',
-    Type: '',
-    Stage: '',
-    Principal: '',
-    Start: '',
-    Due: '',
-    Interest: '',
-    Total: '',
-    Status: ''
+// ✅ TYPE FILTER
+if (type === 'normal') {
+  filteredSortedData = filteredSortedData.filter(tx => tx.transaction_type === 'normal');
+}
+
+if (type === 'rotation') {
+  filteredSortedData = filteredSortedData.filter(tx => tx.transaction_type !== 'normal');
+}
+
+// ✅ MONTH FILTER
+if (month) {
+  filteredSortedData = filteredSortedData.filter(tx => {
+    const txDate = new Date(tx.start_date);
+    return txDate.toISOString().slice(0, 7) === month;
   });
 }
   
+    // 🔥 MAIN EXPORT LOGIC
+filteredSortedData.forEach((tx, index, arr) => {
+
+  // 👉 logic used: detect single full payment
+  let isSinglePayment =
+    tx.installments?.length === 1 &&
+    Number(tx.installments[0].amount) >= tx.principal_amount;
+
+  // ================= SINGLE PAYMENT =================
+  if (isSinglePayment) {
+
+    const inst = tx.installments[0];
+
+    rows.push([
+      // 👉 logic used: show type inside name column
+`${tx.person_name} (${tx.transaction_type === 'normal' ? 'Normal' : 'Rotation'})`,
+      tx.type,
+      'Original',
+      tx.principal_amount.toLocaleString('en-IN'),
+      new Date(tx.start_date).toLocaleDateString('en-GB'),
+      new Date(tx.due_date).toLocaleDateString('en-GB'),
+
+      '', // 👉 logic used: remove interest
+      tx.principal_amount.toLocaleString('en-IN'),
+
+      inst.amount.toLocaleString('en-IN'),
+      '0',
+
+      new Date(inst.date).toLocaleDateString('en-GB'),
+      'single payment',
+
+      'paid'
+    ]);
+
+  }
+
+  // ================= MULTIPLE INSTALLMENTS =================
+  else {
+
+    // 👉 logic used: base row (no payment data)
+    rows.push([
+      // 👉 logic used: show type inside name column
+`${tx.person_name} (${tx.transaction_type === 'normal' ? 'Normal' : 'Rotation'})`,
+      tx.type,
+      'Original',
+      tx.principal_amount.toLocaleString('en-IN'),
+      new Date(tx.start_date).toLocaleDateString('en-GB'),
+      new Date(tx.due_date).toLocaleDateString('en-GB'),
+
+      '', // no interest
+      tx.principal_amount.toLocaleString('en-IN'),
+
+      '', '', '', '',
+      tx.status
+    ]);
+
+    // 👉 logic used: running balance calculation
+    let runningPaid = 0;
+
+    tx.installments?.forEach((inst, i) => {
+      runningPaid += Number(inst.amount);
+
+      rows.push([
+        '',
+        '',
+        `Payment ${i + 1}`,
+        '',
+        '',
+        '',
+        '',
+        '',
+
+        inst.amount.toLocaleString('en-IN'),
+        (tx.principal_amount - runningPaid).toLocaleString('en-IN'),
+
+        new Date(inst.date).toLocaleDateString('en-GB'),
+        `₹${inst.amount}`,
+
+        runningPaid >= tx.principal_amount ? 'paid' : 'partial'
+      ]);
     });
+
+  }
+
+  // 👉 logic used: add gap only between different transactions
+  const nextTx = arr[index + 1];
+
+  if (
+  !nextTx ||
+  nextTx.person_name !== tx.person_name ||
+  nextTx._id !== tx._id
+){
+    if (tx.installments?.length > 0) {
+  rows.push(['', '', '', '', '', '', '', '', '', '', '', '', '']);
+}
+  }
+
+});
   
-    const csv =
-  "💰 MoMaS - Money Management System\n" +
-  "Generated Report\n\n" +
-  "Name,Type,Stage,Principal,Start,Due,Interest,Total,Status\n" +
-      rows.map(r =>
-        Object.values(r)
-          .map(val => `"${val}"`)
-          .join(",")
-      ).join("\n");
+    // 👉 logic used: dynamic header based on export type
+const nameHeader =
+  type === 'normal'
+    ? 'Name (Normal)'
+    : type === 'rotation'
+    ? 'Name (Rotation)'
+    : 'Name (All)';
+
+const csv =
+  `${getReportTitle(type, month)}\n` +
+  "Generated Transactions Report\n\n" +
+  `${nameHeader},Type,Stage,Principal,Start,Due,Interest,Total,Paid,Balance,Paid Date,Installments,Status\n` +
+  rows.map(r =>
+    Object.values(r)
+      .map(val => `"${val}"`)
+      .join(",")
+  ).join("\n");
   
-    const blob = new Blob([csv], { type: "text/csv" });
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = window.URL.createObjectURL(blob);
   
     const a = document.createElement("a");
     a.href = url;
   
-    const now = new Date();
-    const monthName = now.toLocaleString('default', { month: 'short' });
-    const year = now.getFullYear();
-  
-    a.download = `transactions-${monthName}-${year}.csv`;
+    // ✅ TYPE NAME
+let fileType = 'all';
+
+if (type === 'normal') fileType = 'normal';
+if (type === 'rotation') fileType = 'rotation';
+
+// ✅ MONTH NAME
+let fileMonth = '';
+if (month) {
+  const date = new Date(month + '-01');
+  const m = date.toLocaleString('default', { month: 'short' });
+  const y = date.getFullYear();
+  fileMonth = `-${m}-${y}`;
+}
+
+// ✅ FINAL NAME
+a.download = `${fileType}-transactions${fileMonth}.csv`;
     a.click();
   };
   const calculateTotal = (tx, uptoIndex) => {
@@ -303,64 +371,224 @@ if (
   
     return tx.principal_amount + totalInterest;
   };
-  const handleExportPDF = () => {
-    const doc = new jsPDF();
+  const getReportTitle = (type, month) => {
+
+  let typeName = 'All Transactions';
+
+  if (type === 'normal') typeName = 'Normal Transactions';
+  if (type === 'rotation') typeName = 'Rotation Transactions';
+
+  let monthText = '';
+
+  if (month) {
+    const date = new Date(month + '-01');
+    const m = date.toLocaleString('default', { month: 'long' });
+    const y = date.getFullYear();
+    monthText = ` - ${m} ${y}`;
+  }
+
+  return `${typeName}${monthText} - Money Report`;
+};
+  const handleExportPDF = (type, month) => {
+    const doc = new jsPDF('landscape');
     doc.setFontSize(16);
-    doc.text("💰 MoMaS - Money Report", 14, 15);
+    doc.text(getReportTitle(type, month), 14, 15);
     
     doc.setFontSize(10);
     doc.text("Generated Transactions Report", 14, 22);
     const rows = [];
   
-    const filteredSortedData = [...data]
-  .sort((a, b) => {
-        if (a.person_name !== b.person_name) {
-          return a.person_name.localeCompare(b.person_name);
-        }
-        return new Date(a.start_date) - new Date(b.start_date);
-      });
+    let filteredSortedData = [...data];
+
+// ✅ TYPE FILTER
+if (type === 'normal') {
+  filteredSortedData = filteredSortedData.filter(
+    tx => tx.transaction_type === 'normal'
+  );
+}
+
+if (type === 'rotation') {
+  filteredSortedData = filteredSortedData.filter(
+    tx => tx.transaction_type !== 'normal'
+  );
+}
+
+// ✅ MONTH FILTER
+if (month) {
+  filteredSortedData = filteredSortedData.filter(tx => {
+    const txDate = new Date(tx.start_date);
+    return txDate.toISOString().slice(0, 7) === month;
+  });
+}
+
+// ✅ SORT
+filteredSortedData.sort((a, b) => {
+  if (a.person_name !== b.person_name) {
+    return a.person_name.localeCompare(b.person_name);
+  }
+  return new Date(a.start_date) - new Date(b.start_date);
+});
   
-    filteredSortedData.forEach((tx) => {
-  
-      // ORIGINAL
+    // 🔥 PDF EXPORT LOGIC
+filteredSortedData.forEach((tx) => {
+
+  // 👉 logic used: detect single payment
+  let isSinglePayment =
+    tx.installments?.length === 1 &&
+    Number(tx.installments[0].amount) >= tx.principal_amount;
+
+  // ================= SINGLE =================
+  if (isSinglePayment) {
+
+    const inst = tx.installments[0];
+
+    rows.push([
+      // 👉 logic used: show type inside name column
+`${tx.person_name} (${tx.transaction_type === 'normal' ? 'Normal' : 'Rotation'})`,
+      tx.type,
+      'Original',
+      tx.principal_amount.toLocaleString('en-IN'),
+      new Date(tx.start_date).toLocaleDateString('en-GB'),
+      new Date(tx.due_date).toLocaleDateString('en-GB'),
+
+      '', // 👉 no interest
+      tx.principal_amount.toLocaleString('en-IN'),
+
+      inst.amount.toLocaleString('en-IN'),
+      '0',
+
+      new Date(inst.date).toLocaleDateString('en-GB'),
+      'single payment',
+
+      'paid'
+    ]);
+
+  }
+
+  // ================= MULTIPLE =================
+  else {
+
+    rows.push([
+      // 👉 logic used: show type inside name column
+`${tx.person_name} (${tx.transaction_type === 'normal' ? 'Normal' : 'Rotation'})`,
+      tx.type,
+      'Original',
+      tx.principal_amount.toLocaleString('en-IN'),
+      new Date(tx.start_date).toLocaleDateString('en-GB'),
+      new Date(tx.due_date).toLocaleDateString('en-GB'),
+
+      '', // no interest
+      tx.principal_amount.toLocaleString('en-IN'),
+
+      '', '', '', '',
+      tx.status
+    ]);
+
+    let runningPaid = 0;
+
+    tx.installments?.forEach((inst, i) => {
+      runningPaid += Number(inst.amount);
+
       rows.push([
-        tx.person_name,
-        tx.type,
-        'Original',
-        tx.principal_amount.toLocaleString('en-IN'),
-        new Date(tx.start_date).toLocaleDateString('en-GB'),
-        new Date(tx.due_date).toLocaleDateString('en-GB'),
-        tx.base_interest.toLocaleString('en-IN'),
-        (tx.principal_amount + tx.base_interest).toLocaleString('en-IN'),
-tx.status
+        '',
+        '',
+        `Payment ${i + 1}`,
+        '',
+        '',
+        '',
+        '',
+        '',
+
+        inst.amount.toLocaleString('en-IN'),
+        (tx.principal_amount - runningPaid).toLocaleString('en-IN'),
+
+        new Date(inst.date).toLocaleDateString('en-GB'),
+        `₹${inst.amount}`,
+
+        runningPaid >= tx.principal_amount ? 'paid' : 'partial'
       ]);
-  
-      // EXTENSIONS
-      tx.extensions.forEach((ext, i) => {
-        rows.push([
-          tx.person_name,
-          tx.type,
-          `Extended ${i + 1}`,
-          tx.principal_amount.toLocaleString('en-IN'),
-          new Date(ext.old_due_date).toLocaleDateString('en-GB'),
-          new Date(tx.due_date).toLocaleDateString('en-GB'),
-          ext.extra_interest.toLocaleString('en-IN'),
-calculateTotal(tx, i).toLocaleString('en-IN'),
-'extended'
-        ]);
-      });
-  
-      // EMPTY ROW
-      rows.push(['', '', '', '', '', '', '', '', '']);
-      });
-  
-    autoTable(doc, {
-      startY: 30,
-      head: [['Name', 'Type', 'Stage', 'Principal', 'Start', 'Due', 'Interest', 'Total', 'Status']],
-      body: rows
     });
+
+  }
+
+  // 👉 gap between transactions
+  rows.push(['', '', '', '', '', '', '', '', '', '', '', '', '']);
+
+});
+  const nameHeader =
+  type === 'normal'
+    ? 'Name (Normal)'
+    : type === 'rotation'
+    ? 'Name (Rotation)'
+    : 'Name (All)';
+    autoTable(doc, {
+  startY: 30,
+
+  head: [[
+    'Name',
+    'Type',
+    'Stage',
+    'Principal',
+    'Start',
+    'Due',
+    'Interest',
+    'Total',
+    'Paid',
+    'Balance',
+    'Paid Date',
+    'Installments',
+    'Status'
+  ]],
+
+  body: rows,
+
+  // 👉 logic used: prevent text breaking
+  styles: {
+    fontSize: 8,
+    cellPadding: 2,
+    overflow: 'linebreak' // wrap properly
+  },
+
+  // 👉 logic used: give more width to Name column
+  columnStyles: {
+    0: { cellWidth: 35 }, // Name column bigger
+    1: { cellWidth: 18 },
+    2: { cellWidth: 18 },
+    3: { cellWidth: 22 },
+    4: { cellWidth: 22 },
+    5: { cellWidth: 22 },
+    6: { cellWidth: 18 },
+    7: { cellWidth: 22 },
+    8: { cellWidth: 18 },
+    9: { cellWidth: 20 },
+    10: { cellWidth: 25 },
+    11: { cellWidth: 30 },
+    12: { cellWidth: 18 }
+  },
+
+  // 👉 logic used: avoid cutting words
+  didParseCell: function (data) {
+    data.cell.styles.valign = 'middle';
+  }
+});
   
-    doc.save('transactions.pdf');
+    // ✅ TYPE NAME
+let fileType = 'all';
+
+if (type === 'normal') fileType = 'normal';
+if (type === 'rotation') fileType = 'rotation';
+
+// ✅ MONTH NAME
+let fileMonth = '';
+if (month) {
+  const date = new Date(month + '-01');
+  const m = date.toLocaleString('default', { month: 'short' });
+  const y = date.getFullYear();
+  fileMonth = `-${m}-${y}`;
+}
+
+// ✅ FINAL NAME
+doc.save(`${fileType}-transactions${fileMonth}.pdf`);
   };
 
   const handleExtend = async (id) => {
@@ -461,8 +689,9 @@ if (filterType === 'upcoming') {
     const type = (tx.transaction_type || 'rotation').toLowerCase();
     const isNormal = type.includes('normal');
 
-    return (
 
+    return (
+        
       
       <div
         key={tx._id}
@@ -670,6 +899,7 @@ fontWeight: 'bold',
   });
 
   return (
+    
     <div
   key={tx._id}
   style={{
@@ -797,9 +1027,13 @@ fontWeight: 'bold',
   
     return 'Are you sure?';
   };
- const normalData = data
+ const normalData = filteredData   // ✅ USE FILTERED DATA
   .filter(tx => tx.transaction_type === 'normal')
-  .filter(tx => (tx.paid_amount || 0) < tx.principal_amount);
+  // .filter(tx => (tx.paid_amount || 0) < tx.principal_amount);
+  .filter(tx => {
+  if (filterType === 'paid') return tx.status === 'paid';
+  return (tx.paid_amount || 0) < tx.principal_amount;
+});
 
 const rotationData = filteredData
   .filter(tx => tx.transaction_type !== 'normal')
@@ -1322,6 +1556,72 @@ const handleFullPayment = async () => {
 
   </div>
 )}
+      {/* 🔥 EXPORT POPUP */}
+      {showExportPopup && (
+  <div
+    onClick={() => setShowExportPopup(false)}
+    style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      background: 'rgba(0,0,0,0.4)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 5000
+    }}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        background: 'white',
+        padding: 20,
+        borderRadius: 10,
+        width: 300
+      }}
+    >
+
+      <h3>Export Options</h3>
+
+      {/* TYPE */}
+      <select
+        value={exportType}
+        onChange={(e) => setExportType(e.target.value)}
+        style={{ width: '100%', marginBottom: 10 }}
+      >
+        <option value="all">All</option>
+        <option value="normal">Normal</option>
+        <option value="rotation">Rotation</option>
+      </select>
+
+      {/* MONTH */}
+      <input
+        type="month"
+        value={exportMonth}
+        onChange={(e) => setExportMonth(e.target.value)}
+        style={{ width: '100%', marginBottom: 10 }}
+      />
+
+      {/* ACTION */}
+      <button
+        style={{ width: '100%' }}
+        onClick={() => {
+          if (showExportPopup === 'csv') {
+            handleExport(exportType, exportMonth);
+          } else {
+            handleExportPDF(exportType, exportMonth);
+          }
+          setShowExportPopup(false);
+        }}
+      >
+        Download
+      </button>
+
+    </div>
+  </div>
+)}
       {/* 🔥 POPUP (ADD HERE — TOP INSIDE RETURN) */}
       {showNoDuePopup && (
         <div style={{
@@ -1463,13 +1763,13 @@ const handleFullPayment = async () => {
   />
 
   {/* 📄 EXPORT */}
-  <button onClick={handleExport}>
-    Export CSV
-  </button>
+  <button onClick={() => setShowExportPopup('csv')}>
+  Export CSV
+</button>
 
-  <button onClick={handleExportPDF}>
-    Export PDF
-  </button>
+<button onClick={() => setShowExportPopup('pdf')}>
+  Export PDF
+</button>
 
 </div>
   

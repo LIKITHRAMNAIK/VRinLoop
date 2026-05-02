@@ -85,8 +85,10 @@ tx.extensions.forEach(ext => {
   }
 
   if (filterType === 'upcoming') {
-    filtered.sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
-  }
+  filtered = filtered
+    .filter(tx => tx.status !== 'paid' && new Date(tx.due_date) >= today)
+    .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+}
 
   const calculateTotal = (tx, uptoIndex) => {
     let totalInterest = tx.base_interest;
@@ -287,6 +289,7 @@ calculateTotal(tx, i).toLocaleString('en-IN'),
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
+          
           <h4 style={{ margin: 0 }}>Normal</h4>
 
           <span style={{
@@ -300,11 +303,62 @@ calculateTotal(tx, i).toLocaleString('en-IN'),
             {tx.type === 'incoming' ? 'IN' : 'OUT'}
           </span>
         </div>
+          {/* 🔥 PRINCIPAL BELOW HEADER */}
+<p style={{
+  margin: '6px 0',
+  fontWeight: 'bold'
+}}>
+  Principal: {formatCurrency(tx.principal_amount)}
+</p>
+        <p style={{ color: '#4CAF50', fontWeight: 500 }}>
+  Start: {new Date(tx.start_date).toDateString()}
+</p>
 
-        <p>Start: {new Date(tx.start_date).toDateString()}</p>
+        <p style={{ color: '#f44336', fontWeight: 500 }}>
+  Due: {new Date(tx.due_date).toDateString()}
+</p>
+        {/* 🔥 INSTALLMENT HISTORY */}
+{tx.installments &&
+ tx.installments.length > 0 &&
+ !(tx.installments.length === 1 &&
+   tx.installments[0].amount === tx.principal_amount) && (
+  <div style={{ marginTop: 6 }}>
+    {tx.installments.map((inst, i) => (
+      <p key={i} style={{
+  color: '#ff9800',
+  margin: 0,
+  fontWeight: 500
+}}>
+        ₹{inst.amount} paid on {new Date(inst.date).toDateString()}
+      </p>
+    ))}
+  </div>
+)}
 
-        <p>Due: {new Date(tx.due_date).toDateString()}</p>
 
+        {/* 🔥 PAID DATE (ADD THIS) */}
+{tx.status === 'paid' && tx.paid_date && (() => {
+
+  const paid = new Date(tx.paid_date);
+  const due = new Date(tx.due_date);
+
+  const isLate = paid > due;
+
+  const diffDays = Math.ceil((paid - due) / (1000 * 60 * 60 * 24));
+
+  return (
+    <p style={{
+      color: isLate ? '#f44336' : '#4CAF50',
+      fontWeight: 'bold'
+    }}>
+      {isLate
+        ? `Paid Late (${diffDays} day${diffDays > 1 ? 's' : ''}) on ${paid.toDateString()}`
+        : `Paid on: ${paid.toDateString()}`
+      }
+    </p>
+  );
+
+})()}
         {/* ✅ PAID BOX */}
         {tx.status === 'paid' && (
           <div style={{
@@ -320,7 +374,20 @@ calculateTotal(tx, i).toLocaleString('en-IN'),
           </div>
         )}
 
-        <p><b>Total {formatCurrency(tx.principal_amount)}</b></p>
+        {/* <p><b>Total {formatCurrency(tx.principal_amount)}</b></p> */}
+        {/* <p style={{ marginTop: 6, fontWeight: 'bold' }}>
+  Balance: {formatCurrency(
+    tx.principal_amount - (tx.paid_amount || 0)
+  )}
+</p> */}
+
+{tx.status !== 'paid' && (
+  <p style={{ marginTop: 6, fontWeight: 'bold' }}>
+    Balance: {formatCurrency(
+      tx.principal_amount - (tx.paid_amount || 0)
+    )}
+  </p>
+)}
 
       </div>
     );
@@ -370,6 +437,7 @@ calculateTotal(tx, i).toLocaleString('en-IN'),
     {/* DATES */}
     <p>Start: {new Date(tx.start_date).toDateString()}</p>
     <p>Due: {new Date(tx.due_date).toDateString()}</p>
+    
 
     {/* DATA */}
     <p>Status: {tx.status}</p>

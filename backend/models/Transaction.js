@@ -28,11 +28,22 @@ const extensionSchema = new mongoose.Schema({
 });
 
 const transactionSchema = new mongoose.Schema({
-
+  installments: [
+  {
+    amount: Number,
+    date: {
+      type: Date,
+      default: Date.now
+    }
+  }
+],
   transaction_type: {
   type: String,
   enum: ['rotation', 'normal', 'loan'],
   default: 'rotation'
+},
+paid_date: {
+  type: Date
 },
 
   person_name: {

@@ -195,27 +195,37 @@ exports.markAsPaid = async (req, res) => {
 
     // ✅ NORMAL → INSTALLMENT LOGIC
     if (tx.transaction_type === 'normal') {
-      const remaining =
-  tx.principal_amount - (tx.paid_amount || 0);
 
-const pay = Math.min(Number(amount), remaining);
+  const remaining =
+    tx.principal_amount - (tx.paid_amount || 0);
 
-tx.paid_amount = (tx.paid_amount || 0) + pay;
+  const pay = Math.min(Number(amount), remaining);
 
-console.log("PAY:", pay);
-console.log("TOTAL PAID:", tx.paid_amount);
+  tx.paid_amount = (tx.paid_amount || 0) + pay;
 
-      // ✅ if fully paid → mark paid
-      if (tx.paid_amount >= tx.principal_amount) {
-        tx.status = 'paid';
-      }
+  // 🔥 ADD INSTALLMENT ENTRY
+  if (!tx.installments) {
+    tx.installments = [];
+  }
 
-      await tx.save();
-      return res.json(tx);
-    }
+  tx.installments.push({
+    amount: pay,
+    date: new Date()
+  });
+
+  // FULLY PAID
+  if (tx.paid_amount >= tx.principal_amount) {
+    tx.status = 'paid';
+    tx.paid_date = new Date();
+  }
+
+  await tx.save();
+  return res.json(tx);
+}
 
     // ✅ ROTATION → FULL PAYMENT
     tx.status = 'paid';
+    tx.paid_date = new Date();
     await tx.save();
 
     res.json(tx);
