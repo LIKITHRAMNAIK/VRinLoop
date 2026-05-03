@@ -5,9 +5,6 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatCurrency } from '../utils/format';
 
-
-
-
 const getColor = (name) => {
   const colors = ['#e3f2fd', '#fce4ec', '#e8f5e9', '#fff3e0'];
   return colors[name.charCodeAt(0) % colors.length];
@@ -55,12 +52,18 @@ const [exportMonth, setExportMonth] = useState('');
   const [showNoDuePopup, setShowNoDuePopup] = useState(false);
 
   const today = new Date();
+  today.setHours(0,0,0,0);
   const dueTransactions = data.filter(
-    tx => new Date(tx.due_date) < today && tx.status !== 'paid'
+    tx => {
+      const due = new Date(tx.due_date);
+      due.setHours(0,0,0,0);
+      return due < today && tx.status !== 'paid';
+    }
   );
   const upcomingTransactions = data
   .filter(tx => {
     const due = new Date(tx.due_date);
+    due.setHours(0,0,0,0);
     const diff = (due - today) / (1000 * 60 * 60 * 24);
     return diff >= 0 && diff <= 7 && tx.status !== 'paid';
   })
@@ -80,11 +83,19 @@ const [exportMonth, setExportMonth] = useState('');
   const paidCount = data.filter(tx => tx.status === 'paid').length;
   const extendedCount = data.filter(tx => tx.extensions.length > 0).length;
   const dueCount = data.filter(
-    tx => new Date(tx.due_date) < today && tx.status !== 'paid'
+    tx => {
+      const due = new Date(tx.due_date);
+      due.setHours(0,0,0,0);
+      return due < today && tx.status !== 'paid';
+    }
   ).length;
 
   const totalDueAmount = data
-  .filter(tx => new Date(tx.due_date) < today && tx.status !== 'paid')
+  .filter(tx => {
+    const due = new Date(tx.due_date);
+    due.setHours(0,0,0,0);
+    return due < today && tx.status !== 'paid';
+  })
   .reduce((sum, tx) => {
     let totalInterest = tx.base_interest;
 
@@ -137,36 +148,33 @@ const [exportMonth, setExportMonth] = useState('');
     fetchData();
   };
 
-  const handleDelete = (id) => {
-    setConfirmAction({
-      type: 'delete',
-      id
-    });
-  };
-
   const executeAction = async () => {
   if (!confirmAction) return;
 
-  const { type, id, tx } = confirmAction;
+  const { type, id } = confirmAction;
 
-  // 🔥 GET TRANSACTION TYPE
   const txData = data.find(t => t._id === id);
   const transactionType = txData?.transaction_type || 'rotation';
 
-  // ✅ NORMAL → OPEN PAYMENT POPUP (NO CONFIRM)
-  if (type === 'paid' && transactionType === 'normal') {
-    setPayId(id);
-    setConfirmAction(null);
-    return;
-  }
-
   try {
+
     if (type === 'delete') {
       await API.delete(`/delete/${id}`);
     }
 
     if (type === 'paid') {
+
+      // 🔥 NORMAL → open popup
+      if (transactionType === 'normal') {
+        setPayId(id);
+        setConfirmAction(null);
+        return;
+      }
+
+      // 🔥 ROTATION → direct payment
       await API.put(`/paid/${id}`);
+
+      alert("Marked as Paid ✅");   // 👈 ADD THIS (IMPORTANT)
     }
 
     if (type === 'extend') {
@@ -182,14 +190,15 @@ const [exportMonth, setExportMonth] = useState('');
     }
 
     setConfirmAction(null);
-    fetchData();
+
+    fetchData();   // 👈 MUST BE AFTER EVERYTHING
 
   } catch (err) {
     console.log(err);
+    alert("Error ❌");
     setConfirmAction(null);
   }
 };
-
   const handleExport = (type, month) => {
 
     const rows = [];
@@ -640,11 +649,16 @@ if (filterType === 'pending') {
 }
 
 if (filterType === 'upcoming') {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
   filteredData = filteredData.filter(tx => {
-    if (tx.transaction_type === 'normal') {
-      return true; // ✅ always show normal
-    }
-    return new Date(tx.due_date) >= today && tx.status !== 'paid';
+    const due = new Date(tx.due_date);
+    due.setHours(0,0,0,0);
+
+    if (tx.transaction_type === 'normal') return true;
+
+    return tx.status !== 'paid'; // ✅ SHOW BOTH upcoming + due
   });
 }
 
@@ -658,7 +672,11 @@ if (filterType === 'upcoming') {
 
   if (filterType === 'due') {
     filteredData = filteredData.filter(
-      tx => new Date(tx.due_date) < today && tx.status !== 'paid'
+      tx => {
+        const due = new Date(tx.due_date);
+        due.setHours(0,0,0,0);
+        return due < today && tx.status !== 'paid';
+      }
     );
   }
 
@@ -688,6 +706,7 @@ if (filterType === 'upcoming') {
     const overdueDays = Math.floor((today - due) / (1000 * 60 * 60 * 24));
     const type = (tx.transaction_type || 'rotation').toLowerCase();
     const isNormal = type.includes('normal');
+    
 
 
     return (
@@ -705,7 +724,12 @@ if (filterType === 'upcoming') {
       >
   <div
     key={tx._id}
-    onClick={() => navigate(`/profile/${tx.person_name}`)}   // ✅ CLICKABLE
+    onClick={() => {
+      // navigate(`/profile/${tx.person_name}`);
+      navigate(`/profile/${tx.person_name}`, {
+  state: { type: tx.transaction_type }
+});
+    }}   // ✅ CLICKABLE
     style={{
       background: '#ffe5e5',
       padding: '10px',
@@ -787,6 +811,7 @@ fontWeight: 'bold',
   const paid = tx.paid_amount || 0;
   const total = tx.principal_amount;
   const balance = total - paid;
+  const isOverdue = new Date(tx.due_date) < new Date() && tx.status !== 'paid';
 
   const start = new Date(tx.start_date).toDateString();
   const due = new Date(tx.due_date).toDateString();
@@ -795,14 +820,20 @@ fontWeight: 'bold',
     <div style={{
       padding: 15,
       borderRadius: 12,
-      background: '#e3f2fd',
+      background: isOverdue ? '#ffe5e5' : '#e3f2fd',
+      border: isOverdue ? '2px solid #f44336' : 'none',
       position: 'relative'
     }}>
 
       {/* 🔥 TITLE + BADGE */}
       <h4
   style={{ marginBottom: 5, cursor: 'pointer', color: 'blue' }}
-  onClick={() => navigate(`/profile/${tx.person_name}`)}
+  onClick={() => {
+  // navigate(`/profile/${tx.person_name}`);
+  navigate(`/profile/${tx.person_name}`, {
+  state: { type: tx.transaction_type }
+});
+}}
 >
   {tx.person_name}
 </h4>
@@ -833,7 +864,11 @@ fontWeight: 'bold',
       </p>
 
       <hr />
-
+      {isOverdue && (
+  <p style={{ color: 'red', fontWeight: 'bold' }}>
+    ⚠ Overdue
+  </p>
+)}
       {/* 💰 DATA */}
       <p>Total: {formatCurrency(total)}</p>
       <p>Paid: {formatCurrency(paid)}</p>
@@ -855,21 +890,35 @@ fontWeight: 'bold',
 
       {/* 🔘 BUTTONS */}
       <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-        <button onClick={() => setPayId(tx._id)}>Pay</button>
 
-        <button onClick={() => {
-          setEditId(tx._id);
-          setEditForm(tx);
-        }}>
-          Edit
-        </button>
+  {tx.status === 'paid' ? (
+    <button
+      onClick={() =>
+        setConfirmAction({ type: 'delete', id: tx._id })
+      }
+    >
+      Delete
+    </button>
+  ) : (
+    <>
+      <button onClick={() => setPayId(tx._id)}>Pay</button>
 
-        <button onClick={() =>
-          setConfirmAction({ type: 'delete', id: tx._id })
-        }>
-          Delete
-        </button>
-      </div>
+      <button onClick={() => {
+        setEditId(tx._id);
+        setEditForm(tx);
+      }}>
+        Edit
+      </button>
+
+      <button onClick={() =>
+        setConfirmAction({ type: 'delete', id: tx._id })
+      }>
+        Delete
+      </button>
+    </>
+  )}
+
+</div>
 
     </div>
   );
@@ -887,6 +936,12 @@ fontWeight: 'bold',
     }
   });
 
+  const today = new Date();
+const dueDate = new Date(tx.due_date);
+
+const isOverdue = dueDate < today && tx.status !== 'paid';
+
+const displayStatus = isOverdue ? 'overdue' : tx.status;
   const total = tx.principal_amount + totalInterest;
 
   const due = new Date(tx.due_date);
@@ -905,22 +960,33 @@ fontWeight: 'bold',
   style={{
     padding: '12px',
     borderRadius: '10px',
-    background:
-      overdueDays > 0
-        ? '#ffcccc'
-        : tx.status === 'paid'
-        ? '#e8f5e9'
-        : '#fff3cd',
+    background: isOverdue
+  ? '#ffe5e5'
+  : tx.status === 'paid'
+  ? '#e8f5e9'
+  : '#fff3cd',
+
+border: isOverdue ? '2px solid #f44336' : 'none',
     boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
 
     position: 'relative'   // 🔥 ADD THIS LINE
   }}
 >
 
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+      {/* <div style={{ display: 'flex', justifyContent: 'space-between' }}> */}
+      <div style={{
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center'
+}}>
         <h4
   style={{ marginBottom: 5, cursor: 'pointer', color: 'blue' }}
-  onClick={() => navigate(`/profile/${tx.person_name}`)}
+  onClick={() => {
+  // navigate(`/profile/${tx.person_name}`);
+  navigate(`/profile/${tx.person_name}`, {
+  state: { type: tx.transaction_type }
+});
+}}
 >
   {tx.person_name}
 </h4>
@@ -940,48 +1006,96 @@ fontWeight: 'bold',
 </span>
       </div>
 
-      <p><b>Start:</b> {new Date(tx.start_date).toDateString()}</p>
+      {/* <p><b>Start:</b> {new Date(tx.start_date).toDateString()}</p> */}
+      <p>
+  <b>Start:</b>{' '}
+  <span style={{ color: 'green', fontWeight: 'bold' }}>
+    {new Date(tx.start_date).toDateString()}
+  </span>
+</p>
 
-      <div>
-        <b>Due:</b>
-        {dueHistory.map((date, i) => {
-          const last = i === dueHistory.length - 1;
-          return (
-            <p key={i}
-              style={{
-                color: last ? 'green' : 'red',
-                textDecoration: last ? 'none' : 'line-through'
-              }}>
-              {new Date(date).toDateString()}
-            </p>
-          );
-        })}
-      </div>
+      <p>
+  <b>Due:</b>{' '}
+  <span style={{
+    color: tx.status === 'extended' ? '#f44336' : 'black',
+    textDecoration: tx.status === 'extended' ? 'line-through' : 'none'
+  }}>
+    {new Date(tx.due_date).toDateString()}
+  </span>
+</p>
+
+{displayStatus === 'overdue' && (
+  <p style={{ color: '#f44336', fontWeight: 'bold' }}>
+    ⚠ Overdue
+  </p>
+)}
+
+{tx.extensions && tx.extensions.length > 0 && (
+  <p style={{ marginLeft: 20, color: '#f44336', fontWeight: 'bold' }}>
+    {new Date(
+      tx.extensions[tx.extensions.length - 1].new_due_date
+    ).toDateString()}
+  </p>
+)}
 
       {overdueDays > 0 && (
         <p style={{ color: 'red' }}>Overdue: {overdueDays} days</p>
       )}
 
-      <p><b>Status:</b> {tx.status}</p>
-      <p><b>Principal:</b> {formatCurrency(tx.principal_amount)}</p>
-      <p><b>Interest:</b> {formatCurrency(totalInterest)}</p>
-      <p><b>Total {formatCurrency(total)}</b></p>
+<p>
+  {/* ❌ HIDE STATUS IF OVERDUE */}
+{displayStatus !== 'overdue' && (
+  <p>
+    <b>Status:</b>{' '}
+    {displayStatus === 'paid' ? (
+      <span style={{
+        background: '#4CAF50',
+        color: 'white',
+        padding: '3px 10px',
+        borderRadius: 8,
+        fontWeight: 'bold'
+      }}>
+        PAID
+      </span>
+    ) : (
+      <span style={{
+        color:
+          displayStatus === 'extended'
+            ? '#f44336'
+            : displayStatus === 'pending'
+            ? '#ff9800'
+            : 'black',
+        fontWeight: 'bold'
+      }}>
+        {displayStatus.toUpperCase()}
+      </span>
+    )}
+  </p>
+  )}
+</p>
+<p><b>Principal:</b> {formatCurrency(tx.principal_amount)}</p>
+<p><b>Interest:</b> {formatCurrency(totalInterest)}</p>
+<p><b>Total {formatCurrency(total)}</b></p>
 
-      <button
-  onClick={() => {
-    const type = tx.transaction_type || 'rotation';
+<div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
 
-    if (type === 'normal') {
-      // ✅ OPEN PAYMENT POPUP
-      setPayId(tx._id);
-    } else {
-      // ✅ NORMAL CONFIRM FLOW
-      setConfirmAction({ type: 'paid', id: tx._id });
-    }
-  }}
->
-  {tx.transaction_type === 'normal' ? 'Pay' : 'Paid'}
-</button>
+
+  {tx.status === 'paid' ? (
+    
+    <button
+      onClick={() =>
+        setConfirmAction({ type: 'delete', id: tx._id })
+      }
+    >
+      Delete
+    </button>
+  ) : (
+    <>
+      <button onClick={() =>
+        setConfirmAction({ type: 'paid', id: tx._id })
+      }>
+        Paid
+      </button>
 
       <button onClick={() =>
         setConfirmAction({ type: 'extend', id: tx._id })
@@ -1000,8 +1114,11 @@ fontWeight: 'bold',
       }>
         Delete
       </button>
+    </>
+  )}
 
-    </div>
+</div>
+</div>
   );
 };
 
@@ -1131,10 +1248,64 @@ const handleFullPayment = async () => {
       >
         <h3>{getConfirmMessage()}</h3>
 
-        <div style={{ marginTop: 15, display: 'flex', gap: 10, justifyContent: 'center' }}>
-          <button onClick={executeAction}>Confirm</button>
-          <button onClick={() => setConfirmAction(null)}>Cancel</button>
-        </div>
+        <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+  <button
+  style={{
+    flex: 1,
+    background: '#f44336',
+    color: 'white',
+    border: 'none',
+    padding: '8px',
+    borderRadius: '6px',
+    cursor: 'pointer'
+  }}
+  onClick={async () => {
+
+  if (confirmAction.type === 'delete') {
+    await API.delete(`/delete/${confirmAction.id}`);
+  }
+
+  else if (confirmAction.type === 'paid') {
+  await API.put(`/paid/${confirmAction.id}`, {
+    amount: null
+  });
+}
+
+  else if (confirmAction.type === 'extend') {
+    setExtendId(confirmAction.id);
+    setConfirmAction(null);
+    return;
+  }
+
+  else if (confirmAction.type === 'edit') {
+    setEditId(confirmAction.id);
+    setEditForm(confirmAction.tx);
+    setConfirmAction(null);
+    return;
+  }
+
+  setConfirmAction(null);
+  fetchData();
+}}
+>
+  Confirm
+</button>
+
+  <button
+    style={{
+      flex: 1,
+      background: '#9e9e9e',
+      color: 'white',
+      border: 'none',
+      padding: '8px',
+      borderRadius: '6px',
+      cursor: 'pointer'
+    }}
+    onClick={() => setConfirmAction(null)}
+  >
+    Cancel
+  </button>
+</div>
       </div>
     </div>
   );
@@ -1169,25 +1340,43 @@ const handleFullPayment = async () => {
       }}
     >
 
-      <h3>Payment</h3>
-
+      <h3 style={{ textAlign: 'center', marginBottom: 15 }}>
+  Payment
+</h3>
       {!payType && (
-        <>
-          <button
-            style={{ width: '100%', marginBottom: 10 }}
-            onClick={() => setPayType('installment')}
-          >
-            Pay by Installment
-          </button>
+  <>
+    <button
+      style={{
+        width: '100%',
+        marginBottom: 10,
+        background: '#ff9800',
+        color: 'white',
+        border: 'none',
+        padding: '8px',
+        borderRadius: '6px',
+        cursor: 'pointer'
+      }}
+      onClick={() => setPayType('installment')}
+    >
+      Pay by Installment
+    </button>
 
-          <button
-            style={{ width: '100%' }}
-            onClick={() => setPayType('full')}
-          >
-            Full Payment
-          </button>
-        </>
-      )}
+    <button
+      style={{
+        width: '100%',
+        background: '#f44336',
+        color: 'white',
+        border: 'none',
+        padding: '8px',
+        borderRadius: '6px',
+        cursor: 'pointer'
+      }}
+      onClick={() => setPayType('full')}
+    >
+      Full Payment
+    </button>
+  </>
+)}
 
       {payType === 'installment' && (
         <>
@@ -1245,55 +1434,101 @@ const handleFullPayment = async () => {
         width: 300
       }}
     >
-      <h3>Extend Transaction</h3>
+      <h3 style={{ textAlign: 'center', marginBottom: 15 }}>
+  Extend Transaction
+</h3>
 
-      <input
-        type="date"
-        onChange={(e) =>
-          setExtendForm({
-            ...extendForm,
-            new_due_date: e.target.value
-          })
-        }
-      />
+{/* CURRENT DUE DATE (READ ONLY) */}
+<div style={{ marginBottom: 10 }}>
+  <p style={{ margin: 0, fontWeight: 'bold' }}>Current Due:</p>
+  <p style={{ color: '#f44336', margin: 0 }}>
+    {new Date(
+      data.find(tx => tx._id === extendId)?.due_date
+    ).toDateString()}
+  </p>
+</div>
 
-      <input
-        type="number"
-        placeholder="Extra Interest"
-        onChange={(e) =>
-          setExtendForm({
-            ...extendForm,
-            extra_interest: Number(e.target.value)
-          })
-        }
-      />
+{/* NEW DATE */}
+<div style={{ marginBottom: 10 }}>
+  <p style={{ margin: 0 }}>Extend Date:</p>
+  <input
+    type="date"
+    onChange={(e) =>
+      setExtendForm({
+        ...extendForm,
+        new_due_date: e.target.value
+      })
+    }
+    style={{ width: '100%' }}
+  />
+</div>
 
-      <label style={{ display: 'block', marginTop: 5 }}>
-        <input
-          type="checkbox"
-          onChange={(e) =>
-            setExtendForm({
-              ...extendForm,
-              interest_paid: e.target.checked
-            })
-          }
-        />
-        Last Interest Paid
-      </label>
+{/* EXTRA INTEREST */}
+<div style={{ marginBottom: 10 }}>
+  <p style={{ margin: 0 }}>Extra Interest:</p>
+  <input
+    type="number"
+    placeholder="Enter amount"
+    onChange={(e) =>
+      setExtendForm({
+        ...extendForm,
+        extra_interest: Number(e.target.value)
+      })
+    }
+    style={{ width: '100%' }}
+  />
+</div>
 
-      <div style={{ marginTop: 10, display: 'flex', gap: 10 }}>
-        <button
-          onClick={async () => {
-            await API.put(`/extend/${extendId}`, extendForm);
-            setExtendId(null);
-            fetchData();
-          }}
-        >
-          Save
-        </button>
+{/* CHECKBOX */}
+<label style={{ display: 'block', marginTop: 5 }}>
+  <input
+    type="checkbox"
+    onChange={(e) =>
+      setExtendForm({
+        ...extendForm,
+        interest_paid: e.target.checked
+      })
+    }
+  />{' '}
+  Last Interest Paid
+</label>
 
-        <button onClick={() => setExtendId(null)}>Cancel</button>
-      </div>
+{/* BUTTONS */}
+<div style={{ marginTop: 15, display: 'flex', gap: 10 }}>
+  <button
+    style={{
+      flex: 1,
+      background: '#4CAF50',
+      color: 'white',
+      border: 'none',
+      padding: '8px',
+      borderRadius: '6px',
+      cursor: 'pointer'
+    }}
+    onClick={async () => {
+      await API.put(`/extend/${extendId}`, extendForm);
+      setExtendId(null);
+      fetchData();
+    }}
+  >
+    Save
+  </button>
+
+  <button
+    style={{
+      flex: 1,
+      background: '#f44336',
+      color: 'white',
+      border: 'none',
+      padding: '8px',
+      borderRadius: '6px',
+      cursor: 'pointer'
+    }}
+    onClick={() => setExtendId(null)}
+  >
+    Cancel
+  </button>
+</div>
     </div>
   </div>
 )}
@@ -1323,60 +1558,72 @@ const handleFullPayment = async () => {
         width: 300
       }}
     >
-      <h3>Edit Transaction</h3>
+      {/* <h3>Edit Transaction vbnm</h3> */}
 
-      <input
-        type="number"
-        value={editForm.principal_amount}
-        onChange={(e) =>
-          setEditForm({ ...editForm, principal_amount: e.target.value })
-        }
-        placeholder="Principal"
-      />
+      <h3 style={{ textAlign: 'center' }}>Edit Transaction</h3>
 
-      <input
-        type="number"
-        value={editForm.base_interest}
-        onChange={(e) =>
-          setEditForm({ ...editForm, base_interest: e.target.value })
-        }
-        placeholder="Interest"
-      />
+<div style={{ display:'flex', alignItems:'center', marginBottom:10 }}>
+  <p style={{ width:60 }}>Total:</p>
+  <input type="number" value={editForm.principal_amount || ''}
+  onChange={(e)=>setEditForm({...editForm,principal_amount:e.target.value})}
+  style={{ flex:1 }} />
+</div>
 
-      <input
-        type="date"
-        value={editForm.start_date}
-        onChange={(e) =>
-          setEditForm({ ...editForm, start_date: e.target.value })
-        }
-      />
+<div style={{ display:'flex', alignItems:'center', marginBottom:10 }}>
+  <p style={{ width:60 }}>Start:</p>
+  <input type="date" value={editForm.start_date?.substring(0,10) || ''}
+  onChange={(e)=>setEditForm({...editForm,start_date:e.target.value})}
+  style={{ flex:1 }} />
+</div>
 
-      <input
-        type="date"
-        value={editForm.due_date}
-        onChange={(e) =>
-          setEditForm({ ...editForm, due_date: e.target.value })
-        }
-      />
+<div style={{ display:'flex', alignItems:'center', marginBottom:10 }}>
+  <p style={{ width:60 }}>Due:</p>
+  <input type="date" value={editForm.due_date?.substring(0,10) || ''}
+  onChange={(e)=>setEditForm({...editForm,due_date:e.target.value})}
+  style={{ flex:1 }} />
+</div>
 
-      <div style={{ marginTop: 10, display: 'flex', gap: 10 }}>
-        <button
-          onClick={async () => {
-            await API.put(`/update/${editId}`, {
-              ...editForm,
-              principal_amount: Number(editForm.principal_amount),
-              base_interest: Number(editForm.base_interest)
-            });
 
-            setEditId(null);
-            fetchData();
-          }}
-        >
-          Save
-        </button>
+      <div style={{ marginTop:10, display:'flex', gap:10 }}>
+  <button
+    style={{
+      flex:1,
+      background:'#4CAF50',
+      color:'white',
+      border:'none',
+      padding:'8px',
+      borderRadius:'6px',
+      cursor:'pointer'
+    }}
+    onClick={async () => {
+      await API.put(`/update/${editId}`, {
+        ...editForm,
+        principal_amount: Number(editForm.principal_amount),
+        base_interest: Number(editForm.base_interest)
+      });
 
-        <button onClick={() => setEditId(null)}>Cancel</button>
-      </div>
+      setEditId(null);
+      fetchData();
+    }}
+  >
+    Save
+  </button>
+
+  <button
+    style={{
+      flex:1,
+      background:'#f44336',
+      color:'white',
+      border:'none',
+      padding:'8px',
+      borderRadius:'6px',
+      cursor:'pointer'
+    }}
+    onClick={() => setEditId(null)}
+  >
+    Cancel
+  </button>
+</div>
     </div>
   </div>
 )}
@@ -1426,9 +1673,16 @@ const handleFullPayment = async () => {
 
         const total = tx.principal_amount + totalInterest;
 
-        const overdueDays = Math.floor(
-          (today - new Date(tx.due_date)) / (1000 * 60 * 60 * 24)
-        );
+        const todayDate = new Date();
+todayDate.setHours(0, 0, 0, 0);
+
+const dueDate = new Date(tx.due_date);
+dueDate.setHours(0, 0, 0, 0);
+
+const overdueDays = Math.max(
+  1,
+  Math.floor((todayDate - dueDate) / (1000 * 60 * 60 * 24))
+);
 
         return (
           <div
@@ -1679,9 +1933,6 @@ const handleFullPayment = async () => {
 >
   Pending: {pendingCount}
 </span>
-        {/* <span style={badgeStyle('#4caf50')}>Paid: {paidCount}</span>
-        <span style={badgeStyle('#2196f3')}>Extended: {extendedCount}</span>
-        <span style={badgeStyle('#f44336')}>Due: {dueCount}</span> */}
 
 <span
   onClick={() => setFilterType('paid')}
@@ -1715,7 +1966,6 @@ const handleFullPayment = async () => {
 >
   Due: {dueCount}
 </span>
-{/* <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}></div> */}
       </div>
       
       <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>

@@ -20,6 +20,23 @@ function Profile() {
   const navigate = useNavigate(); 
   const [data, setData] = useState(null);
   const [filterType, setFilterType] = useState('upcoming');
+  // 👉 logic used: enable dashboard actions in profile
+const [payId, setPayId] = useState(null);
+const [payAmount, setPayAmount] = useState('');
+const [payType, setPayType] = useState('');
+
+const [editId, setEditId] = useState(null);
+const [editForm, setEditForm] = useState({});
+
+// 👉 logic used: extend popup
+const [extendId, setExtendId] = useState(null);
+const [extendForm, setExtendForm] = useState({
+  new_due_date: '',
+  extra_interest: 0,
+  interest_paid: false
+});
+
+const [confirmAction, setConfirmAction] = useState(null);
 
   const fetchData = () => {
     API.get(`/person/${name}`)
@@ -271,7 +288,88 @@ calculateTotal(tx, i).toLocaleString('en-IN'),
   
     doc.save(`${name}-transactions.pdf`);
   };
+// 👉 logic used: handle installment payment (same as dashboard)
+const handleInstallment = async () => {
+  if (!payAmount) {
+    alert("Enter amount");
+    return;
+  }
 
+  try {
+    await API.put(`/paid/${payId}`, {
+      amount: Number(payAmount)
+    });
+
+    alert("Payment successful ✅");
+
+    setPayAmount('');
+    setPayId(null);
+    fetchData();
+
+  } catch (err) {
+    console.log(err);
+    alert("Error ❌");
+  }
+};
+
+// 👉 logic used: full payment
+const handleFullPayment = async () => {
+  try {
+    const tx = data.transactions.find(t => t._id === payId);
+
+    const remaining =
+      Number(tx.principal_amount) - Number(tx.paid_amount || 0);
+
+    if (remaining <= 0) {
+      alert("Already fully paid");
+      return;
+    }
+
+    await API.put(`/paid/${payId}`, {
+      amount: remaining
+    });
+
+    alert("Full Payment Done ✅");
+
+    setPayId(null);
+    setPayType(null);
+
+    fetchData();
+
+  } catch (err) {
+    console.log(err);
+    alert("Error ❌");
+  }
+};
+
+// 👉 logic used: delete
+const handleDelete = async () => {
+  try {
+    await API.delete(`/delete/${confirmAction.id}`);
+    setConfirmAction(null);
+    fetchData();
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+// 👉 logic used: edit save
+const handleEditSave = async () => {
+  try {
+    await API.put(`/update/${editId}`, {
+  ...editForm,
+
+  // 👉 logic used: skip interest update for normal
+  ...(editForm.transaction_type !== 'normal' && {
+    base_interest: Number(editForm.base_interest)
+  })
+});
+    setEditId(null);
+    fetchData();
+  } catch (err) {
+    console.log(err);
+  }
+};
   const renderCard = (tx) => {
 
   // ✅ NORMAL CARD
@@ -291,6 +389,7 @@ calculateTotal(tx, i).toLocaleString('en-IN'),
         }}>
           
           <h4 style={{ margin: 0 }}>Normal</h4>
+          {/* <h4 style={{ margin: 0 }}>{tx.person_name}</h4> */}
 
           <span style={{
             padding: '2px 8px',
@@ -388,7 +487,56 @@ calculateTotal(tx, i).toLocaleString('en-IN'),
     )}
   </p>
 )}
+{/* 👉 logic used: add dashboard buttons to profile normal card */}
+{/* 👉 logic used: show delete for paid, full actions for pending */}
+{/* {tx.status === 'paid' ? (
+  <div style={{ marginTop: 10 }}>
+    <button onClick={() =>
+      setConfirmAction({ type: 'delete', id: tx._id })
+    }>
+      Delete
+    </button>
+  </div>
+) : (
+  <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+    <button onClick={() => setPayId(tx._id)}>Pay</button>
 
+    <button onClick={() => {
+      setEditId(tx._id);
+      setEditForm(tx);
+    }}>
+      Edit
+    </button>
+
+    <button onClick={() =>
+      setConfirmAction({ type: 'delete', id: tx._id })
+    }>
+      Delete
+    </button>
+  </div>
+)} */}
+
+<div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+
+  {/* 👉 SAME AS DASHBOARD */}
+  <button onClick={() => setPayId(tx._id)}>
+    Pay
+  </button>
+
+  <button onClick={() => {
+    setEditId(tx._id);
+    setEditForm(tx);
+  }}>
+    Edit
+  </button>
+
+  <button onClick={() =>
+    setConfirmAction({ type: 'delete', id: tx._id })
+  }>
+    Delete
+  </button>
+
+</div>
       </div>
     );
   }
@@ -440,7 +588,46 @@ calculateTotal(tx, i).toLocaleString('en-IN'),
     
 
     {/* DATA */}
-    <p>Status: {tx.status}</p>
+    <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+
+  {/* ✅ PAID BUTTON */}
+  <button
+  onClick={() =>
+    setConfirmAction({ type: 'paid', id: tx._id })
+  }
+>
+  Paid
+</button>
+
+  {/* ✅ EXTEND */}
+  <button
+    onClick={() =>
+      setExtendId(tx._id)
+    }
+  >
+    Extend
+  </button>
+
+  {/* ✅ EDIT */}
+  <button
+  onClick={() => {
+    setEditId(tx._id);
+    setEditForm(tx);
+  }}
+>
+  Edit
+</button>
+
+  {/* ✅ DELETE */}
+  <button
+    onClick={() =>
+      setConfirmAction({ type: 'delete', id: tx._id })
+    }
+  >
+    Delete
+  </button>
+
+</div>
     <p>Principal {formatCurrency(tx.principal_amount)}</p>
     <p>Interest {formatCurrency(totalInterest)}</p>
     <p><b>Total {formatCurrency(total)}</b></p>
@@ -529,6 +716,233 @@ calculateTotal(tx, i).toLocaleString('en-IN'),
         marginTop: 20
       }}>
         {filtered.map(renderCard)}
+        {/* 👉 logic used: global payment popup (same as dashboard) */}
+{payId && (
+  <div
+    onClick={() => setPayId(null)}
+    style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      background: 'rgba(0,0,0,0.4)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 4000
+    }}
+  >
+
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        background: 'white',
+        padding: 20,
+        borderRadius: 10,
+        width: 300
+      }}
+    >
+      <h3>Payment</h3>
+
+      {!payType && (
+        <>
+          <button onClick={() => setPayType('installment')}>
+            Installment
+          </button>
+
+          <button onClick={() => setPayType('full')}>
+            Full Payment
+          </button>
+        </>
+      )}
+
+      {payType === 'installment' && (
+        <>
+          <input
+            type="number"
+            placeholder="Amount"
+            value={payAmount}
+            onChange={(e) => setPayAmount(e.target.value)}
+          />
+
+          <button onClick={handleInstallment}>
+            Confirm
+          </button>
+        </>
+      )}
+
+      {payType === 'full' && (
+        <button onClick={handleFullPayment}>
+          Confirm Full
+        </button>
+      )}
+    </div>
+  </div>
+)}
+{extendId && (
+  <div
+    onClick={() => setExtendId(null)}
+    style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      background: 'rgba(0,0,0,0.4)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 4000
+    }}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        background: 'white',
+        padding: 20,
+        borderRadius: 10,
+        width: 300
+      }}
+    >
+      <h3>Extend Transaction</h3>
+
+      <input
+        type="date"
+        onChange={(e) =>
+          setExtendForm({
+            ...extendForm,
+            new_due_date: e.target.value
+          })
+        }
+      />
+
+      <input
+        type="number"
+        placeholder="Extra Interest"
+        onChange={(e) =>
+          setExtendForm({
+            ...extendForm,
+            extra_interest: Number(e.target.value)
+          })
+        }
+      />
+
+      <label>
+        <input
+          type="checkbox"
+          onChange={(e) =>
+            setExtendForm({
+              ...extendForm,
+              interest_paid: e.target.checked
+            })
+          }
+        />
+        Interest Paid
+      </label>
+
+      <div style={{ marginTop: 10 }}>
+        <button
+          onClick={async () => {
+            await API.put(`/extend/${extendId}`, extendForm);
+            setExtendId(null);
+            fetchData();
+          }}
+        >
+          Save
+        </button>
+
+        <button onClick={() => setExtendId(null)}>Cancel</button>
+      </div>
+    </div>
+  </div>
+)}
+{/* 👉 logic used: edit popup (same as dashboard) */}
+{editId && (
+  <div
+    onClick={() => setEditId(null)}
+    style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      background: 'rgba(0,0,0,0.4)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 4000
+    }}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        background: 'white',
+        padding: 20,
+        borderRadius: 10,
+        width: 300
+      }}
+    >
+      <h3>Edit Transaction</h3>
+
+      <input
+        type="number"
+        value={editForm.principal_amount || ''}
+        onChange={(e) =>
+          setEditForm({ ...editForm, principal_amount: e.target.value })
+        }
+        placeholder="Principal"
+      />
+
+      {/* 👉 logic used: hide interest input for normal */}
+{editForm.transaction_type !== 'normal' && (
+  <input
+    type="number"
+    value={editForm.base_interest || ''}
+    onChange={(e) =>
+      setEditForm({ ...editForm, base_interest: e.target.value })
+    }
+    placeholder="Interest"
+  />
+)}
+
+      <input
+        type="date"
+        value={editForm.start_date?.slice(0,10) || ''}
+        onChange={(e) =>
+          setEditForm({ ...editForm, start_date: e.target.value })
+        }
+      />
+
+      <input
+        type="date"
+        value={editForm.due_date?.slice(0,10) || ''}
+        onChange={(e) =>
+          setEditForm({ ...editForm, due_date: e.target.value })
+        }
+      />
+
+      <div style={{ marginTop: 10, display: 'flex', gap: 10 }}>
+        <button onClick={handleEditSave}>Save</button>
+        <button onClick={() => setEditId(null)}>Cancel</button>
+      </div>
+    </div>
+  </div>
+)}
+{confirmAction && (
+  <div style={{ position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.4)', display:'flex', justifyContent:'center', alignItems:'center' }}>
+    <div style={{ background:'white', padding:20 }}>
+      <h3>
+  {confirmAction.type === 'delete' && 'Delete?'}
+  {confirmAction.type === 'paid' && 'Mark as Paid?'}
+  {confirmAction.type === 'extend' && 'Extend?'}
+  {confirmAction.type === 'edit' && 'Edit?'}
+</h3>
+      <button onClick={handleDelete}>Yes</button>
+      <button onClick={() => setConfirmAction(null)}>No</button>
+    </div>
+  </div>
+)}
       </div>
     </div>
   );

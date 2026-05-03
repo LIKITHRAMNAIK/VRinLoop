@@ -92,33 +92,49 @@ exports.getDashboard = async (req, res) => {
 
     transactions.forEach(tx => {
 
-      // 🔥 NORMAL (INSTALLMENT)
-      if (tx.transaction_type === 'normal') {
-        const paid = tx.paid_amount || 0;
+  const isActive = tx.status !== 'paid';
 
-        if (tx.type === 'incoming') {
-          incoming += paid;
-        } else {
-          outgoing += paid;
-        }
+  // 🔥 NORMAL (INSTALLMENT)
+  if (tx.transaction_type === 'normal') {
 
-        principal += tx.principal_amount;
-        return;
-      }
+    const paid = tx.paid_amount || 0;
+    const balance = tx.principal_amount - paid;
 
-      // 🔥 ROTATION / LOAN
-      const total = tx.principal_amount + tx.base_interest;
+    if (balance > 0) {
+      principal += balance;
 
       if (tx.type === 'incoming') {
-        incoming += total;
+        incoming += balance;
       } else {
-        outgoing += total;
+        outgoing += balance;
       }
+    }
 
-      principal += tx.principal_amount;
-      interest += tx.base_interest;
+    return;
+  }
 
+  // 🔥 ROTATION / LOAN
+  if (isActive) {
+
+    let totalInterest = tx.base_interest;
+
+    tx.extensions.forEach(ext => {
+      totalInterest += ext.extra_interest;
     });
+
+    const total = tx.principal_amount + totalInterest;
+
+    principal += tx.principal_amount;
+    interest += totalInterest;
+
+    if (tx.type === 'incoming') {
+      incoming += total;
+    } else {
+      outgoing += total;
+    }
+  }
+
+});
 
     res.json({
       incoming,
@@ -196,10 +212,22 @@ exports.markAsPaid = async (req, res) => {
     // ✅ NORMAL → INSTALLMENT LOGIC
     if (tx.transaction_type === 'normal') {
 
-  const remaining =
-    tx.principal_amount - (tx.paid_amount || 0);
 
-  const pay = Math.min(Number(amount), remaining);
+// before normal logic
+if (tx.transaction_type === 'normal' && (amount === undefined || amount === null)) {
+  return res.status(400).json({ message: 'Amount required for normal transaction' });
+}
+
+// inside normal
+const remaining = tx.principal_amount - (tx.paid_amount || 0);
+
+const safeAmount = Number(amount || 0);
+
+if (!safeAmount || safeAmount <= 0) {
+  return res.status(400).json({ message: 'Invalid amount' });
+}
+
+const pay = Math.min(safeAmount, remaining);
 
   tx.paid_amount = (tx.paid_amount || 0) + pay;
 
@@ -219,7 +247,7 @@ exports.markAsPaid = async (req, res) => {
     tx.paid_date = new Date();
   }
 
-  await tx.save();
+  await tx.save();  
   return res.json(tx);
 }
 
