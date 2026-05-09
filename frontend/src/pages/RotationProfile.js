@@ -3,43 +3,35 @@ import { useParams, useNavigate } from 'react-router-dom';
 import API from '../services/api';
 import { formatCurrency } from '../utils/format';
 
-function RotationProfile() {
-  const { name } = useParams();
+// function RotationProfile() {
+function RotationProfile({ data, refresh }) {
   const navigate = useNavigate();
 
-  const [data, setData] = useState([]);
+  // const [data, setData] = useState([]);
   const [extendId, setExtendId] = useState(null);
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [confirmAction, setConfirmAction] = useState(null);
+  const [payPopup, setPayPopup] = useState(null);
+
+const [earlyPayPopup, setEarlyPayPopup] = useState(null);
+
+const [earlyInterest, setEarlyInterest] = useState('');
+const [normalPayPopup, setNormalPayPopup] = useState(null);
   const [filterType, setFilterType] = useState('upcoming');
-
-  const fetchData = () => {
-    API.get(`/person/${name}`)
-      .then(res => {
-        const list = res.data.transactions || [];
-        // setData(list.filter(tx => tx.transaction_type === 'rotation'));
-        setData(list);
-      })
-      .catch(err => console.log(err));
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, [name]);
 
   if (!data) return <h2>Loading...</h2>;
 
   const handleDelete = async () => {
     await API.delete(`/delete/${confirmAction.id}`);
     setConfirmAction(null);
-    fetchData();
+    refresh();
   };
 
   const handleEditSave = async () => {
     await API.put(`/update/${editId}`, editForm);
     setEditId(null);
-    fetchData();
+    refresh();
   };
 const today = new Date();
 today.setHours(0,0,0,0);
@@ -48,13 +40,38 @@ const filteredData = data.filter(tx => {
   const dueDate = new Date(tx.due_date);
   dueDate.setHours(0,0,0,0);
 
-  if (filterType === 'paid') return tx.status === 'paid';
+  if (filterType === 'paid') {
+  return tx.status === 'paid';
+}
 
-  if (filterType === 'extended') return tx.status === 'extended';
+// if (filterType === 'extended') {
 
-  if (filterType === 'due') {
-    return tx.status !== 'paid' && dueDate <= today;
-  }
+//   return (
+//     tx.status === 'extended' ||
+//     (
+//       tx.status === 'paid' &&
+//       tx.extensions?.length > 0
+//     )
+//   );
+
+// }
+if (filterType === 'extended') {
+
+  return tx.extensions?.length > 0;
+
+}
+
+if (filterType === 'due') {
+
+  return (
+    dueDate <= today &&
+    (
+      tx.status !== 'pending' ||
+      tx.status === 'paid'
+    )
+  );
+
+}
 
   // ✅ FIXED UPCOMING (IMPORTANT)
   if (filterType === 'upcoming') {
@@ -103,11 +120,27 @@ const displayStatus = isOverdue ? 'due' : tx.status;
 
     let totalInterest = tx.base_interest;
 
-    tx.extensions.forEach(ext => {
-      totalInterest += ext.extra_interest;
-    });
+tx.extensions.forEach(ext => {
 
-    const total = tx.principal_amount + totalInterest;
+  if (ext.interest_paid) {
+
+    totalInterest = ext.extra_interest;
+
+  } else {
+
+    totalInterest += ext.extra_interest;
+
+  }
+
+});
+
+    // const total = tx.principal_amount + totalInterest;
+    const finalInterest =
+  tx.early_paid
+    ? tx.early_paid_interest
+    : totalInterest;
+
+const total = tx.principal_amount + finalInterest;
 
     return (
       <div key={tx._id} style={{
@@ -116,7 +149,37 @@ const displayStatus = isOverdue ? 'due' : tx.status;
         background: isOverdue ? '#ffe5e5' : '#fff3cd',
 border: isOverdue ? '2px solid #f44336' : 'none'
       }}>
-        <p style={{ fontWeight: 'bold', color: 'blue' }}>{tx.person_name}({tx.transaction_type})</p>
+        <div style={{
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 8
+}}>
+
+  <p style={{
+    fontWeight: 'bold',
+    color: 'blue',
+    margin: 0
+  }}>
+    {tx.person_name}
+  </p>
+
+  <span style={{
+    background:
+      tx.type === 'incoming'
+        ? '#4CAF50'
+        : '#f44336',
+
+    color: 'white',
+    padding: '4px 10px',
+    borderRadius: 12,
+    fontSize: 12,
+    fontWeight: 'bold'
+  }}>
+    {tx.type === 'incoming' ? 'IN' : 'OUT'}
+  </span>
+
+</div>
 
 <p>
   <b>Start:</b>{' '}
@@ -127,11 +190,19 @@ border: isOverdue ? '2px solid #f44336' : 'none'
 
 <p>
   <b>Due:</b>{' '}
-  <span style={{
-    color: tx.status === 'extended' ? '#f44336' : 'black',
-    textDecoration: tx.status === 'extended' ? 'line-through' : 'none'
-  }}>
-    {new Date(tx.due_date).toDateString()}
+
+  <span
+    style={{
+      color: tx.extensions?.length > 0 ? '#f44336' : 'black',
+      textDecoration:
+        tx.extensions?.length > 0 ? 'line-through' : 'none'
+    }}
+  >
+    {
+      tx.extensions?.length > 0
+        ? new Date(tx.extensions[0].old_due_date).toDateString()
+        : new Date(tx.due_date).toDateString()
+    }
   </span>
 </p>
 {isOverdue && (
@@ -140,11 +211,9 @@ border: isOverdue ? '2px solid #f44336' : 'none'
   </p>
 )}
 
-{tx.extensions?.length > 0 && (
+{tx.status === 'extended' && (
   <p style={{ color: '#f44336', marginLeft: 10 }}>
-    {new Date(
-      tx.extensions[tx.extensions.length - 1].new_due_date
-    ).toDateString()}
+    {new Date(tx.due_date).toDateString()}
   </p>
 )}
 {tx.status === 'paid' && (
@@ -157,10 +226,31 @@ border: isOverdue ? '2px solid #f44336' : 'none'
     fontWeight: 'bold',
     margin: '6px 0'
   }}>
-    PAID
+    Paid
   </div>
 )}
-  {tx.status === 'paid' && tx.paid_date && (() => {
+{tx.status !== 'paid' && (
+  <p style={{
+    margin: '6px 0',
+    fontWeight: 'bold'
+  }}>
+    <span style={{ color: 'black' }}>
+      Status :
+    </span>{' '}
+
+    <span style={{
+      color:
+        displayStatus === 'due'
+          ? '#f44336'
+          : displayStatus === 'extended'
+          ? '#ff0000'
+          : '#f39521'
+    }}>
+      {displayStatus.toUpperCase()}
+    </span>
+  </p>
+)}
+  {/* {tx.status === 'paid' && tx.paid_date && (() => {
 
   const paid = new Date(tx.paid_date);
   const due = new Date(tx.due_date);
@@ -183,11 +273,60 @@ border: isOverdue ? '2px solid #f44336' : 'none'
     </p>
   );
 
+})()} */}
+
+    {tx.status === 'paid' && tx.paid_date && (() => {
+
+  const paid = new Date(tx.paid_date);
+  const due = new Date(tx.due_date);
+
+  const isLate = paid > due;
+
+  const diffDays = Math.ceil(
+    (paid - due) / (1000 * 60 * 60 * 24)
+  );
+
+  return (
+    <p style={{
+      color:
+        tx.early_paid
+          ? '#ff9800'
+          : isLate
+          ? '#f44336'
+          : '#4CAF50',
+      fontWeight: 'bold'
+    }}>
+      {tx.early_paid
+        ? `Early Pay on: ${paid.toDateString()}`
+        : isLate
+        ? `Paid Late (${diffDays} day${diffDays > 1 ? 's' : ''}) on ${paid.toDateString()}`
+        : `Paid on: ${paid.toDateString()}`
+      }
+    </p>
+  );
+
 })()}
 
 
 <p><b>Principal:</b> {formatCurrency(tx.principal_amount)}</p>
-<p><b>Interest:</b> {formatCurrency(totalInterest)}</p>
+{/* <p><b>Interest:</b> {formatCurrency(totalInterest)}</p> */}
+{tx.early_paid && (
+  <p>
+    <b>Normal Interest:</b>{' '}
+    {formatCurrency(totalInterest)}
+  </p>
+)}
+
+<p>
+  <b>
+    {tx.early_paid
+      ? 'Early Paid Interest'
+      : 'Interest'}
+    :
+  </b>{' '}
+  {formatCurrency(finalInterest)}
+</p>
+
 <p><b>Total {formatCurrency(total)}</b></p>
 
 <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
@@ -200,11 +339,19 @@ border: isOverdue ? '2px solid #f44336' : 'none'
     </button>
   ) : (
     <>
-      <button onClick={() =>
-        setConfirmAction({ type: 'paid', id: tx._id })
-      }>
-        Paid
-      </button>
+      <button
+  style={{
+    background: '#4CAF50',
+    color: 'white',
+    border: 'none',
+    padding: '8px 14px',
+    borderRadius: 6,
+    cursor: 'pointer'
+  }}
+  onClick={() => setPayPopup(tx)}
+>
+  Pay
+</button>
 
       <button onClick={() =>
         setExtendId(tx._id)
@@ -214,7 +361,12 @@ border: isOverdue ? '2px solid #f44336' : 'none'
 
       <button onClick={() => {
         setEditId(tx._id);
-        setEditForm(tx);
+
+setEditForm({
+  ...tx,
+
+  due_date: tx.due_date
+});
       }}>
         Edit
       </button>
@@ -234,8 +386,9 @@ border: isOverdue ? '2px solid #f44336' : 'none'
   };
 
   return (
-    <div style={{ padding: 20 }}>
-      <button
+    // <div style={{ padding: 20 }}>
+    <div>
+      {/* <button
   onClick={() => navigate('/')}
   style={{
     marginBottom: 15,
@@ -251,7 +404,7 @@ border: isOverdue ? '2px solid #f44336' : 'none'
   ⬅ Dashboard
 </button>
 
-      <h2>Rotation Profile</h2>
+      <h2>Rotation Profile</h2> */}
       <select
   value={filterType}
   onChange={(e) => setFilterType(e.target.value)}
@@ -273,17 +426,6 @@ border: isOverdue ? '2px solid #f44336' : 'none'
         {sortedData.map(renderCard)}
       </div>
 
-      {editId && (
-        <div>
-          <input
-            value={editForm.base_interest}
-            onChange={e =>
-              setEditForm({ ...editForm, base_interest: e.target.value })
-            }
-          />
-          <button onClick={handleEditSave}>Save</button>
-        </div>
-      )}
 
       {confirmAction && (
   <div
@@ -334,7 +476,7 @@ border: isOverdue ? '2px solid #f44336' : 'none'
             }
 
             setConfirmAction(null);
-            fetchData();
+            refresh();
           }}
         >
           Confirm
@@ -454,7 +596,7 @@ border: isOverdue ? '2px solid #f44336' : 'none'
     onClick={async () => {
       await API.put(`/extend/${extendId}`, editForm);
       setExtendId(null);
-      fetchData();
+      refresh();
     }}
   >
     Save
@@ -577,9 +719,315 @@ border: isOverdue ? '2px solid #f44336' : 'none'
     </div>
   </div>
 )}
+{payPopup && (
+  <div
+    onClick={() => setPayPopup(null)}
+    style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      background: 'rgba(0,0,0,0.5)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 5000
+    }}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        background: 'white',
+        padding: 25,
+        borderRadius: 14,
+        width: 320,
+        textAlign: 'center',
+        boxShadow: '0 5px 25px rgba(0,0,0,0.3)'
+      }}
+    >
+
+      <h2 style={{ marginBottom: 20 }}>
+        Select Payment Type
+      </h2>
+
+      {/* NORMAL PAY */}
+      <button
+        style={{
+          width: '100%',
+          background: '#4CAF50',
+          color: 'white',
+          border: 'none',
+          padding: '12px',
+          borderRadius: 8,
+          fontWeight: 'bold',
+          cursor: 'pointer',
+          marginBottom: 12
+        }}
+        onClick={() => {
+  setNormalPayPopup(payPopup);
+  setPayPopup(null);
+}}
+      >
+        Normal Due Pay
+      </button>
+
+      {/* EARLY PAY */}
+      <button
+        style={{
+          width: '100%',
+          background: '#ff9800',
+          color: 'white',
+          border: 'none',
+          padding: '12px',
+          borderRadius: 8,
+          fontWeight: 'bold',
+          cursor: 'pointer'
+        }}
+        onClick={() => {
+          setEarlyPayPopup(payPopup);
+          setPayPopup(null);
+        }}
+      >
+        Early Pay
+      </button>
+
+      {/* CANCEL */}
+      <button
+        style={{
+          width: '100%',
+          background: '#f44336',
+          color: 'white',
+          border: 'none',
+          padding: '10px',
+          borderRadius: 8,
+          fontWeight: 'bold',
+          cursor: 'pointer',
+          marginTop: 15
+        }}
+        onClick={() => setPayPopup(null)}
+      >
+        Cancel
+      </button>
+
+    </div>
+  </div>
+)}
+
+{earlyPayPopup && (
+  <div
+    onClick={() => setEarlyPayPopup(null)}
+    style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      background: 'rgba(0,0,0,0.5)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 5000
+    }}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        background: 'white',
+        padding: 25,
+        borderRadius: 14,
+        width: 340,
+        boxShadow: '0 5px 25px rgba(0,0,0,0.3)'
+      }}
+    >
+
+      <h2 style={{
+        textAlign: 'center',
+        marginBottom: 20
+      }}>
+        Early Payment
+      </h2>
+
+      <p>
+        <b>Principal:</b>{' '}
+        {formatCurrency(earlyPayPopup.principal_amount)}
+      </p>
+
+      <p>
+        <b>Original Interest:</b>{' '}
+        {formatCurrency(earlyPayPopup.base_interest)}
+      </p>
+
+      <p>
+        <b>Due Date:</b>{' '}
+        {new Date(earlyPayPopup.due_date).toDateString()}
+      </p>
+
+      <input
+        type="number"
+        placeholder="Enter New Interest"
+        value={earlyInterest}
+        onChange={(e) =>
+          setEarlyInterest(e.target.value)
+        }
+        style={{
+          width: '100%',
+          padding: 10,
+          marginTop: 15,
+          marginBottom: 15,
+          borderRadius: 8,
+          border: '1px solid #ccc'
+        }}
+      />
+
+      <div style={{
+        display: 'flex',
+        gap: 10
+      }}>
+
+        <button
+          style={{
+            flex: 1,
+            background: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            padding: '10px',
+            borderRadius: 8,
+            fontWeight: 'bold',
+            cursor: 'pointer'
+          }}
+          onClick={async () => {
+            console.log({
+  earlyPay: true,
+  newInterest: Number(earlyInterest)
+});
+
+            await API.put(
+              `/paid/${earlyPayPopup._id}`,
+              {
+                earlyPay: true,
+                newInterest: Number(earlyInterest)
+              }
+            );
+
+            setEarlyPayPopup(null);
+            setEarlyInterest('');
+
+            refresh();
+          }}
+        >
+          Confirm
+        </button>
+
+        <button
+          style={{
+            flex: 1,
+            background: '#f44336',
+            color: 'white',
+            border: 'none',
+            padding: '10px',
+            borderRadius: 8,
+            fontWeight: 'bold',
+            cursor: 'pointer'
+          }}
+          onClick={() => {
+            setEarlyPayPopup(null);
+            setEarlyInterest('');
+          }}
+        >
+          Cancel
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+)}
+
+{normalPayPopup && (
+  <div
+    onClick={() => setNormalPayPopup(null)}
+    style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      background: 'rgba(0,0,0,0.5)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 5000
+    }}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        background: 'white',
+        padding: 25,
+        borderRadius: 14,
+        width: 300,
+        textAlign: 'center'
+      }}
+    >
+
+      <h2>Confirm Payment?</h2>
+
+      <div style={{
+        display: 'flex',
+        gap: 10,
+        marginTop: 20
+      }}>
+
+        <button
+          style={{
+            flex: 1,
+            background: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            padding: 10,
+            borderRadius: 8,
+            fontWeight: 'bold'
+          }}
+          onClick={async () => {
+
+            await API.put(
+              `/paid/${normalPayPopup._id}`,
+              {}
+            );
+
+            setNormalPayPopup(null);
+
+            refresh();
+          }}
+        >
+          Confirm
+        </button>
+
+        <button
+          style={{
+            flex: 1,
+            background: '#f44336',
+            color: 'white',
+            border: 'none',
+            padding: 10,
+            borderRadius: 8,
+            fontWeight: 'bold'
+          }}
+          onClick={() => setNormalPayPopup(null)}
+        >
+          Cancel
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+)}
       
     </div>
   );
 }
+
 
 export default RotationProfile;

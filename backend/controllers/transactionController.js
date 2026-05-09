@@ -59,7 +59,7 @@ exports.extendTransaction = async (req, res) => {
       date: new Date()
     });
 
-    transaction.due_date = new Date(new_due_date);
+    // transaction.due_date = new Date(new_due_date);
     transaction.status = 'extended';
 
     await transaction.save();
@@ -252,11 +252,24 @@ const pay = Math.min(safeAmount, remaining);
 }
 
     // ✅ ROTATION → FULL PAYMENT
-    tx.status = 'paid';
-    tx.paid_date = new Date();
-    await tx.save();
 
-    res.json(tx);
+if (req.body.earlyPay === true) {
+
+  tx.early_paid = true;
+
+  tx.early_paid_interest = Number(
+    req.body.newInterest
+  );
+
+}
+
+tx.status = 'paid';
+
+tx.paid_date = new Date();
+
+await tx.save();
+
+return res.json(tx);
 
   } catch (err) {
     console.log(err);
@@ -318,21 +331,64 @@ tx.extensions.forEach(ext => {
   };
 
   exports.updateTransaction = async (req, res) => {
-    try {
-      const { id } = req.params;
-  
-      const updated = await Transaction.findByIdAndUpdate(
-        id,
-        req.body,
-        { new: true }
-      );
-  
-      res.json(updated);
-  
-    } catch (error) {
-      res.status(500).json({ message: error.message });
+  try {
+
+    const { id } = req.params;
+
+    const tx = await Transaction.findById(id);
+
+    if (!tx) {
+      return res.status(404).json({
+        message: 'Transaction not found'
+      });
     }
-  };
+
+    // 🔥 BASIC UPDATE
+    tx.principal_amount =
+      req.body.principal_amount;
+
+    tx.start_date =
+      req.body.start_date;
+
+    
+
+    // 🔥 IMPORTANT
+    // if extended transaction
+    // also update latest extension due date
+
+    if (
+  tx.extensions &&
+  tx.extensions.length > 0
+) {
+
+  // 🔥 update latest extension date
+  tx.extensions[
+    tx.extensions.length - 1
+  ].new_due_date = req.body.due_date;
+
+  // 🔥 ALSO sync main due_date
+  tx.due_date = req.body.due_date;
+
+} else {
+
+  tx.due_date = req.body.due_date;
+
+}
+
+    await tx.save();
+
+    res.json(tx);
+
+  } catch (error) {
+
+    console.log(error);
+
+    res.status(500).json({
+      message: error.message
+    });
+
+  }
+};
   
   
   exports.deleteTransaction = async (req, res) => {

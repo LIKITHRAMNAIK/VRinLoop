@@ -4,11 +4,11 @@ import API from '../services/api';
 import { formatCurrency } from '../utils/format';
 
 
-function NormalProfile() {
-  const { name } = useParams();
+// function NormalProfile() {
+  function NormalProfile({ data, refresh }) {
   const navigate = useNavigate();
 
-  const [data, setData] = useState([]);
+  // const [data, setData] = useState([]);
 
   const [payId, setPayId] = useState(null);
   const [payAmount, setPayAmount] = useState('');
@@ -21,19 +21,6 @@ function NormalProfile() {
 
   const [filterType, setFilterType] = useState('upcoming');
 
-  const fetchData = () => {
-    API.get(`/person/${name}`)
-      .then(res => {
-        const list = res.data.transactions || [];
-        // setData(list.filter(tx => tx.transaction_type === 'normal'));
-        setData(list);
-      })
-      .catch(err => console.log(err));
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, [name]);
 
   if (!data.length) return <h2>Loading...</h2>;
 
@@ -42,7 +29,7 @@ function NormalProfile() {
       amount: Number(payAmount)
     });
     setPayId(null);
-    fetchData();
+    refresh();
   };
 
   const handleFullPayment = async () => {
@@ -54,13 +41,13 @@ function NormalProfile() {
     });
 
     setPayId(null);
-    fetchData();
+    refresh();
   };
 
   const handleDelete = async () => {
     await API.delete(`/delete/${confirmAction.id}`);
     setConfirmAction(null);
-    fetchData();
+    refresh();
   };
 
   const handleEditSave = async () => {
@@ -68,7 +55,7 @@ function NormalProfile() {
       ...editForm
     });
     setEditId(null);
-    fetchData();
+    refresh();
   };
   let filtered = [...data];
 const today = new Date();
@@ -115,7 +102,7 @@ const renderCard = (tx) => {
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
-        <h4 style={{ margin: 0 }}>{tx.person_name} ({tx.transaction_type})</h4>
+        <h4 style={{ margin: 0 }}>{tx.person_name}</h4>
 
         <span style={{
           padding: '2px 8px',
@@ -245,8 +232,9 @@ const renderCard = (tx) => {
 };
 
   return (
-    <div style={{ padding: 20 }}>
-      <button
+    // <div style={{ padding: 20 }}>
+    <div>
+      {/* <button
   onClick={() => navigate('/')}
   style={{
     marginBottom: 15,
@@ -262,7 +250,7 @@ const renderCard = (tx) => {
   ⬅ Dashboard
 </button>
 
-      <h2>{filtered[0]?.person_name || 'Normal'}'s Profile</h2>
+      <h2>{filtered[0]?.person_name || 'Normal'}'s Profile</h2> */}
 
       <div style={{ marginBottom: 15 }}>
   <select

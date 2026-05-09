@@ -19,7 +19,7 @@ function TransactionList({ refresh }) {
 
   const [confirmAction, setConfirmAction] = useState(null);
 
-  const [filterType, setFilterType] = useState('upcoming');
+  const [filterType, setFilterType] = useState('pending');
   const [selectedMonth, setSelectedMonth] = useState('');
   const [sortType, setSortType] = useState('date');
 
@@ -30,6 +30,14 @@ const [payAmount, setPayAmount] = useState(0);
 const [showExportPopup, setShowExportPopup] = useState(false);
 const [exportType, setExportType] = useState('all'); // all | normal | rotation
 const [exportMonth, setExportMonth] = useState('');
+
+const [payPopup, setPayPopup] = useState(null);
+
+const [earlyPayPopup, setEarlyPayPopup] = useState(null);
+
+const [earlyInterest, setEarlyInterest] = useState('');
+
+const [normalPayPopup, setNormalPayPopup] = useState(null);
 
   // ✅ EDIT STATE
   const [editId, setEditId] = useState(null);
@@ -648,7 +656,7 @@ if (filterType === 'pending') {
   });
 }
 
-if (filterType === 'upcoming') {
+if (filterType === 'pending') {
   const today = new Date();
   today.setHours(0,0,0,0);
 
@@ -928,24 +936,51 @@ fontWeight: 'bold',
 
   let totalInterest = tx.base_interest;
 
-  tx.extensions.forEach(ext => {
-    if (ext.interest_paid) {
-      totalInterest = ext.extra_interest;
-    } else {
-      totalInterest += ext.extra_interest;
-    }
-  });
+tx.extensions.forEach(ext => {
 
-  const today = new Date();
+  if (ext.interest_paid) {
+
+    totalInterest = ext.extra_interest;
+
+  } else {
+
+    totalInterest += ext.extra_interest;
+
+  }
+
+});
+
+const finalInterest =
+  tx.early_paid
+    ? tx.early_paid_interest
+    : totalInterest;
+
+const today = new Date();
+
 const dueDate = new Date(tx.due_date);
 
-const isOverdue = dueDate < today && tx.status !== 'paid';
+const isOverdue =
+  dueDate < today &&
+  tx.status !== 'paid';
 
-const displayStatus = isOverdue ? 'overdue' : tx.status;
-  const total = tx.principal_amount + totalInterest;
+const displayStatus =
+  isOverdue
+    ? 'overdue'
+    : tx.status;
+
+const total =
+  tx.principal_amount + finalInterest;
 
   const due = new Date(tx.due_date);
-  const overdueDays = Math.max(0, Math.floor((today - due) / (1000 * 60 * 60 * 24)));
+  const overdueDays = Math.max(
+  1,
+  Math.ceil(
+    (
+      today.setHours(0,0,0,0) -
+      due.setHours(0,0,0,0)
+    ) / (1000 * 60 * 60 * 24)
+  )
+);
 
   let dueHistory = [tx.due_date];
 
@@ -1016,31 +1051,39 @@ border: isOverdue ? '2px solid #f44336' : 'none',
 
       <p>
   <b>Due:</b>{' '}
-  <span style={{
-    color: tx.status === 'extended' ? '#f44336' : 'black',
-    textDecoration: tx.status === 'extended' ? 'line-through' : 'none'
-  }}>
-    {new Date(tx.due_date).toDateString()}
+
+  <span
+    style={{
+      color: tx.extensions?.length > 0 ? '#f44336' : 'black',
+      textDecoration:
+        tx.extensions?.length > 0 ? 'line-through' : 'none'
+    }}
+  >
+    {
+      tx.extensions?.length > 0
+        ? new Date(tx.extensions[0].old_due_date).toDateString()
+        : new Date(tx.due_date).toDateString()
+    }
   </span>
 </p>
-
-{displayStatus === 'overdue' && (
-  <p style={{ color: '#f44336', fontWeight: 'bold' }}>
-    ⚠ Overdue
+{isOverdue && (
+  <p style={{
+    color: '#f44336',
+    fontWeight: 'bold'
+  }}>
+    ⚠ {overdueDays} day{overdueDays > 1 ? 's' : ''} overdue
   </p>
 )}
 
-{tx.extensions && tx.extensions.length > 0 && (
-  <p style={{ marginLeft: 20, color: '#f44336', fontWeight: 'bold' }}>
-    {new Date(
-      tx.extensions[tx.extensions.length - 1].new_due_date
-    ).toDateString()}
+{tx.status === 'extended' && (
+  <p style={{ color: '#f44336', marginLeft: 10 }}>
+    {new Date(tx.due_date).toDateString()}
   </p>
 )}
 
-      {overdueDays > 0 && (
+      {/* {overdueDays > 0 && (
         <p style={{ color: 'red' }}>Overdue: {overdueDays} days</p>
-      )}
+      )} */}
 
 <p>
   {/* ❌ HIDE STATUS IF OVERDUE */}
@@ -1074,7 +1117,34 @@ border: isOverdue ? '2px solid #f44336' : 'none',
   )}
 </p>
 <p><b>Principal:</b> {formatCurrency(tx.principal_amount)}</p>
-<p><b>Interest:</b> {formatCurrency(totalInterest)}</p>
+{/* <p><b>Interest:</b> {formatCurrency(totalInterest)}</p> */}
+{tx.early_paid && (
+  <p>
+    <b>Normal Interest:</b>{' '}
+    {formatCurrency(totalInterest)}
+  </p>
+)}
+
+<p>
+  <b>
+    {tx.early_paid
+      ? 'Early Paid Interest'
+      : 'Interest'}
+    :
+  </b>{' '}
+  {formatCurrency(finalInterest)}
+</p>
+{tx.status === 'paid' && tx.paid_date && (
+  <p style={{
+    color: tx.early_paid ? '#ff9800' : '#4CAF50',
+    fontWeight: 'bold'
+  }}>
+    {tx.early_paid
+      ? `Early Pay on: ${new Date(tx.paid_date).toDateString()}`
+      : `Paid on: ${new Date(tx.paid_date).toDateString()}`
+    }
+  </p>
+)}
 <p><b>Total {formatCurrency(total)}</b></p>
 
 <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
@@ -1091,11 +1161,30 @@ border: isOverdue ? '2px solid #f44336' : 'none',
     </button>
   ) : (
     <>
-      <button onClick={() =>
-        setConfirmAction({ type: 'paid', id: tx._id })
-      }>
-        Paid
-      </button>
+      <button
+  onClick={() => {
+
+    // 🔥 EARLY PAYMENT
+    const today = new Date();
+    const dueDate = new Date(tx.due_date);
+
+    today.setHours(0,0,0,0);
+    dueDate.setHours(0,0,0,0);
+
+    if (today < dueDate) {
+
+  setPayPopup(tx);
+
+} else {
+
+  setNormalPayPopup(tx);
+
+}
+
+  }}
+>
+  Pay
+</button>
 
       <button onClick={() =>
         setConfirmAction({ type: 'extend', id: tx._id })
@@ -1766,7 +1855,13 @@ const overdueDays = Math.max(
             <div>
               <b>{tx.person_name}</b>
               <p style={{ margin: 0, fontSize: 12 }}>
-                {new Date(tx.due_date).toDateString()}
+                {
+  tx.extensions?.length > 0
+    ? new Date(
+        tx.extensions[tx.extensions.length - 1].new_due_date
+      ).toDateString()
+    : new Date(tx.due_date).toDateString()
+}
               </p>
             </div>
 
@@ -1993,7 +2088,7 @@ const overdueDays = Math.max(
 
   {/* 📊 STATUS FILTER */}
   <select onChange={(e) => setFilterType(e.target.value)}>
-    <option value="upcoming">Upcoming</option>
+    {/* <option value="upcoming">Upcoming</option> */}
     <option value="pending">Pending</option>
     <option value="paid">Paid</option>
     <option value="extended">Extended</option>
@@ -2075,8 +2170,317 @@ const overdueDays = Math.max(
         </div>
       )}
 
+      {payPopup && (
+  <div
+    onClick={() => setPayPopup(null)}
+    style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      background: 'rgba(0,0,0,0.5)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 5000
+    }}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        background: 'white',
+        padding: 25,
+        borderRadius: 14,
+        width: 320,
+        textAlign: 'center',
+        boxShadow: '0 5px 25px rgba(0,0,0,0.3)'
+      }}
+    >
+
+      <h2 style={{ marginBottom: 20 }}>
+        Select Payment Type
+      </h2>
+
+      <button
+        style={{
+          width: '100%',
+          background: '#4CAF50',
+          color: 'white',
+          border: 'none',
+          padding: '12px',
+          borderRadius: 8,
+          fontWeight: 'bold',
+          cursor: 'pointer',
+          marginBottom: 12
+        }}
+        onClick={() => {
+
+          setNormalPayPopup(payPopup);
+
+          setPayPopup(null);
+
+        }}
+      >
+        Normal Due Pay
+      </button>
+
+      <button
+        style={{
+          width: '100%',
+          background: '#ff9800',
+          color: 'white',
+          border: 'none',
+          padding: '12px',
+          borderRadius: 8,
+          fontWeight: 'bold',
+          cursor: 'pointer'
+        }}
+        onClick={() => {
+
+          setEarlyPayPopup(payPopup);
+
+          setPayPopup(null);
+
+        }}
+      >
+        Early Pay
+      </button>
+
+      <button
+        style={{
+          width: '100%',
+          background: '#f44336',
+          color: 'white',
+          border: 'none',
+          padding: '10px',
+          borderRadius: 8,
+          fontWeight: 'bold',
+          cursor: 'pointer',
+          marginTop: 15
+        }}
+        onClick={() => setPayPopup(null)}
+      >
+        Cancel
+      </button>
+
+    </div>
+  </div>
+)}
+
+{earlyPayPopup && (
+  <div
+    onClick={() => setEarlyPayPopup(null)}
+    style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      background: 'rgba(0,0,0,0.5)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 5000
+    }}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        background: 'white',
+        padding: 25,
+        borderRadius: 14,
+        width: 340,
+        boxShadow: '0 5px 25px rgba(0,0,0,0.3)'
+      }}
+    >
+
+      <h2 style={{
+        textAlign: 'center',
+        marginBottom: 20
+      }}>
+        Early Payment
+      </h2>
+
+      <p>
+        <b>Principal:</b>{' '}
+        {formatCurrency(earlyPayPopup.principal_amount)}
+      </p>
+
+      <p>
+        <b>Original Interest:</b>{' '}
+        {formatCurrency(earlyPayPopup.base_interest)}
+      </p>
+
+      <p>
+        <b>Due Date:</b>{' '}
+        {new Date(earlyPayPopup.due_date).toDateString()}
+      </p>
+
+      <input
+        type="number"
+        placeholder="Enter New Interest"
+        value={earlyInterest}
+        onChange={(e) =>
+          setEarlyInterest(e.target.value)
+        }
+        style={{
+          width: '100%',
+          padding: 10,
+          marginTop: 15,
+          marginBottom: 15,
+          borderRadius: 8,
+          border: '1px solid #ccc'
+        }}
+      />
+
+      <div style={{
+        display: 'flex',
+        gap: 10
+      }}>
+
+        <button
+          style={{
+            flex: 1,
+            background: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            padding: '10px',
+            borderRadius: 8,
+            fontWeight: 'bold',
+            cursor: 'pointer'
+          }}
+          onClick={async () => {
+            console.log({
+  earlyPay: true,
+  newInterest: Number(earlyInterest)
+});
+
+            await API.put(
+              `/paid/${earlyPayPopup._id}`,
+              {
+                earlyPay: true,
+                newInterest: Number(earlyInterest)
+              }
+            );
+
+            setEarlyPayPopup(null);
+            setEarlyInterest('');
+
+            fetchData();
+          }}
+        >
+          Confirm
+        </button>
+
+        <button
+          style={{
+            flex: 1,
+            background: '#f44336',
+            color: 'white',
+            border: 'none',
+            padding: '10px',
+            borderRadius: 8,
+            fontWeight: 'bold',
+            cursor: 'pointer'
+          }}
+          onClick={() => {
+            setEarlyPayPopup(null);
+            setEarlyInterest('');
+          }}
+        >
+          Cancel
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+)}
+
+{normalPayPopup && (
+  <div
+    onClick={() => setNormalPayPopup(null)}
+    style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      background: 'rgba(0,0,0,0.5)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 5000
+    }}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        background: 'white',
+        padding: 25,
+        borderRadius: 14,
+        width: 300,
+        textAlign: 'center'
+      }}
+    >
+
+      <h2>Confirm Payment?</h2>
+
+      <div style={{
+        display: 'flex',
+        gap: 10,
+        marginTop: 20
+      }}>
+
+        <button
+          style={{
+            flex: 1,
+            background: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            padding: 10,
+            borderRadius: 8,
+            fontWeight: 'bold'
+          }}
+          onClick={async () => {
+
+            await API.put(
+              `/paid/${normalPayPopup._id}`,
+              {}
+            );
+
+            setNormalPayPopup(null);
+
+            fetchData();
+          }}
+        >
+          Confirm
+        </button>
+
+        <button
+          style={{
+            flex: 1,
+            background: '#f44336',
+            color: 'white',
+            border: 'none',
+            padding: 10,
+            borderRadius: 8,
+            fontWeight: 'bold'
+          }}
+          onClick={() => setNormalPayPopup(null)}
+        >
+          Cancel
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+)}
   
     </div>
+    
   );
 }
 

@@ -46,6 +46,16 @@ paid_date: {
   type: Date
 },
 
+early_paid: {
+  type: Boolean,
+  default: false
+},
+
+early_paid_interest: {
+  type: Number,
+  default: 0
+},
+
   person_name: {
     type: String,
     required: true
