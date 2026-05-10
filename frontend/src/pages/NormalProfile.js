@@ -86,7 +86,25 @@ if (filterType === 'upcoming') {
 const renderCard = (tx) => {
   const paid = tx.paid_amount || 0;
   const balance = tx.principal_amount - paid;
-  const isOverdue = new Date(tx.due_date) < new Date();
+  const today = new Date();
+
+today.setHours(0,0,0,0);
+
+const due = new Date(tx.due_date);
+
+due.setHours(0,0,0,0);
+
+const isOverdue =
+  due < today &&
+  tx.status !== 'paid';
+
+const overdueDays = Math.max(
+  1,
+  Math.ceil(
+    (today - due) /
+    (1000 * 60 * 60 * 24)
+  )
+);
 
   return (
     <div key={tx._id} style={{
@@ -130,8 +148,11 @@ const renderCard = (tx) => {
         Due: {new Date(tx.due_date).toDateString()}
       </p>
         {isOverdue && (
-  <p style={{ color: 'red', fontWeight: 'bold' }}>
-    ⚠ Overdue
+  <p style={{
+    color: 'red',
+    fontWeight: 'bold'
+  }}>
+    ⚠ {overdueDays} day{overdueDays > 1 ? 's' : ''} overdue
   </p>
 )}
       {/* INSTALLMENTS */}

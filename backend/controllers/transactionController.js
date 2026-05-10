@@ -59,7 +59,7 @@ exports.extendTransaction = async (req, res) => {
       date: new Date()
     });
 
-    // transaction.due_date = new Date(new_due_date);
+    transaction.due_date = new Date(new_due_date);
     transaction.status = 'extended';
 
     await transaction.save();

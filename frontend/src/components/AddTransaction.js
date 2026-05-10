@@ -114,20 +114,6 @@ const isLoan = form.transaction_type === 'loan';
   
       <h2 style={{ textAlign: 'center' }}>Add Transaction</h2>
 
-      {/* 🔥 TRANSACTION TYPE */}
-{/* <div>
-  <label>Transaction Type</label><br />
-  <select
-    name="transaction_type"
-    value={form.transaction_type}
-    onChange={handleChange}
-    style={inputStyle}
-  >
-    <option value="rotation">Rotation</option>
-    <option value="normal">Normal (Installment)</option>
-    <option value="loan">Loan</option>
-  </select>
-</div> */}
 <div>
   <label>Transaction Type</label><br />
   <select
@@ -137,7 +123,7 @@ const isLoan = form.transaction_type === 'loan';
     style={inputStyle}
   >
     <option value="rotation">Rotation</option>
-    <option value="normal">Normal (Installment)</option>
+    <option value="normal">Normal</option>
     <option value="loan">Loan</option>
   </select>
 </div>

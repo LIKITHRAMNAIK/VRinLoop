@@ -4,23 +4,31 @@ import AddTransaction from '../components/AddTransaction';
 import TransactionList from '../components/TransactionList';
 import Charts from '../components/Charts';
 import { formatCurrency } from '../utils/format';
+import Sidebar from '../components/Sidebar';
 
 const card = (bg) => ({
   background: bg,
   color: 'white',
-  padding: '20px',
-  borderRadius: '12px',
+  padding: '12px 14px',
+  borderRadius: 24,
   textAlign: 'center',
   fontWeight: '600',
   fontSize: '15px',
-  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-  transition: '0.2s'
+  boxShadow: '0 10px 20px rgba(0,0,0,0.12)',
+  transition: '0.25s ease',
+  cursor: 'pointer',
+  minHeight: 45,
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
+  border: '1px solid rgba(255,255,255,0.08)'
 });
 
 function Dashboard() {
   const [data, setData] = useState(null);
   const [openForm, setOpenForm] = useState(false);
   const [reload, setReload] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const fetchData = () => {
     API.get('/dashboard')
@@ -44,9 +52,74 @@ const outgoingPercent =
   total === 0 ? 0 : (data.outgoing / total) * 100;
 
   return (
-  <div style={{ padding: '30px', fontFamily: 'Arial' }}>
+  <div style={{
+  padding: '30px',
+  paddingLeft: '95px',
+  fontFamily: 'Arial',
+  transition: '0.3s',
+  background: '#f4f7fb',
+  minHeight: '100vh'
+}}>
+    <Sidebar
+  open={sidebarOpen}
+  setOpen={setSidebarOpen}
+/>
+    
 
-    <h1 style={{ textAlign: 'center' }}>💰 Money Dashboard</h1>
+    <div style={{
+  background: 'linear-gradient(135deg, #0F2027, #203A43, #2C5364)',
+  color: 'white',
+  padding: '28px 30px',
+  borderRadius: 24,
+  marginBottom: 25,
+  boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 20
+}}>
+
+  <div>
+    <h1 style={{
+      margin: 0,
+      fontSize: 32
+    }}>
+      💰 Money Dashboard
+    </h1>
+
+    <p style={{
+      marginTop: 8,
+      opacity: 0.75,
+      fontSize: 15
+    }}>
+      Manage payments, profiles and analytics
+    </p>
+  </div>
+
+  <div style={{
+    background: 'rgba(255, 255, 255, 0.06)',
+    padding: '14px 18px',
+    borderRadius: 16,
+    textAlign: 'center',
+    minWidth: 180
+  }}>
+    <p style={{
+      margin: 0,
+      opacity: 0.7,
+      fontSize: 14
+    }}>
+      Today
+    </p>
+
+    <h3 style={{
+      margin: '8px 0 0'
+    }}>
+      {new Date().toDateString()}
+    </h3>
+  </div>
+
+</div>
 
     {/* + BUTTON */}
     <button
@@ -110,42 +183,155 @@ const outgoingPercent =
 
     {/* DASHBOARD CARDS */}
     <div style={{
-      display: 'grid',
-gridTemplateColumns: 'repeat(2, 1fr)',
-gap: '12px',
-alignItems: 'start',
-      gap: '15px',
-      marginTop: '20px',
-      marginBottom: '20px'
-    }}>
+  display: 'grid',
+  gridTemplateColumns:
+    'repeat(auto-fit, minmax(240px,1fr))',
+  gap: 22,
+  marginTop: '20px',
+  marginBottom: '28px',
+  alignItems: 'stretch'
+}}>
 
-      <div style={card('#4CAF50')}>
-        <h3>Incoming</h3>
-        <p>{formatCurrency(data.incoming)}</p>
+      <div
+  style={card('#4CAF50')}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform =
+      'translateY(-6px)';
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform =
+      'translateY(0px)';
+  }}
+>
+        <h3 style={{
+  margin: 0,
+  marginBottom: 10,
+  fontSize: 20
+}}>
+  Incoming
+</h3>
+        <p style={{
+  margin: 0,
+  fontSize: 24,
+  fontWeight: 'bold'
+}}>
+  {formatCurrency(data.incoming)}
+</p>
       </div>
 
-      <div style={card('#F44336')}>
-        <h3>Outgoing</h3>
-        <p>{formatCurrency(data.outgoing)}</p>
+      <div
+  style={card('#F44336')}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform =
+      'translateY(-6px)';
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform =
+      'translateY(0px)';
+  }}
+>
+        
+        
+        <h3 style={{
+  margin: 0,
+  marginBottom: 10,
+  fontSize: 20
+}}>
+  Outgoing
+</h3>
+        <p style={{
+  margin: 0,
+  fontSize: 24,
+  fontWeight: 'bold'
+}}>
+  {formatCurrency(data.outgoing)}
+</p>
       </div>
 
-      <div style={card('#009688')}>
-        <h3>Principal</h3>
-        <p>{formatCurrency(data.principal)}</p>
+      <div
+  style={card('#009688')}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform =
+      'translateY(-6px)';
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform =
+      'translateY(0px)';
+  }}
+>
+        <h3 style={{
+  margin: 0,
+  marginBottom: 10,
+  fontSize: 20
+}}>
+  Principal
+</h3>
+        <p style={{
+  margin: 0,
+  fontSize: 24,
+  fontWeight: 'bold'
+}}>
+  {formatCurrency(data.principal)}
+</p>
       </div>
 
-      <div style={card('#FF9800')}>
-        <h3>Interest</h3>
-        <p>{formatCurrency(data.interest)}</p>
+      <div
+  style={card('#FF9800')}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform =
+      'translateY(-6px)';
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform =
+      'translateY(0px)';
+  }}
+>
+        <h3 style={{
+  margin: 0,
+  marginBottom: 10,
+  fontSize: 20
+}}>
+  Interest
+</h3>
+        <p style={{
+  margin: 0,
+  fontSize: 24,
+  fontWeight: 'bold'
+}}>
+  {formatCurrency(data.interest)}
+</p>
       </div>
 
-      <div style={{
-        ...card(profitLoss >= 0 ? '#009688' : '#D32F2F'),
-        gridColumn: 'span 4'
-      }}>
-        <h3>{profitLoss >= 0 ? 'Profit' : 'Loss'}</h3>
-        <p>{formatCurrency(profitLoss)}</p>
-      </div>
+      <div
+  style={{
+    ...card(profitLoss >= 0 ? '#4CAF50' : '#D32F2F'),
+    gridColumn: 'span 4'
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform =
+      'translateY(-6px)';
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform =
+      'translateY(0px)';
+  }}
+>
+  <h3 style={{
+    margin: 0,
+    marginBottom: 10,
+    fontSize: 20
+  }}>
+    {profitLoss >= 0 ? 'Profit' : 'Loss'}
+  </h3>
+
+  <p style={{
+    margin: 0,
+    fontSize: 24,
+    fontWeight: 'bold'
+  }}>
+    {formatCurrency(profitLoss)}
+  </p>
+</div>
 
     </div>
 

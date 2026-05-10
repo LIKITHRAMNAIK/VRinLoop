@@ -23,6 +23,7 @@ router.put('/paid/:id', transactionController.markAsPaid);
 router.get('/person/:name', transactionController.getByPerson);
 router.put('/update/:id', transactionController.updateTransaction);
 router.delete('/delete/:id', transactionController.deleteTransaction);
+router.get('/transactions', controller.getTransactions);
 
 
 module.exports = router;

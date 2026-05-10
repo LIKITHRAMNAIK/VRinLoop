@@ -679,14 +679,40 @@ if (filterType === 'pending') {
   }
 
   if (filterType === 'due') {
-    filteredData = filteredData.filter(
-      tx => {
-        const due = new Date(tx.due_date);
-        due.setHours(0,0,0,0);
-        return due < today && tx.status !== 'paid';
-      }
-    );
-  }
+
+  filteredData = filteredData.filter(tx => {
+
+    const due = new Date(tx.due_date);
+
+    due.setHours(0,0,0,0);
+
+    // active overdue
+    if (
+  due < today &&
+  tx.status !== 'paid' &&
+  tx.status !== 'extended'
+) {
+      return true;
+    }
+
+    // paid late
+    if (
+      tx.status === 'paid' &&
+      tx.paid_date
+    ) {
+
+      const paidDate = new Date(tx.paid_date);
+
+      paidDate.setHours(0,0,0,0);
+
+      return paidDate > due;
+    }
+
+    return false;
+
+  });
+
+}
 
   // SORT
   if (sortType === 'date') {
@@ -819,7 +845,25 @@ fontWeight: 'bold',
   const paid = tx.paid_amount || 0;
   const total = tx.principal_amount;
   const balance = total - paid;
-  const isOverdue = new Date(tx.due_date) < new Date() && tx.status !== 'paid';
+  const today = new Date();
+
+today.setHours(0,0,0,0);
+
+const dueDate = new Date(tx.due_date);
+
+dueDate.setHours(0,0,0,0);
+
+const isOverdue =
+  dueDate < today &&
+  tx.status !== 'paid';
+
+const overdueDays = Math.max(
+  1,
+  Math.ceil(
+    (today - dueDate) /
+    (1000 * 60 * 60 * 24)
+  )
+);
 
   const start = new Date(tx.start_date).toDateString();
   const due = new Date(tx.due_date).toDateString();
@@ -873,14 +917,52 @@ fontWeight: 'bold',
 
       <hr />
       {isOverdue && (
-  <p style={{ color: 'red', fontWeight: 'bold' }}>
-    ⚠ Overdue
+  <p style={{
+    color: 'red',
+    fontWeight: 'bold'
+  }}>
+    ⚠ {overdueDays} day{overdueDays > 1 ? 's' : ''} overdue
   </p>
 )}
       {/* 💰 DATA */}
       <p>Total: {formatCurrency(total)}</p>
       <p>Paid: {formatCurrency(paid)}</p>
       <p>Balance: {formatCurrency(balance)}</p>
+
+      {tx.status === 'paid' && tx.paid_date && (() => {
+
+  const paidDate = new Date(tx.paid_date);
+
+  const dueDate = new Date(tx.due_date);
+
+  paidDate.setHours(0,0,0,0);
+
+  dueDate.setHours(0,0,0,0);
+
+  const isLate = paidDate > dueDate;
+
+  const diffDays = Math.max(
+    1,
+    Math.ceil(
+      (paidDate - dueDate) /
+      (1000 * 60 * 60 * 24)
+    )
+  );
+
+  return (
+    <p style={{
+      color: isLate ? '#f44336' : '#4CAF50',
+      fontWeight: 'bold'
+    }}>
+      {
+        isLate
+          ? `Paid Late (${diffDays} day${diffDays > 1 ? 's' : ''}) on ${paidDate.toDateString()}`
+          : `Paid on: ${paidDate.toDateString()}`
+      }
+    </p>
+  );
+
+})()}
 
       {balance === 0 && (
   <div style={{
@@ -957,11 +1039,21 @@ const finalInterest =
 
 const today = new Date();
 
-const dueDate = new Date(tx.due_date);
+const latestDueDate =
+  tx.extensions?.length > 0
+    ? tx.due_date
+    : tx.due_date;
+
+const dueDate = new Date(latestDueDate);
+
+dueDate.setHours(0,0,0,0);
+
+today.setHours(0,0,0,0);
 
 const isOverdue =
   dueDate < today &&
-  tx.status !== 'paid';
+  tx.status !== 'paid' &&
+  tx.status !== 'extended';
 
 const displayStatus =
   isOverdue
@@ -1054,18 +1146,42 @@ border: isOverdue ? '2px solid #f44336' : 'none',
 
   <span
     style={{
-      color: tx.extensions?.length > 0 ? '#f44336' : 'black',
+      color:
+        tx.extensions?.length > 0
+          ? '#f44336'
+          : 'black',
+
       textDecoration:
-        tx.extensions?.length > 0 ? 'line-through' : 'none'
+        tx.extensions?.length > 0
+          ? 'line-through'
+          : 'none'
     }}
   >
     {
       tx.extensions?.length > 0
-        ? new Date(tx.extensions[0].old_due_date).toDateString()
+        ? new Date(
+            tx.extensions[0].old_due_date
+          ).toDateString()
         : new Date(tx.due_date).toDateString()
     }
   </span>
 </p>
+
+{tx.extensions?.length > 0 && (
+  <p style={{
+    color: '#f44336',
+    marginLeft: 10,
+    fontWeight: 'bold'
+  }}>
+    {
+      new Date(
+        tx.extensions[
+          tx.extensions.length - 1
+        ].new_due_date
+      ).toDateString()
+    }
+  </p>
+)}
 {isOverdue && (
   <p style={{
     color: '#f44336',
@@ -1075,11 +1191,22 @@ border: isOverdue ? '2px solid #f44336' : 'none',
   </p>
 )}
 
-{tx.status === 'extended' && (
-  <p style={{ color: '#f44336', marginLeft: 10 }}>
-    {new Date(tx.due_date).toDateString()}
+{/* {tx.status === 'extended' &&
+ tx.extensions?.length > 0 && (
+  <p style={{
+    color: '#f44336',
+    marginLeft: 10,
+    fontWeight: 'bold'
+  }}>
+    {
+      new Date(
+        tx.extensions[
+          tx.extensions.length - 1
+        ].new_due_date
+      ).toDateString()
+    }
   </p>
-)}
+)} */}
 
       {/* {overdueDays > 0 && (
         <p style={{ color: 'red' }}>Overdue: {overdueDays} days</p>
@@ -1134,17 +1261,46 @@ border: isOverdue ? '2px solid #f44336' : 'none',
   </b>{' '}
   {formatCurrency(finalInterest)}
 </p>
-{tx.status === 'paid' && tx.paid_date && (
-  <p style={{
-    color: tx.early_paid ? '#ff9800' : '#4CAF50',
-    fontWeight: 'bold'
-  }}>
-    {tx.early_paid
-      ? `Early Pay on: ${new Date(tx.paid_date).toDateString()}`
-      : `Paid on: ${new Date(tx.paid_date).toDateString()}`
-    }
-  </p>
-)}
+{tx.status === 'paid' && tx.paid_date && (() => {
+
+  const paid = new Date(tx.paid_date);
+
+  const due = new Date(tx.due_date);
+
+  paid.setHours(0,0,0,0);
+
+  due.setHours(0,0,0,0);
+
+  const isLate = paid > due;
+
+  const diffDays = Math.max(
+    1,
+    Math.ceil(
+      (paid - due) / (1000 * 60 * 60 * 24)
+    )
+  );
+
+  return (
+    <p style={{
+      color:
+        tx.early_paid
+          ? '#ff9800'
+          : isLate
+          ? '#f44336'
+          : '#4CAF50',
+
+      fontWeight: 'bold'
+    }}>
+      {tx.early_paid
+        ? `Early Pay on: ${paid.toDateString()}`
+        : isLate
+        ? `Paid Late (${diffDays} day${diffDays > 1 ? 's' : ''}) on ${paid.toDateString()}`
+        : `Paid on: ${paid.toDateString()}`
+      }
+    </p>
+  );
+
+})()}
 <p><b>Total {formatCurrency(total)}</b></p>
 
 <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
@@ -1974,16 +2130,19 @@ const overdueDays = Math.max(
       {/* 🔥 POPUP (ADD HERE — TOP INSIDE RETURN) */}
       {showNoDuePopup && (
         <div style={{
-          position: 'fixed',
-          top: 20,
-          right: 20,
-          background: '#4CAF50',
-          color: 'white',
-          padding: '10px 15px',
-          borderRadius: 8,
-          boxShadow: '0 3px 10px rgba(0,0,0,0.2)',
-          zIndex: 999
-        }}>
+  position: 'fixed',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  background: '#4CAF50',
+  color: 'white',
+  padding: '14px 22px',
+  borderRadius: 12,
+  boxShadow: '0 5px 20px rgba(0,0,0,0.3)',
+  zIndex: 9999,
+  fontWeight: 'bold',
+  fontSize: '16px'
+}}>
           🎉 No overdue payments
         </div>
       )}
@@ -2313,9 +2472,34 @@ const overdueDays = Math.max(
       </p>
 
       <p>
-        <b>Due Date:</b>{' '}
-        {new Date(earlyPayPopup.due_date).toDateString()}
-      </p>
+  <b>Original Due:</b>{' '}
+
+  {
+  earlyPayPopup.extensions?.length > 0
+    ? new Date(
+        earlyPayPopup.extensions[0].old_due_date
+      ).toDateString()
+    : new Date(
+        earlyPayPopup.due_date
+      ).toDateString()
+}
+</p>
+
+{earlyPayPopup.extensions?.length > 0 && (
+  <p style={{
+    color: '#f44336',
+    fontWeight: 'bold'
+  }}>
+    <b>Extended Due:</b>{' '}
+    {
+      new Date(
+        earlyPayPopup.extensions[
+  earlyPayPopup.extensions.length - 1
+].new_due_date
+      ).toDateString()
+    }
+  </p>
+)}
 
       <input
         type="number"
