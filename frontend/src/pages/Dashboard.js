@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import API from '../services/api';
 import AddTransaction from '../components/AddTransaction';
 import TransactionList from '../components/TransactionList';
-import Charts from '../components/Charts';
+// import Charts from '../components/Charts';
 import { formatCurrency } from '../utils/format';
 import Sidebar from '../components/Sidebar';
 
@@ -163,12 +163,17 @@ const outgoingPercent =
         <div
           onClick={(e) => e.stopPropagation()}
           style={{
-            background: 'white',
-            padding: '25px',
-            borderRadius: '12px',
-            width: '350px',
-            boxShadow: '0 5px 15px rgba(0,0,0,0.3)'
-          }}
+  background: 'white',
+  padding: '25px',
+  borderRadius: '12px',
+  width: '350px',
+  boxShadow: '0 5px 15px rgba(0,0,0,0.3)',
+
+  maxHeight: '90vh',
+  overflowY: 'auto',
+
+  scrollbarWidth: 'thin'
+}}
         >
           <AddTransaction
             refresh={() => {

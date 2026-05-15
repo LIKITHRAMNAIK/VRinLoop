@@ -1,32 +1,6 @@
 const Transaction = require('../models/Transaction');
 
 
-const addTransaction = async (req, res) => {
-  try {
-    const tx = new Transaction({
-      person_name: req.body.person_name,
-      type: req.body.type,
-      transaction_type: req.body.transaction_type || 'rotation', // ✅ ADD THIS
-      principal_amount: req.body.principal_amount,
-      base_interest: req.body.base_interest,
-      start_date: req.body.start_date,
-      due_date: req.body.due_date,
-      notes: req.body.notes,
-      status: 'pending',
-      extensions: []
-    });
-
-    
-
-    await tx.save();
-    res.json(tx);
-
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ error: 'Failed to add transaction' });
-  }
-};
-
 exports.extendTransaction = async (req, res) => {
   try {
     const { id } = req.params;
@@ -92,6 +66,27 @@ exports.getDashboard = async (req, res) => {
 
     transactions.forEach(tx => {
 
+        // ================= AUTO OVERDUE =================
+
+  if (tx.status !== 'paid') {
+
+    const todayDate = new Date();
+
+    todayDate.setHours(0,0,0,0);
+
+    const dueDate =
+      new Date(tx.due_date);
+
+    dueDate.setHours(0,0,0,0);
+
+    if (dueDate < todayDate) {
+
+      tx.status = 'overdue';
+
+    }
+
+  }
+
   const isActive = tx.status !== 'paid';
 
   // 🔥 NORMAL (INSTALLMENT)
@@ -116,13 +111,33 @@ exports.getDashboard = async (req, res) => {
   // 🔥 ROTATION / LOAN
   if (isActive) {
 
-    let totalInterest = tx.base_interest;
+    // ================= LOAN =================
 
-    tx.extensions.forEach(ext => {
-      totalInterest += ext.extra_interest;
-    });
+if (tx.transaction_type === 'loan') {
 
-    const total = tx.principal_amount + totalInterest;
+  const remainingLoanAmount =
+    (tx.remaining_emi || 0) *
+    (tx.emi_amount || 0);
+
+  // ONLY active liability
+  outgoing += remainingLoanAmount;
+
+  // ❌ DO NOT ADD TO PRINCIPAL
+  // ❌ DO NOT ADD TO INTEREST
+
+  return;
+}
+
+// ================= ROTATION =================
+
+let totalInterest = tx.base_interest;
+
+tx.extensions?.forEach(ext => {
+  totalInterest += ext.extra_interest;
+});
+
+const total =
+  tx.principal_amount + totalInterest;
 
     principal += tx.principal_amount;
     interest += totalInterest;
@@ -197,8 +212,203 @@ exports.getByDateRange = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+exports.payLoanEmi = async (req, res) => {
+
+  try {
+
+    const { id } = req.params;
+
+    const tx = await Transaction.findById(id);
+
+    if (!tx) {
+      return res.status(404).json({
+        message: 'Loan not found'
+      });
+    }
+
+    // SAFE DEFAULTS
+    if (!tx.emi_history) {
+      tx.emi_history = [];
+    }
+
+    if (tx.completed_emi === undefined) {
+      tx.completed_emi = 0;
+    }
+
+    if (tx.remaining_emi === undefined) {
+      tx.remaining_emi =
+        Number(tx.loan_duration || 0);
+    }
+
+    // VALIDATION
+    if (tx.transaction_type !== 'loan') {
+      return res.status(400).json({
+        message: 'Not a loan transaction'
+      });
+    }
+
+    if (tx.remaining_emi <= 0) {
+      return res.status(400).json({
+        message: 'Loan already completed'
+      });
+    }
+
+    // EMI HISTORY
+        // ================= EMI COUNT =================
+
+    const emiCount =
+      Number(req.body.emiCount || 1);
+
+      const penaltyAmount =
+  Number(
+    req.body.penaltyAmount || 0
+  );
+
+    // SAFE LIMIT
+    const safeCount = Math.min(
+      emiCount,
+      tx.remaining_emi
+    );
+
+    // ================= EMI LOOP =================
+
+    for (let i = 0; i < safeCount; i++) {
+
+      const currentMonth =
+  tx.completed_emi + 1;
+
+      const paidDate =
+        new Date();
+
+      // ================= EMI STATUS =================
+
+      const dueDate =
+  new Date(tx.start_date);
+
+// actual EMI month
+dueDate.setMonth(
+  dueDate.getMonth() +
+  tx.completed_emi
+);
+
+            // ================= EMI STATUS =================
+
+            let emiStatus = 'paid';
+
+      let lateDays = 0;
+
+      const comparePaidDate =
+        new Date(paidDate);
+
+      const compareDueDate =
+        new Date(dueDate);
+
+      comparePaidDate.setHours(
+        0,0,0,0
+      );
+
+      compareDueDate.setHours(
+        0,0,0,0
+      );
+
+      if (
+        comparePaidDate >
+        compareDueDate
+      ) {
+
+        emiStatus = 'late';
+
+        const timeDifference =
+
+  comparePaidDate.getTime() -
+  compareDueDate.getTime();
+
+lateDays = Math.round(
+
+  timeDifference /
+
+  (1000 * 60 * 60 * 24)
+
+);
+
+      }
+
+      if (
+        comparePaidDate <
+        compareDueDate
+      ) {
+        emiStatus = 'advance';
+      }
+
+      // ================= EMI HISTORY =================
+
+            tx.emi_history.push({
+
+  amount: tx.emi_amount,
+
+  month_number: currentMonth,
+
+  paid_date: paidDate,
+
+  status: emiStatus,
+
+  late_days: lateDays,
+
+  penalty_amount:
+    penaltyAmount
+
+});
+
+      tx.completed_emi += 1;
+
+      tx.remaining_emi -= 1;
+
+    }
+
+        // ================= NEXT EMI DATE =================
+
+    if (tx.remaining_emi > 0) {
+
+      const currentDueDate =
+        new Date(tx.due_date);
+
+      currentDueDate.setMonth(
+        currentDueDate.getMonth() +
+        safeCount
+      );
+
+      tx.due_date = currentDueDate;
+
+    }
+
+    // ================= AUTO COMPLETE =================
+
+    if (tx.remaining_emi <= 0) {
+
+      tx.status = 'paid';
+
+      tx.paid_date = new Date();
+
+    }
+
+    await tx.save();
+
+    res.json(tx);
+
+  } catch (error) {
+
+    console.log(error);
+
+    res.status(500).json({
+      message: error.message
+    });
+
+  }
+
+};
 
 exports.markAsPaid = async (req, res) => {
+
   try {
     const { id } = req.params;
     const { amount } = req.body;
@@ -349,12 +559,15 @@ tx.extensions.forEach(ext => {
 
     tx.start_date =
       req.body.start_date;
-
     
+    tx.loan_duration =
+  req.body.loan_duration || tx.loan_duration;
 
-    // 🔥 IMPORTANT
-    // if extended transaction
-    // also update latest extension due date
+tx.emi_amount =
+  req.body.emi_amount || tx.emi_amount;
+
+tx.interest_type =
+  req.body.interest_type || tx.interest_type;
 
     if (
   tx.extensions &&
@@ -406,13 +619,253 @@ tx.extensions.forEach(ext => {
 
   exports.addTransaction = async (req, res) => {
   try {
-    const transaction = new Transaction(req.body);
-    await transaction.save();
+
+    const {
+  loan_mode,
+  already_paid_months,
+  last_paid_date
+} = req.body;
+
+let completedEmi = 0;
+let remainingEmi = 0;
+
+if (req.body.transaction_type === 'loan') {
+
+  if (loan_mode === 'existing') {
+
+    completedEmi = Number(already_paid_months || 0);
+
+    remainingEmi =
+      Number(req.body.loan_duration) -
+      completedEmi;
+
+  } else {
+
+    completedEmi = 0;
+
+    remainingEmi =
+      Number(req.body.loan_duration);
+
+  }
+
+}
+
+const emiHistory = [];
+
+if (
+  req.body.transaction_type === 'loan' &&
+  loan_mode === 'existing'
+) {
+
+  for (
+    let i = 0;
+    i < Number(already_paid_months || 0);
+    i++
+  ) {
+
+    const paidDate = new Date(
+      req.body.start_date
+    );
+
+    paidDate.setMonth(
+      paidDate.getMonth() + i
+    );
+
+    // LAST EMI DATE
+    if (
+      i === Number(already_paid_months) - 1 &&
+      last_paid_date
+    ) {
+      paidDate.setTime(
+        new Date(last_paid_date).getTime()
+      );
+    }
+
+    emiHistory.push({
+
+      amount: Number(req.body.emi_amount),
+
+      month_number: i + 1,
+
+      paid_date: paidDate
+
+    });
+
+  }
+
+}
+
+const transaction = new Transaction({
+
+  person_name: req.body.person_name,
+
+  type: req.body.type,
+
+  transaction_type:
+    req.body.transaction_type,
+
+  principal_amount:
+    Number(req.body.principal_amount),
+
+  base_interest:
+    Number(req.body.base_interest),
+
+  start_date:
+    req.body.start_date,
+
+  due_date:
+    req.body.due_date,
+
+  notes:
+    req.body.notes,
+
+  loan_duration:
+    Number(req.body.loan_duration || 0),
+
+  emi_amount:
+    Number(req.body.emi_amount || 0),
+
+  interest_type:
+    req.body.interest_type || 'flat',
+
+  completed_emi:
+    completedEmi,
+
+  remaining_emi:
+    remainingEmi,
+
+  emi_history:
+    emiHistory
+
+});
+
+await transaction.save();
 
     res.status(201).json(transaction);
+
   } catch (error) {
-    res.status(500).json({ message: error.message });
+
+    res.status(500).json({
+      message: error.message
+    });
+
   }
 };
+const updateLoanHistoryDate = async (req, res) => {
 
-module.exports = exports;
+  try {
+
+    const {
+      txId,
+      emiIndex,
+      paid_date
+    } = req.body;
+
+    const transaction =
+      await Transaction.findById(txId);
+
+    if (!transaction) {
+      return res.status(404).json({
+        message: 'Loan not found'
+      });
+    }
+
+    if (
+      !transaction.emi_history ||
+      !transaction.emi_history[emiIndex]
+    ) {
+      return res.status(404).json({
+        message: 'EMI not found'
+      });
+    }
+
+    const emi =
+  transaction.emi_history[
+    emiIndex
+  ];
+
+emi.paid_date = paid_date;
+
+// ================= RECALCULATE STATUS =================
+
+const comparePaidDate =
+  new Date(paid_date);
+
+comparePaidDate.setHours(
+  0,0,0,0
+);
+
+const dueDate =
+  new Date(transaction.start_date);
+
+dueDate.setMonth(
+  dueDate.getMonth() + emiIndex
+);
+
+dueDate.setHours(
+  0,0,0,0
+);
+
+let emiStatus = 'paid';
+
+let lateDays = 0;
+
+if (comparePaidDate > dueDate) {
+
+  emiStatus = 'late';
+
+  lateDays = Math.round(
+
+    (
+      comparePaidDate -
+      dueDate
+    ) /
+
+    (1000 * 60 * 60 * 24)
+
+  );
+
+}
+
+if (comparePaidDate < dueDate) {
+
+  emiStatus = 'advance';
+
+}
+
+emi.status = emiStatus;
+
+emi.late_days = lateDays;
+
+    await transaction.save();
+
+    res.json({
+      message: 'EMI date updated'
+    });
+
+  } catch (err) {
+
+    console.log(err);
+
+    res.status(500).json({
+      message: 'Server Error'
+    });
+
+  }
+
+};
+
+
+module.exports = {
+  addTransaction: exports.addTransaction,
+  extendTransaction: exports.extendTransaction,
+  getTransactions: exports.getTransactions,
+  getDashboard: exports.getDashboard,
+  getByDateRange: exports.getByDateRange,
+  markAsPaid: exports.markAsPaid,
+  getByPerson: exports.getByPerson,
+  updateTransaction: exports.updateTransaction,
+  deleteTransaction: exports.deleteTransaction,
+  payLoanEmi: exports.payLoanEmi,
+  updateLoanHistoryDate
+};

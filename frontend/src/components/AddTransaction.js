@@ -1,6 +1,5 @@
 import React, { useState,useEffect } from 'react';
 import API from '../services/api';
-import { formatCurrency } from '../utils/format';
 const inputStyle = {
   width: '100%',
   padding: '8px',
@@ -36,7 +35,14 @@ function AddTransaction({ refresh }) {
   base_interest: '',
   start_date: '',
   due_date: '',
-  notes: ''
+  notes: '',
+  loan_duration: '',
+emi_amount: '',
+interest_type: 'flat',
+
+loan_mode: 'new',
+already_paid_months: 0,
+last_paid_date: ''
 });
 const isRotation = form.transaction_type === 'rotation';
 const isNormal = form.transaction_type === 'normal';
@@ -81,20 +87,32 @@ const isLoan = form.transaction_type === 'loan';
       base_interest: Number(form.base_interest),
       start_date: form.start_date,
       due_date: form.due_date,
-      notes: form.notes
+      notes: form.notes,
+      loan_duration: Number(form.loan_duration),
+emi_amount: Number(form.emi_amount),
+interest_type: form.interest_type,
+loan_mode: form.loan_mode,
+already_paid_months: Number(form.already_paid_months),
+last_paid_date: form.last_paid_date
     });
 
     alert('Transaction Added ✅');
 
       setForm({
-  transaction_type: 'rotation',   // ✅ NEW
   person_name: '',
   type: 'incoming',
+  transaction_type: 'rotation',
   principal_amount: '',
   base_interest: '',
   start_date: '',
   due_date: '',
-  notes: ''
+  notes: '',
+  loan_duration: '',
+  emi_amount: '',
+  interest_type: 'flat',
+  loan_mode: 'new',
+already_paid_months: 0,
+last_paid_date: ''
 });
 
       refresh();
@@ -104,6 +122,88 @@ const isLoan = form.transaction_type === 'loan';
       alert('Error ❌');
     }
   };
+
+  useEffect(() => {
+
+  if (
+    isLoan &&
+    form.principal_amount &&
+    form.base_interest &&
+    form.loan_duration
+  ) {
+
+    const total =
+      Number(form.principal_amount) +
+      Number(form.base_interest);
+
+    const emi =
+      Math.ceil(
+        total / Number(form.loan_duration)
+      );
+
+    let nextDueDate = form.due_date;
+
+    let calculatedStartDate =
+      form.start_date;
+
+    // EXISTING LOAN
+    if (
+      form.loan_mode === 'existing' &&
+      form.last_paid_date
+    ) {
+
+      // NEXT EMI DATE
+      const nextDate = new Date(
+        form.last_paid_date
+      );
+
+      nextDate.setMonth(
+        nextDate.getMonth() + 1
+      );
+
+      nextDueDate =
+        nextDate.toISOString()
+          .split('T')[0];
+
+      // AUTO START DATE
+      const startDate = new Date(
+        form.last_paid_date
+      );
+
+      startDate.setMonth(
+        startDate.getMonth() -
+        (
+          Number(form.already_paid_months) - 1
+        )
+      );
+
+      calculatedStartDate =
+        startDate.toISOString()
+          .split('T')[0];
+
+    }
+
+    setForm(prev => ({
+      ...prev,
+
+      emi_amount: emi,
+
+      start_date: calculatedStartDate,
+
+      due_date: nextDueDate
+    }));
+
+  }
+
+}, [
+  form.principal_amount,
+  form.base_interest,
+  form.loan_duration,
+  form.last_paid_date,
+  form.already_paid_months,
+  form.loan_mode,
+  isLoan
+]);
 
   return (
     <form onSubmit={handleSubmit} style={{
@@ -119,7 +219,17 @@ const isLoan = form.transaction_type === 'loan';
   <select
     name="transaction_type"
     value={form.transaction_type}
-    onChange={handleChange}
+    onChange={(e) => {
+  const value = e.target.value;
+
+  setForm({
+    ...form,
+    transaction_type: value,
+    type: value === 'loan'
+      ? 'outgoing'
+      : form.type
+  });
+}}
     style={inputStyle}
   >
     <option value="rotation">Rotation</option>
@@ -148,25 +258,38 @@ const isLoan = form.transaction_type === 'loan';
       </div>
   
       {/* TYPE */}
-      <div>
-        <label>Type</label><br />
-        <select
-          name="type"
-          value={form.type}
-          onChange={handleChange}
-          style={inputStyle}
-        >
-          <option value="incoming">Incoming</option>
-          <option value="outgoing">Outgoing</option>
-        </select>
-      </div>
+
+{form.transaction_type !== 'loan' && (
+  <>
+    <label>Type</label>
+
+    <select
+      name="type"
+      value={form.type}
+      onChange={handleChange}
+      style={inputStyle}
+    >
+      <option value="incoming">Incoming</option>
+      <option value="outgoing">Outgoing</option>
+    </select>
+  </>
+)}
   
       {/* AMOUNT */}
       <div>
-        <label>{isNormal ? 'Principal Amount' : 'Amount Details'}</label><br />
+        <label>
+  {
+    isNormal
+      ? 'Principal Amount'
+      : isLoan
+      ? 'Loan Details'
+      : 'Amount Details'
+  }
+</label><br />
 
 {isRotation && (
   <div style={{ display: 'flex', gap: '10px' }}>
+
     <input
       type="number"
       name="principal_amount"
@@ -190,7 +313,193 @@ const isLoan = form.transaction_type === 'loan';
       required
       style={{ ...inputStyle, flex: 1 }}
     />
+
   </div>
+)}
+
+    {form.transaction_type === 'loan' && (
+  <div style={{
+  marginTop: 15,
+  padding: 22,
+  background: 'linear-gradient(135deg, #f3ecff, #e7ddff)',
+  borderRadius: 18,
+  border: '1px solid #d5c2ff',
+  boxShadow: '0 4px 14px rgba(94,53,177,0.12)',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 14
+}}>
+
+  <h3 style={{
+  margin: 0,
+  color: '#5E35B1',
+  fontSize: 24,
+  fontWeight: '700',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10
+}}>
+    💳 Loan Details
+  </h3>
+<select
+  name="loan_mode"
+  value={form.loan_mode}
+  onChange={handleChange}
+  style={{
+    width: '100%',
+    padding: '14px 16px',
+    borderRadius: 12,
+    border: '1px solid #cdb7ff',
+    background: '#ffffff',
+    fontSize: 15,
+    outline: 'none',
+    boxSizing: 'border-box'
+  }}
+>
+  <option value="new">
+    New Loan
+  </option>
+
+  <option value="existing">
+    Existing Loan
+  </option>
+</select>
+  {/* LOAN AMOUNT */}
+  <input
+    type="number"
+    name="principal_amount"
+    placeholder="Loan Amount"
+    value={form.principal_amount}
+    onChange={handleChange}
+    style={{
+  width: '100%',
+  padding: '14px 16px',
+  borderRadius: 12,
+  border: '1px solid #cdb7ff',
+  background: '#ffffff',
+  fontSize: 15,
+  outline: 'none',
+  boxSizing: 'border-box'
+}}
+  />
+
+  {/* TOTAL INTEREST */}
+  <input
+    type="number"
+    name="base_interest"
+    placeholder="Total Interest"
+    value={form.base_interest}
+    onChange={handleChange}
+    style={{
+  width: '100%',
+  padding: '14px 16px',
+  borderRadius: 12,
+  border: '1px solid #cdb7ff',
+  background: '#ffffff',
+  fontSize: 15,
+  outline: 'none',
+  boxSizing: 'border-box'
+}}
+  />
+  {/* DURATION */}
+  <input
+  type="number"
+  name="loan_duration"
+  placeholder="Loan Duration (Months)"
+  value={form.loan_duration}
+    onChange={(e) =>
+      setForm({
+        ...form,
+        loan_duration: e.target.value
+      })
+    }
+    style={{
+  width: '100%',
+  padding: '14px 16px',
+  borderRadius: 12,
+  border: '1px solid #cdb7ff',
+  background: '#ffffff',
+  fontSize: 15,
+  outline: 'none',
+  boxSizing: 'border-box'
+}}
+  />
+
+  {/* EMI */}
+  <input
+  type="number"
+  placeholder="Monthly EMI Amount"
+  value={form.emi_amount}
+  readOnly
+  style={{
+  width: '100%',
+  padding: '14px 16px',
+  borderRadius: 12,
+  border: '1px solid #cdb7ff',
+  background: '#ffffff',
+  fontSize: 15,
+  outline: 'none',
+  boxSizing: 'border-box'
+}}
+/>
+
+{form.loan_mode === 'existing' && (
+
+  <>
+<label style={{
+  color: '#5E35B1',
+  fontWeight: '600'
+}}>
+  Already Paid EMIs
+</label>
+    <input
+      type="number"
+      name="already_paid_months"
+      min="0"
+max={form.loan_duration || 0}
+      placeholder="Already Paid Months"
+      value={form.already_paid_months}
+      onChange={handleChange}
+      style={{
+        width: '100%',
+        padding: '14px 16px',
+        borderRadius: 12,
+        border: '1px solid #cdb7ff',
+        background: '#ffffff',
+        fontSize: 15,
+        outline: 'none',
+        boxSizing: 'border-box'
+      }}
+    />
+<label style={{
+  color: '#5E35B1',
+  fontWeight: '600'
+}}>
+  Last EMI Paid Date
+</label>
+    <input
+      type="date"
+      name="last_paid_date"
+      value={form.last_paid_date}
+      onChange={handleChange}
+      style={{
+        width: '100%',
+        padding: '14px 16px',
+        borderRadius: 12,
+        border: '1px solid #cdb7ff',
+        background: '#ffffff',
+        fontSize: 15,
+        outline: 'none',
+        boxSizing: 'border-box'
+      }}
+    />
+
+  </>
+
+)}
+
+
+</div>
 )}
 
 {isNormal && (
@@ -207,16 +516,7 @@ const isLoan = form.transaction_type === 'loan';
   />
 )}
 
-{isLoan && (
-  <input
-    type="number"
-    name="principal_amount"
-    placeholder="Loan amount"
-    value={form.principal_amount}
-    onChange={handleChange}
-    style={inputStyle}
-  />
-)}
+
       </div>
   
       {/* START DATE */}
@@ -234,7 +534,11 @@ const isLoan = form.transaction_type === 'loan';
   
       {/* DUE DATE */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <label style={{ width: '100px' }}>Due Date</label>
+        <label style={{ width: '100px' }}>
+  {isLoan
+    ? 'EMI Due Date'
+    : 'Due Date'}
+</label>
         <input
           type="date"
           name="due_date"

@@ -33,6 +33,7 @@ const [normalPayPopup, setNormalPayPopup] = useState(null);
     setEditId(null);
     refresh();
   };
+
 const today = new Date();
 today.setHours(0,0,0,0);
 
@@ -95,7 +96,6 @@ const sortedData = [...filteredData].sort((a, b) => {
   return aDate - bDate;
 });
   const renderCard = (tx) => {
-    // const displayStatus = isOverdue ? 'due' : tx.status;
     const today = new Date();
 today.setHours(0,0,0,0);
 
@@ -145,8 +145,11 @@ const total = tx.principal_amount + finalInterest;
       <div key={tx._id} style={{
         padding: 12,
         borderRadius: 10,
-        background: isOverdue ? '#ffe5e5' : '#fff3cd',
-border: isOverdue ? '2px solid #f44336' : 'none'
+        background: isOverdue
+  ? '#ffe5e5'
+  : tx.status === 'paid'
+  ? '#e8f5e9'
+  : '#fff3cd',
       }}>
         <div style={{
   display: 'flex',
@@ -234,22 +237,7 @@ border: isOverdue ? '2px solid #f44336' : 'none'
   </p>
 )}
 
-{/* {tx.status === 'extended' &&
- tx.extensions?.length > 0 && (
-  <p style={{
-    color: '#f44336',
-    marginLeft: 10,
-    fontWeight: 'bold'
-  }}>
-    {
-      new Date(
-        tx.extensions[
-          tx.extensions.length - 1
-        ].new_due_date
-      ).toDateString()
-    }
-  </p>
-)} */}
+
 {tx.status === 'paid' && (
   <div style={{
     background: '#4CAF50',
@@ -274,10 +262,8 @@ border: isOverdue ? '2px solid #f44336' : 'none'
 
     <span style={{
       color:
-        displayStatus === 'due'
-          ? '#f44336'
-          : displayStatus === 'extended'
-          ? '#ff0000'
+  displayStatus === 'extended'
+    ? '#f44336'
           : '#f39521'
     }}>
       {displayStatus.toUpperCase()}
@@ -325,7 +311,6 @@ const diffDays = Math.max(
 
 
 <p><b>Principal:</b> {formatCurrency(tx.principal_amount)}</p>
-{/* <p><b>Interest:</b> {formatCurrency(totalInterest)}</p> */}
 {tx.early_paid && (
   <p>
     <b>Normal Interest:</b>{' '}
@@ -402,25 +387,7 @@ setEditForm({
   };
 
   return (
-    // <div style={{ padding: 20 }}>
     <div>
-      {/* <button
-  onClick={() => navigate('/')}
-  style={{
-    marginBottom: 15,
-    padding: '8px 14px',
-    borderRadius: 8,
-    border: 'none',
-    background: '#4CAF50',
-    color: 'white',
-    cursor: 'pointer',
-    fontWeight: 'bold'
-  }}
->
-  ⬅ Dashboard
-</button>
-
-      <h2>Rotation Profile</h2> */}
       <select
   value={filterType}
   onChange={(e) => setFilterType(e.target.value)}
@@ -675,6 +642,8 @@ setEditForm({
     style={{ flex:1 }}
   />
 </div>
+
+
 
 {/* START */}
 <div style={{ display:'flex', alignItems:'center', marginBottom:10 }}>

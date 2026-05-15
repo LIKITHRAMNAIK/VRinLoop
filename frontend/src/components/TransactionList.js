@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatCurrency } from '../utils/format';
+import LoanProfile from '../pages/LoanProfile';
 
 const getColor = (name) => {
   const colors = ['#e3f2fd', '#fce4ec', '#e8f5e9', '#fff3e0'];
@@ -70,12 +71,55 @@ const [normalPayPopup, setNormalPayPopup] = useState(null);
   );
   const upcomingTransactions = data
   .filter(tx => {
+
+    // ================= LOAN EMI =================
+
+    if (tx.transaction_type === 'loan') {
+
+      if (
+        tx.remaining_emi <= 0
+      ) {
+        return false;
+      }
+
+      const todayDate = new Date();
+
+      todayDate.setHours(0,0,0,0);
+
+      const nextEmiDate = new Date(tx.due_date);
+
+      nextEmiDate.setHours(0,0,0,0);
+
+      const diff =
+        (nextEmiDate - todayDate) /
+        (1000 * 60 * 60 * 24);
+
+      return diff >= 0 && diff <= 7;
+    }
+
+    // ================= NORMAL / ROTATION =================
+
     const due = new Date(tx.due_date);
+
     due.setHours(0,0,0,0);
-    const diff = (due - today) / (1000 * 60 * 60 * 24);
-    return diff >= 0 && diff <= 7 && tx.status !== 'paid';
+
+    const diff =
+      (due - today) /
+      (1000 * 60 * 60 * 24);
+
+    return (
+      diff >= 0 &&
+      diff <= 7 &&
+      tx.status !== 'paid'
+    );
+
   })
-  .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));  // ✅ SORT ADDED
+
+  .sort(
+    (a, b) =>
+      new Date(a.due_date) -
+      new Date(b.due_date)
+  );
 
   const badgeStyle = (bg) => ({
     background: bg,
@@ -87,9 +131,46 @@ const [normalPayPopup, setNormalPayPopup] = useState(null);
   });
 
   // ✅ COUNTS
-  const pendingCount = data.filter(tx => tx.status !== 'paid').length;
-  const paidCount = data.filter(tx => tx.status === 'paid').length;
-  const extendedCount = data.filter(tx => tx.extensions.length > 0).length;
+const pendingCount = data.filter(tx => {
+
+  // NORMAL
+  if (tx.transaction_type === 'normal') {
+    return (tx.principal_amount - (tx.paid_amount || 0)) > 0;
+  }
+
+  // LOAN
+  if (tx.transaction_type === 'loan') {
+    return (tx.remaining_emi || 0) > 0;
+  }
+
+  // ROTATION
+  return tx.status !== 'paid';
+
+}).length;
+
+
+const paidCount = data.filter(tx => {
+
+  // NORMAL
+  if (tx.transaction_type === 'normal') {
+    return (tx.principal_amount - (tx.paid_amount || 0)) <= 0;
+  }
+
+  // LOAN
+  if (tx.transaction_type === 'loan') {
+    return (tx.remaining_emi || 0) <= 0;
+  }
+
+  // ROTATION
+  return tx.status === 'paid';
+
+}).length;
+
+
+const extendedCount = data.filter(tx =>
+  tx.transaction_type === 'rotation' &&
+  tx.extensions.length > 0
+).length;
   const dueCount = data.filter(
     tx => {
       const due = new Date(tx.due_date);
@@ -839,6 +920,8 @@ fontWeight: 'bold',
 
   // 🔥 FIX: decide type properly
   const type = tx.transaction_type || 'rotation';
+const isLoan = type === 'loan';
+  
 
   // ✅ NORMAL INSTALLMENT CARD
   if (type === 'normal') {
@@ -1100,7 +1183,6 @@ border: isOverdue ? '2px solid #f44336' : 'none',
   }}
 >
 
-      {/* <div style={{ display: 'flex', justifyContent: 'space-between' }}> */}
       <div style={{
   display: 'flex',
   justifyContent: 'space-between',
@@ -1109,13 +1191,13 @@ border: isOverdue ? '2px solid #f44336' : 'none',
         <h4
   style={{ marginBottom: 5, cursor: 'pointer', color: 'blue' }}
   onClick={() => {
-  // navigate(`/profile/${tx.person_name}`);
   navigate(`/profile/${tx.person_name}`, {
   state: { type: tx.transaction_type }
 });
 }}
 >
   {tx.person_name}
+
 </h4>
 
         <span style={{
@@ -1133,7 +1215,6 @@ border: isOverdue ? '2px solid #f44336' : 'none',
 </span>
       </div>
 
-      {/* <p><b>Start:</b> {new Date(tx.start_date).toDateString()}</p> */}
       <p>
   <b>Start:</b>{' '}
   <span style={{ color: 'green', fontWeight: 'bold' }}>
@@ -1191,27 +1272,6 @@ border: isOverdue ? '2px solid #f44336' : 'none',
   </p>
 )}
 
-{/* {tx.status === 'extended' &&
- tx.extensions?.length > 0 && (
-  <p style={{
-    color: '#f44336',
-    marginLeft: 10,
-    fontWeight: 'bold'
-  }}>
-    {
-      new Date(
-        tx.extensions[
-          tx.extensions.length - 1
-        ].new_due_date
-      ).toDateString()
-    }
-  </p>
-)} */}
-
-      {/* {overdueDays > 0 && (
-        <p style={{ color: 'red' }}>Overdue: {overdueDays} days</p>
-      )} */}
-
 <p>
   {/* ❌ HIDE STATUS IF OVERDUE */}
 {displayStatus !== 'overdue' && (
@@ -1231,7 +1291,9 @@ border: isOverdue ? '2px solid #f44336' : 'none',
       <span style={{
         color:
           displayStatus === 'extended'
-            ? '#f44336'
+  ? '#f44336'
+    ? '#5E35B1'
+    : '#f44336'
             : displayStatus === 'pending'
             ? '#ff9800'
             : 'black',
@@ -1244,7 +1306,6 @@ border: isOverdue ? '2px solid #f44336' : 'none',
   )}
 </p>
 <p><b>Principal:</b> {formatCurrency(tx.principal_amount)}</p>
-{/* <p><b>Interest:</b> {formatCurrency(totalInterest)}</p> */}
 {tx.early_paid && (
   <p>
     <b>Normal Interest:</b>{' '}
@@ -1302,7 +1363,6 @@ border: isOverdue ? '2px solid #f44336' : 'none',
 
 })()}
 <p><b>Total {formatCurrency(total)}</b></p>
-
 <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
 
 
@@ -1391,14 +1451,18 @@ border: isOverdue ? '2px solid #f44336' : 'none',
   };
  const normalData = filteredData   // ✅ USE FILTERED DATA
   .filter(tx => tx.transaction_type === 'normal')
-  // .filter(tx => (tx.paid_amount || 0) < tx.principal_amount);
+  
   .filter(tx => {
   if (filterType === 'paid') return tx.status === 'paid';
   return (tx.paid_amount || 0) < tx.principal_amount;
 });
 
 const rotationData = filteredData
-  .filter(tx => tx.transaction_type !== 'normal')
+  .filter(tx => tx.transaction_type === 'rotation')
+  .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+
+const loanData = filteredData
+  .filter(tx => tx.transaction_type === 'loan')
   .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
 
   const handleInstallment = async () => {
@@ -2170,110 +2234,309 @@ const overdueDays = Math.max(
 )}
       
       {/* 🔥 BADGES */}
-      <div style={{
-        display: 'flex',
-        gap: '10px',
-        flexWrap: 'wrap',
-        marginBottom: '10px'
-      }}>
-        {/* <span style={badgeStyle('#ff9800')}>Pending: {pendingCount}</span> */}
-        <span
-  onClick={() => setFilterType('pending')}
-  style={{
-    ...badgeStyle('#ff9800'),
-    cursor: 'pointer',
-    border: filterType === 'pending' ? '2px solid black' : 'none'
-  }}
->
-  Pending: {pendingCount}
-</span>
+      {/* ================= PRO FILTER TOOLBAR ================= */}
 
-<span
-  onClick={() => setFilterType('paid')}
-  style={{
-    ...badgeStyle('#4caf50'),
-    cursor: 'pointer',
-    border: filterType === 'paid' ? '2px solid black' : 'none'
-  }}
->
-  Paid: {paidCount}
-</span>
+<div style={{
+  background: 'rgba(255,255,255,0.75)',
+  backdropFilter: 'blur(14px)',
+  WebkitBackdropFilter: 'blur(14px)',
 
-<span
-  onClick={() => setFilterType('extended')}
-  style={{
-    ...badgeStyle('#2196f3'),
-    cursor: 'pointer',
-    border: filterType === 'extended' ? '2px solid black' : 'none'
-  }}
->
-  Extended: {extendedCount}
-</span>
+  padding: 24,
+  borderRadius: 28,
 
-<span
-  onClick={() => setFilterType('due')}
-  style={{
-    ...badgeStyle('#f44336'),
-    cursor: 'pointer',
-    border: filterType === 'due' ? '2px solid black' : 'none'
-  }}
->
-  Due: {dueCount}
-</span>
-      </div>
-      
-      <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+  marginTop: 20,
+  marginBottom: 24,
 
-  {/* 🔍 SEARCH */}
-  <input
-    type="text"
-    placeholder="Search by name..."
-    value={search}
-    onChange={(e) => setSearch(e.target.value)}
+  boxShadow: '0 10px 40px rgba(0,0,0,0.08)',
+
+  border: '1px solid rgba(255,255,255,0.4)',
+
+  position: 'sticky',
+  top: 15,
+  zIndex: 50
+}}>
+{/* TOP ROW */}
+<div style={{
+  display: 'flex',
+  gap: 14,
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  marginBottom: 20
+}}>
+
+  {/* SEARCH */}
+  <div style={{
+    flex: '1 1 350px',
+minWidth: 280,
+maxWidth: '100%'
+  }}>
+
+    <input
+      type="text"
+      placeholder="🔍 Search by name..."
+      value={search}
+      onChange={(e) => setSearch(e.target.value)}
+      style={{
+        width: 'calc(100% - 36px)',
+        padding: '14px 18px',
+        borderRadius: 16,
+        border: '1px solid #ddd',
+        fontSize: 15,
+        outline: 'none',
+        background: '#f8fafc'
+      }}
+    />
+
+  </div>
+
+  {/* USER */}
+  <select
+    value={selectedName}
+    onChange={(e) => setSelectedName(e.target.value)}
     style={{
-      padding: '5px 10px',
-      borderRadius: 6,
-      border: '1px solid #ccc'
+      padding: '12px 16px',
+      borderRadius: 14,
+      border: '1px solid #ddd',
+      background: '#f8fafc',
+      minWidth: 170,
+      fontWeight: '600',
+      cursor: 'pointer'
     }}
-  />
+  >
+    <option value="all">👤 All Users</option>
 
-  {/* 👤 USER FILTER */}
-  <select onChange={(e) => setSelectedName(e.target.value)}>
-    <option value="all">All Users</option>
     {names.slice(1).map(name => (
-      <option key={name} value={name}>{name}</option>
+      <option
+        key={name}
+        value={name}
+      >
+        {name}
+      </option>
     ))}
   </select>
 
-  {/* 📊 STATUS FILTER */}
-  <select onChange={(e) => setFilterType(e.target.value)}>
-    {/* <option value="upcoming">Upcoming</option> */}
-    <option value="pending">Pending</option>
-    <option value="paid">Paid</option>
-    <option value="extended">Extended</option>
-    <option value="due">Overdue</option>
+  {/* STATUS */}
+  <select
+    value={filterType}
+    onChange={(e) => setFilterType(e.target.value)}
+    style={{
+      padding: '12px 16px',
+      borderRadius: 14,
+      border: '1px solid #ddd',
+      background: '#f8fafc',
+      minWidth: 150,
+      fontWeight: '600',
+      cursor: 'pointer'
+    }}
+  >
+    <option value="pending">🟠 Pending</option>
+    <option value="paid">🟢 Paid</option>
+    <option value="extended">🔵 Extended</option>
+    <option value="due">🔴 Overdue</option>
   </select>
 
-  {/* 🔽 SORT */}
-  <select onChange={(e) => setSortType(e.target.value)}>
-    <option value="date">Sort by Date</option>
-    <option value="name">Sort by Name</option>
+  {/* SORT */}
+  <select
+    value={sortType}
+    onChange={(e) => setSortType(e.target.value)}
+    style={{
+      padding: '12px 16px',
+      borderRadius: 14,
+      border: '1px solid #ddd',
+      background: '#f8fafc',
+      minWidth: 150,
+      fontWeight: '600',
+      cursor: 'pointer'
+    }}
+  >
+    <option value="date">📅 Sort by Date</option>
+    <option value="name">🔤 Sort by Name</option>
   </select>
 
-  {/* 📅 MONTH */}
-  <input
-    type="month"
-    onChange={(e) => setSelectedMonth(e.target.value)}
-  />
+</div>
 
-  {/* 📄 EXPORT */}
-  <button onClick={() => setShowExportPopup('csv')}>
-  Export CSV
-</button>
+{/* SECOND ROW BADGES */}
+<div style={{
+  display: 'flex',
+  gap: 14,
+  flexWrap: 'wrap'
+}}>
 
-<button onClick={() => setShowExportPopup('pdf')}>
-  Export PDF
-</button>
+</div>
+
+
+  {/* BADGES */}
+  <div style={{
+    display: 'flex',
+    gap: 14,
+    flexWrap: 'wrap'
+  }}>
+
+    {/* PENDING */}
+    <div
+      onClick={() => setFilterType('pending')}
+      onMouseEnter={(e) => {
+  e.currentTarget.style.transform = 'translateY(-3px)';
+}}
+
+onMouseLeave={(e) => {
+  e.currentTarget.style.transform = 'translateY(0px)';
+}}
+      style={{
+        background:
+          filterType === 'pending'
+            ? 'linear-gradient(135deg,#ff9800,#ffb74d)'
+            : '#fff3e0',
+
+        color:
+          filterType === 'pending'
+            ? 'white'
+            : '#e65100',
+
+        padding: '12px 18px',
+        borderRadius: 999,
+        fontWeight: 'bold',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        transform: 'translateY(0px)',
+transition: '0.25s ease',
+        boxShadow:
+          filterType === 'pending'
+            ? '0 8px 20px rgba(255,152,0,0.35)'
+            : 'none',
+
+        transition: '0.25s'
+      }}
+    >
+      🟠 Pending: {pendingCount}
+    </div>
+
+    {/* PAID */}
+    <div
+      onClick={() => setFilterType('paid')}
+      onMouseEnter={(e) => {
+  e.currentTarget.style.transform = 'translateY(-3px)';
+}}
+
+onMouseLeave={(e) => {
+  e.currentTarget.style.transform = 'translateY(0px)';
+}}
+      style={{
+        background:
+          filterType === 'paid'
+            ? 'linear-gradient(135deg,#4CAF50,#66BB6A)'
+            : '#e8f5e9',
+
+        color:
+          filterType === 'paid'
+            ? 'white'
+            : '#1b5e20',
+
+        padding: '12px 18px',
+        borderRadius: 999,
+        fontWeight: 'bold',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        transform: 'translateY(0px)',
+transition: '0.25s ease',
+        boxShadow:
+          filterType === 'paid'
+            ? '0 8px 20px rgba(76,175,80,0.35)'
+            : 'none',
+
+        transition: '0.25s'
+      }}
+    >
+      🟢 Paid: {paidCount}
+    </div>
+
+    {/* EXTENDED */}
+    <div
+      onClick={() => setFilterType('extended')}
+      onMouseEnter={(e) => {
+  e.currentTarget.style.transform = 'translateY(-3px)';
+}}
+
+onMouseLeave={(e) => {
+  e.currentTarget.style.transform = 'translateY(0px)';
+}}
+      style={{
+        background:
+          filterType === 'extended'
+            ? 'linear-gradient(135deg,#2196F3,#64B5F6)'
+            : '#e3f2fd',
+
+        color:
+          filterType === 'extended'
+            ? 'white'
+            : '#0d47a1',
+
+        padding: '12px 18px',
+        borderRadius: 999,
+        fontWeight: 'bold',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        transform: 'translateY(0px)',
+transition: '0.25s ease',
+        boxShadow:
+          filterType === 'extended'
+            ? '0 8px 20px rgba(33,150,243,0.35)'
+            : 'none',
+
+        transition: '0.25s'
+      }}
+    >
+      🔵 Extended: {extendedCount}
+    </div>
+
+    {/* DUE */}
+    <div
+      onClick={() => setFilterType('due')}
+      onMouseEnter={(e) => {
+  e.currentTarget.style.transform = 'translateY(-3px)';
+}}
+
+onMouseLeave={(e) => {
+  e.currentTarget.style.transform = 'translateY(0px)';
+}}
+      style={{
+        background:
+          filterType === 'due'
+            ? 'linear-gradient(135deg,#F44336,#EF5350)'
+            : '#ffebee',
+
+        color:
+          filterType === 'due'
+            ? 'white'
+            : '#b71c1c',
+
+        padding: '12px 18px',
+        borderRadius: 999,
+        fontWeight: 'bold',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        transform: 'translateY(0px)',
+transition: '0.25s ease',
+        boxShadow:
+          filterType === 'due'
+            ? '0 8px 20px rgba(244,67,54,0.35)'
+            : 'none',
+
+        transition: '0.25s'
+      }}
+    >
+      🔴 Due: {dueCount}
+    </div>
+
+  </div>
 
 </div>
   
@@ -2312,6 +2575,19 @@ const overdueDays = Math.max(
   }}>
     {rotationData.map(renderCard)}
   </div>
+
+  <h3 style={{
+  marginTop: 30,
+  color: '#4527A0'
+}}>
+  💳 Loan Payments
+</h3>
+
+<LoanProfile
+  data={loanData}
+  refresh={fetchData}
+/>
+
 
 </div>
       {/* CARDS */}

@@ -28,6 +28,42 @@ const extensionSchema = new mongoose.Schema({
 });
 
 const transactionSchema = new mongoose.Schema({
+  payment_history: [
+  {
+    amount: Number,
+
+    payment_type: {
+      type: String,
+      enum: [
+        'emi',
+        'installment',
+        'full',
+        'early',
+        'interest',
+        'partial'
+      ]
+    },
+
+    payment_date: {
+      type: Date,
+      default: Date.now
+    },
+
+    note: String
+  }
+],
+
+total_paid_amount: {
+  type: Number,
+  default: 0
+},
+
+remaining_balance: {
+  type: Number,
+  default: 0
+},
+
+last_payment_date: Date,
   installments: [
   {
     amount: Number,
@@ -80,6 +116,21 @@ paid_amount: {
     type: Number,
     required: true
   },
+  loan_duration: {
+  type: Number,
+  default: 0
+},
+
+emi_amount: {
+  type: Number,
+  default: 0
+},
+
+interest_type: {
+  type: String,
+  enum: ['flat', 'percentage'],
+  default: 'flat'
+},
 
   start_date: {
     type: Date,
@@ -92,13 +143,56 @@ paid_amount: {
   },
 
   status: {
-    type: String,
-    enum: ['pending', 'paid', 'extended'],
-    default: 'pending'
-  },
+  type: String,
+  enum: [
+    'pending',
+    'paid',
+    'extended',
+    'overdue'
+  ],
+  default: 'pending'
+},
 
   extensions: [extensionSchema],
 
+remaining_emi: {
+  type: Number,
+  default: 0
+},
+
+completed_emi: {
+  type: Number,
+  default: 0
+},
+emi_history: [
+  {
+    amount: Number,
+
+    month_number: Number,
+
+    paid_date: Date,
+
+    status: {
+      type: String,
+      enum: [
+        'paid',
+        'late',
+        'advance'
+      ],
+      default: 'paid'
+    },
+
+    late_days: {
+      type: Number,
+      default: 0
+    },
+
+    penalty_amount: {
+      type: Number,
+      default: 0
+    }
+  }
+],
   notes: {
     type: String
   }
