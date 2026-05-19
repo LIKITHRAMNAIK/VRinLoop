@@ -6,7 +6,7 @@ import { formatCurrency } from '../utils/format';
 function LoanProfile({ data, refresh }) {
   const navigate = useNavigate();
 
-  const [filterType, setFilterType] = useState('pending');
+  const [filterType, setFilterType] = useState('all');
   const [openHistory, setOpenHistory] = useState(null);
   const [deleteLoanId, setDeleteLoanId] =
   useState(null);
@@ -25,16 +25,18 @@ const [editDate, setEditDate] = useState('');
   const filteredData = data.filter(tx => {
 
 
-    if (filterType === 'paid') {
-      return tx.status === 'paid';
-    }
+  if (filterType === 'paid') {
+    return tx.status === 'paid';
+  }
 
-    if (filterType === 'pending') {
-      return tx.status !== 'paid';
-    }
+  if (filterType === 'pending') {
+    return tx.status !== 'paid';
+  }
 
-    return true;
-  });
+  return true;
+
+});
+
 
   const payLoanEmi = async (id) => {
 
@@ -494,19 +496,41 @@ const isUpcoming =
 
         {tx.status === 'paid' && (
 
-          <div style={{
-            marginTop: 12,
-            background: '#4CAF50',
-            color: 'white',
-            padding: 8,
-            borderRadius: 8,
-            textAlign: 'center',
-            fontWeight: 'bold'
-          }}>
-            Loan Completed
-          </div>
+  <div style={{
+    marginTop: 12
+  }}>
 
-        )}
+    <div style={{
+      background: '#4CAF50',
+      color: 'white',
+      padding: 8,
+      borderRadius: 8,
+      textAlign: 'center',
+      fontWeight: 'bold',
+      marginBottom: 10
+    }}>
+      Loan Completed
+    </div>
+
+    <button
+      onClick={() => setOpenHistory(tx)}
+      style={{
+        width: '100%',
+        background: '#9575CD',
+        color: 'white',
+        border: 'none',
+        padding: 10,
+        borderRadius: 8,
+        cursor: 'pointer',
+        fontWeight: 'bold'
+      }}
+    >
+      More Details
+    </button>
+
+  </div>
+
+)}
 
       </div>
 
@@ -542,20 +566,57 @@ const isUpcoming =
 
     <div>
 
-      <select
-        value={filterType}
-        onChange={(e) =>
-          setFilterType(e.target.value)
-        }
-      >
-        <option value="pending">
-          Pending
-        </option>
+        <div style={{
+   display: 'flex',
+   justifyContent: 'flex-start',
+   marginBottom: 25
+ }}>
 
-        <option value="paid">
-          Paid
-        </option>
-      </select>
+  <div style={{
+    background: 'white',
+    padding: 6,
+    borderRadius: 16,
+    boxShadow:
+      '0 8px 20px rgba(0,0,0,0.08)',
+    border: '1px solid #e2e8f0'
+  }}>
+
+    <select
+      value={filterType}
+      onChange={(e) =>
+        setFilterType(e.target.value)
+      }
+      style={{
+        border: 'none',
+        outline: 'none',
+        background: 'transparent',
+
+        padding: '10px 18px',
+
+        fontSize: 15,
+        fontWeight: '700',
+
+        color: '#4338ca',
+
+        cursor: 'pointer',
+
+        borderRadius: 12
+      }}
+    >
+
+      <option value="pending">
+        ⏳ Pending Loans
+      </option>
+
+      <option value="paid">
+        ✅ Paid Loans
+      </option>
+
+    </select>
+
+  </div>
+
+</div>
 
             <div style={{
         display: 'grid',
@@ -859,6 +920,7 @@ return (
       }}>
         💳 Loan EMI History
       </h2>
+      
 
       <p style={{
         marginTop: 8,

@@ -28,6 +28,31 @@ const extensionSchema = new mongoose.Schema({
 });
 
 const transactionSchema = new mongoose.Schema({
+  final_interest: {
+  type: Number,
+  default: 0
+},
+
+final_total: {
+  type: Number,
+  default: 0
+},
+
+final_due_date: {
+  type: Date
+},
+
+final_extensions: [
+  {
+    old_due_date: Date,
+
+    new_due_date: Date,
+
+    extra_interest: Number,
+
+    interest_paid: Boolean
+  }
+],
   payment_history: [
   {
     amount: Number,

@@ -132,45 +132,116 @@ data.forEach(tx => {
   // ================= PAID LATE =================
 
   if (
-    tx.status === 'paid' &&
-    tx.paid_date
-  ) {
+  tx.status === 'paid' &&
+  tx.paid_date
+) {
 
-    const paidDate = new Date(tx.paid_date);
+  const paidDate =
+    new Date(tx.paid_date);
 
-    const dueDate = new Date(tx.due_date);
+  const latestDueDate =
+
+    tx.transaction_type === 'rotation'
+
+      ? (
+
+          tx.final_extensions?.length > 0
+
+            ? tx.final_extensions[
+                tx.final_extensions.length - 1
+              ].new_due_date
+
+            : (
+                tx.final_due_date ||
+                tx.due_date
+              )
+
+        )
+
+      : (
+          tx.final_due_date ||
+          tx.due_date
+        );
+
+  const dueDate =
+    new Date(latestDueDate);
 
     paidDate.setHours(0,0,0,0);
 
     dueDate.setHours(0,0,0,0);
 
-    if (paidDate > dueDate) {
+    const diffDays = Math.ceil(
+  (paidDate - dueDate) /
+  (1000 * 60 * 60 * 24)
+);
 
-      const diffDays = Math.ceil(
-        (paidDate - dueDate) /
-        (1000 * 60 * 60 * 24)
-      );
+// LATE
+if (diffDays > 0) {
 
-      activities.push({
+  activities.push({
 
-        type: 'paid_late',
+    type: 'paid_late',
 
-        title:
-          `${tx.transaction_type.toUpperCase()} Paid Late`,
+    title:
+      `${tx.transaction_type.toUpperCase()} Paid Late`,
 
-        amount:
-          tx.transaction_type === 'loan'
-            ? tx.emi_amount
-            : tx.principal_amount,
+    amount:
+      tx.transaction_type === 'loan'
+        ? tx.emi_amount
+        : tx.principal_amount,
 
-        date: tx.paid_date,
+    date: tx.paid_date,
 
-        lateDays: diffDays,
+    lateDays: diffDays,
 
-        color: '#ef4444'
-      });
+    color: '#ef4444'
+  });
 
-    }
+}
+
+// ON TIME
+else if (diffDays === 0) {
+
+  activities.push({
+
+    type: 'paid_ontime',
+
+    title:
+      `${tx.transaction_type.toUpperCase()} Paid`,
+
+    amount:
+      tx.transaction_type === 'loan'
+        ? tx.emi_amount
+        : tx.principal_amount,
+
+    date: tx.paid_date,
+
+    color: '#16a34a'
+  });
+
+}
+
+// EARLY
+else {
+
+  activities.push({
+
+    type: 'paid_early',
+
+    title:
+      `${tx.transaction_type.toUpperCase()} Early Paid`,
+
+    amount:
+      tx.transaction_type === 'loan'
+        ? tx.emi_amount
+        : tx.principal_amount,
+
+    date: tx.paid_date,
+
+    color: '#2563eb'
+  });
+
+}
 
   }
   // ================= NORMAL =================
@@ -353,33 +424,60 @@ data.forEach(tx => {
 
   type: 'loan_emi',
 
+  
+
   title:
 
-    emi.status === 'late'
+  // ✅ FINAL EMI COMPLETED
 
-      ? `Loan EMI #${emi.month_number} Late Paid (${emi.late_days || 0} day${(emi.late_days || 0) > 1 ? 's' : ''})`
+(
+  tx.status === 'paid' &&
+  emi.month_number === tx.loan_duration
+)
 
-    : emi.status === 'advance'
+  ? `🎉 ${tx.person_name} Loan Completed`
 
-      ? `Loan EMI #${emi.month_number} Advance Paid`
+: emi.status === 'late'
 
-    : `Loan EMI #${emi.month_number} Paid`,
+  ? `Loan EMI #${emi.month_number} Late Paid (${emi.late_days || 0} day${(emi.late_days || 0) > 1 ? 's' : ''})`
 
-  amount: emi.amount,
+: emi.status === 'advance'
+
+  ? `Loan EMI #${emi.month_number} Advance Paid`
+
+: `Loan EMI #${emi.month_number} Paid`,
+
+  amount:
+
+  (
+    tx.status === 'paid' &&
+    emi.month_number === tx.loan_duration
+  )
+
+    ? tx.principal_amount
+
+    : emi.amount,
 
   date: emi.paid_date,
 
   color:
 
-    emi.status === 'late'
+  (
+    tx.status === 'paid' &&
+    emi.month_number === tx.loan_duration
+  )
 
-      ? '#dc2626'
+    ? '#16a34a'
 
-    : emi.status === 'advance'
+  : emi.status === 'late'
 
-      ? '#16a34a'
+    ? '#dc2626'
 
-    : '#2563eb',
+  : emi.status === 'advance'
+
+    ? '#16a34a'
+
+  : '#2563eb',
 
   emiStatus: emi.status
 
@@ -388,6 +486,33 @@ data.forEach(tx => {
     });
 
   }
+
+  // ================= LOAN COMPLETED =================
+
+if (
+  tx.transaction_type === 'loan' &&
+  tx.status === 'paid' &&
+  tx.paid_date
+) {
+
+  activities.push({
+
+    type: 'loan_completed',
+
+    title:
+  ` ${tx.person_name} Loan Completed`,
+
+    amount:
+      tx.principal_amount,
+
+    date:
+      tx.paid_date,
+
+    color: '#16a34a'
+
+  });
+
+}
 
   // ================= ROTATION EXTENSIONS =================
 
@@ -417,14 +542,15 @@ data.forEach(tx => {
 
   // ================= NORMAL INSTALLMENTS =================
 
-  if (
-    tx.transaction_type === 'normal' &&
-    tx.installments?.length > 0
-  ) {
+  if (tx.transaction_type === 'normal') {
+
+  // INSTALLMENTS
+  if (tx.installments?.length > 0) {
 
     tx.installments.forEach(inst => {
 
       activities.push({
+
         type: 'normal_payment',
 
         title:
@@ -440,6 +566,71 @@ data.forEach(tx => {
     });
 
   }
+
+  // FULL PAYMENT
+  if (
+    tx.status === 'paid' &&
+    tx.paid_date &&
+    (
+      !tx.installments ||
+      tx.installments.length === 0
+    )
+  ) {
+
+    activities.push({
+
+      type: 'normal_payment',
+
+      title:
+
+  (() => {
+
+    const paidDate =
+      new Date(tx.paid_date);
+
+    const latestDueDate =
+
+  tx.final_due_date ||
+
+  tx.due_date;
+
+const dueDate =
+  new Date(latestDueDate);
+
+    paidDate.setHours(0,0,0,0);
+
+    dueDate.setHours(0,0,0,0);
+
+    const diff = Math.ceil(
+      (paidDate - dueDate) /
+      (1000 * 60 * 60 * 24)
+    );
+
+    // EARLY
+    if (diff < 0) {
+      return `Normal Full Payment Early Paid`;
+    }
+
+    // LATE
+    if (diff > 0) {
+      return `Normal Full Payment Late Paid (${diff} day${diff > 1 ? 's' : ''})`;
+    }
+
+    // ON TIME
+    return `Normal Full Payment Paid`;
+
+  })(),
+
+      amount: tx.principal_amount,
+
+      date: tx.paid_date,
+
+      color: '#16a34a'
+    });
+
+  }
+
+}
 
 });
 
@@ -1495,6 +1686,12 @@ data.forEach(tx => {
 
       : activity.type === 'paid_late'
   ? '⚠️'
+
+: activity.type === 'paid_ontime'
+  ? '✅'
+
+: activity.type === 'paid_early'
+  ? '🚀'
 
 : '📌'
     }

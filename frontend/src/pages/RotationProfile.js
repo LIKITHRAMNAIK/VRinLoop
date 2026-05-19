@@ -5,7 +5,14 @@ import { formatCurrency } from '../utils/format';
 
 // function RotationProfile() {
 function RotationProfile({ data, refresh }) {
+
+  const [extendForm, setExtendForm] = useState({
+  new_due_date: '',
+  extra_interest: 0,
+  interest_paid: false
+});
   const navigate = useNavigate();
+  const [detailsPopup, setDetailsPopup] = useState(null);
 
   // const [data, setData] = useState([]);
   const [extendId, setExtendId] = useState(null);
@@ -95,13 +102,67 @@ const sortedData = [...filteredData].sort((a, b) => {
   // then by nearest due date
   return aDate - bDate;
 });
+
+const miniStatCard = {
+
+  background: '#ffffff',
+
+  padding: 10,
+
+  borderRadius: 14
+
+};
+
+const miniStatTitle = {
+
+  margin: 0,
+
+  color: '#64748b',
+
+  fontSize: 11
+
+};
+
+const miniStatValue = {
+
+  margin: '6px 0 0',
+
+  color: '#0f172a',
+
+  fontSize: 18
+
+};
+
+const miniButtonStyle = {
+
+  color: 'white',
+
+  border: 'none',
+
+  padding: '10px 14px',
+
+  borderRadius: 12,
+
+  fontWeight: 'bold',
+
+  cursor: 'pointer',
+
+  fontSize: 13
+};
+
   const renderCard = (tx) => {
     const today = new Date();
 today.setHours(0,0,0,0);
 
 const latestDueDate =
-  tx.extensions?.length > 0
-    ? tx.due_date
+
+  tx.status === 'paid'
+
+    ? (
+        tx.final_due_date ||
+        tx.due_date
+      )
+
     : tx.due_date;
 
 const dueDate = new Date(latestDueDate);
@@ -119,270 +180,459 @@ const overdueDays = isOverdue
 
 const displayStatus = isOverdue ? 'due' : tx.status;
 
-    let totalInterest = tx.base_interest;
-
-tx.extensions.forEach(ext => {
-
-  if (ext.interest_paid) {
-
-    totalInterest = ext.extra_interest;
-
-  } else {
-
-    totalInterest += ext.extra_interest;
-
-  }
-
-});
     const finalInterest =
-  tx.early_paid
-    ? tx.early_paid_interest
-    : totalInterest;
 
-const total = tx.principal_amount + finalInterest;
+  tx.status === 'paid'
+
+    ? Number(tx.final_interest || 0)
+
+    : (() => {
+
+        let interest =
+          Number(tx.base_interest || 0);
+
+        tx.extensions?.forEach(ext => {
+
+          if (ext.interest_paid) {
+
+            interest =
+              Number(ext.extra_interest || 0);
+
+          } else {
+
+            interest +=
+              Number(ext.extra_interest || 0);
+
+          }
+
+        });
+
+        return interest;
+
+      })();
+
+const total =
+
+  tx.status === 'paid'
+
+    ? Number(tx.final_total || 0)
+
+    : (
+        Number(tx.principal_amount || 0) +
+        Number(finalInterest || 0)
+      );
 
     return (
-      <div key={tx._id} style={{
-        padding: 12,
-        borderRadius: 10,
-        background: isOverdue
-  ? '#ffe5e5'
-  : tx.status === 'paid'
-  ? '#e8f5e9'
-  : '#fff3cd',
-      }}>
+    
+    <div
+      key={tx._id}
+      style={{
+        background:
+          isOverdue
+            ? '#ffe5e5'
+            : tx.status === 'paid'
+            ? '#e8f5e9'
+            : '#f6edcf',
+    
+        border: isOverdue
+          ? '2px solid #ef4444'
+          : '1px solid #ececec',
+    
+        borderRadius: 20,
+    
+        padding: 14,
+    
+        position: 'relative',
+    
+        minHeight: 340,
+width: '100%',
+maxWidth: '100%',
+    
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+    
+        boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
+      }}
+    >
+    
+      {/* TOP */}
+      <div>
+    
         <div style={{
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: 8
-}}>
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+    
+          <h4
+            onClick={() => {
+              navigate(`/profile/${tx.person_name}`, {
+                state: { type: tx.transaction_type }
+              });
+            }}
+            style={{
+              margin: 0,
+              color: '#2563eb',
+              cursor: 'pointer',
+              fontSize: 17,
+              fontWeight: '700'
+            }}
+          >
+            {tx.person_name}
+          </h4>
+    
+          <span style={{
+            background:
+              tx.type === 'incoming'
+                ? '#67b357'
+                : '#ef4444',
+    
+            color: 'white',
+    
+            padding: '6px 14px',
+    
+            borderRadius: 999,
+    
+            fontSize: 13,
+    
+            fontWeight: 'bold'
+          }}>
+            {tx.type === 'incoming' ? 'IN' : 'OUT'}
+          </span>
+    
+        </div>
+    
+        {/* DUE DATE */}
+    
+    <div style={{
+      marginTop: 8
+    }}>
+    
+    {/* START DATE */}
+    
+      <p style={{
+        margin: 0,
+        color: '#3f9c35',
+        fontWeight: 700,
+        fontSize: 13
+      }}>
+    
+        Start:
+        {' '}
+    
+        {new Date(
+          tx.start_date
+        ).toDateString()}
+    
+      </p>
+      {/* ORIGINAL DUE */}
+    
+      <p style={{
+        margin: 0,
+        color:
+          tx.extensions?.length > 0
+            ? '#dc2626'
+            : '#111827',
+    
+        fontWeight: 600,
+        fontSize: 13,
+    
+        textDecoration:
+          tx.extensions?.length > 0
+            ? 'line-through'
+            : 'none'
+      }}>
+    
+        Due:
+        {' '}
+    
+        {new Date(
+          tx.extensions?.length > 0
+            ? tx.extensions[0].old_due_date
+            : tx.due_date
+        ).toDateString()}
+    
+      </p>
+    
+      {/* PREVIOUS EXTENSIONS */}
+    
+      {tx.extensions?.map((ext, index) => {
+    
+        const isLast =
+          index === tx.extensions.length - 1;
+    
+        return (
+    
+          <p
+            key={index}
+            style={{
+              marginTop: 6,
+              marginBottom: 0,
+    
+              color:
+                isLast
+                  ? '#7c3aed'
+                  : '#dc2626',
+    
+              fontWeight: 'bold',
+    
+              fontSize: 13,
+    
+              textDecoration:
+                isLast
+                  ? 'none'
+                  : 'line-through'
+            }}
+          >
+    
+            {
+    
+              isLast
+    
+                ? 'New Due: '
+    
+                : 'Due: '
+    
+            }
+    
+            {
+    
+              new Date(
+                ext.new_due_date
+              ).toDateString()
+    
+            }
+    
+          </p>
+    
+        );
+    
+      })}
+    
+    </div>
+    
+        {/* STATUS */}
+        <div style={{
+          marginTop: 16
+        }}>
+    
+          <span style={{
+            background:
+              displayStatus === 'paid'
+                ? '#16a34a'
+                : '#f0a83a',
+    
+            color: 'white',
+    
+            padding: '7px 16px',
+    
+            borderRadius: 999,
+    
+            fontWeight: 'bold',
+    
+            fontSize: 12,
+    
+            letterSpacing: 1
+          }}>
+            {displayStatus.toUpperCase()}
+          </span>
+    
+        </div>
+    
+        {/* OVERDUE */}
+        {isOverdue && (
+    
+          <div style={{
+            marginTop: 14,
+            color: '#dc2626',
+            fontWeight: 'bold',
+            fontSize: 13
+          }}>
+            ⚠ {overdueDays} days overdue
+          </div>
+    
+        )}
+    
+        {/* STATS */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr 1fr',
+          gap: 8,
+          marginTop: 16
+        }}>
+    
+          <div style={miniStatCard}>
+            <p style={miniStatTitle}>Principal</p>
+            <h4 style={miniStatValue}>
+              {formatCurrency(tx.principal_amount)}
+            </h4>
+          </div>
+    
+          <div style={miniStatCard}>
+            <p style={miniStatTitle}>Interest</p>
+            <h4 style={miniStatValue}>
+              {formatCurrency(finalInterest)}
+            </h4>
+          </div>
+    
+          <div style={{
+            ...miniStatCard,
+            background: '#0f172a'
+          }}>
+            <p style={{
+              ...miniStatTitle,
+              color: '#cbd5e1'
+            }}>
+              Total
+            </p>
+    
+            <h4 style={{
+              ...miniStatValue,
+              color: 'white'
+            }}>
+              {formatCurrency(total)}
+            </h4>
+          </div>
+    
+        </div>
+    
+      </div>
+    
+      {/* BUTTONS */}
+      {tx.status !== 'paid' ? (
+    
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 8,
+          marginTop: 16
+        }}>
+    
+          <button
+            style={{
+              ...miniButtonStyle,
+              background: '#2563eb'
+            }}
+            onClick={() => {
+    
+              const today = new Date();
+              const dueDate = new Date(tx.due_date);
+    
+              today.setHours(0,0,0,0);
+              dueDate.setHours(0,0,0,0);
+    
+              if (today < dueDate) {
+                setPayPopup(tx);
+              } else {
+                setNormalPayPopup(tx);
+              }
+    
+            }}
+          >
+            Pay
+          </button>
+    
+          <button
+            style={{
+              ...miniButtonStyle,
+              background: '#f59e0b'
+            }}
+            onClick={() =>
+  setExtendId(tx._id)
+}
+          >
+            Extend
+          </button>
+    
+          <button
+            style={{
+              ...miniButtonStyle,
+              background: '#0f172a'
+            }}
+            onClick={() => {
 
-  <p style={{
-    fontWeight: 'bold',
-    color: 'blue',
-    margin: 0
-  }}>
-    {tx.person_name}
-  </p>
+  setEditId(tx._id);
 
-  <span style={{
-    background:
-      tx.type === 'incoming'
-        ? '#4CAF50'
-        : '#f44336',
+  setEditForm({
+    ...tx,
+    due_date: tx.due_date
+  });
 
-    color: 'white',
-    padding: '4px 10px',
-    borderRadius: 12,
-    fontSize: 12,
-    fontWeight: 'bold'
-  }}>
-    {tx.type === 'incoming' ? 'IN' : 'OUT'}
-  </span>
+}}
+          >
+            Edit
+          </button>
+    
+          <button
+            style={{
+              ...miniButtonStyle,
+              background: '#ef4444'
+            }}
+            onClick={() =>
+              setConfirmAction({
+                type: 'delete',
+                id: tx._id
+              })
+            }
+          >
+            Delete
+          </button>
+    
+        </div>
 
-</div>
+) : (
 
-<p>
-  <b>Start:</b>{' '}
-  <span style={{ color: 'green' }}>
-    {new Date(tx.start_date).toDateString()}
-  </span>
-</p>
-
-<p>
-  <b>Due:</b>{' '}
-
-  <span
-    style={{
-      color:
-        tx.extensions?.length > 0
-          ? '#f44336'
-          : 'black',
-
-      textDecoration:
-        tx.extensions?.length > 0
-          ? 'line-through'
-          : 'none'
-    }}
-  >
-    {
-      tx.extensions?.length > 0
-        ? new Date(
-            tx.extensions[0].old_due_date
-          ).toDateString()
-        : new Date(tx.due_date).toDateString()
-    }
-  </span>
-</p>
-
-{tx.extensions?.length > 0 && (
-  <p style={{
-    color: '#f44336',
-    marginLeft: 10,
-    fontWeight: 'bold'
-  }}>
-    {
-      new Date(
-        tx.extensions[
-          tx.extensions.length - 1
-        ].new_due_date
-      ).toDateString()
-    }
-  </p>
-)}
-{isOverdue && (
-  <p style={{ color: '#f44336', fontWeight: 'bold' }}>
-    ⚠ {overdueDays} day{overdueDays > 1 ? 's' : ''} overdue
-  </p>
-)}
-
-
-{tx.status === 'paid' && (
   <div style={{
-    background: '#4CAF50',
-    color: 'white',
-    padding: '5px 12px',
-    borderRadius: 8,
-    display: 'inline-block',
-    fontWeight: 'bold',
-    margin: '6px 0'
+    marginTop: 16
   }}>
-    Paid
-  </div>
-)}
-{tx.status !== 'paid' && (
-  <p style={{
-    margin: '6px 0',
-    fontWeight: 'bold'
-  }}>
-    <span style={{ color: 'black' }}>
-      Status :
-    </span>{' '}
 
-    <span style={{
-      color:
-  displayStatus === 'extended'
-    ? '#f44336'
-          : '#f39521'
-    }}>
-      {displayStatus.toUpperCase()}
-    </span>
-  </p>
-)}
-
-    {tx.status === 'paid' && tx.paid_date && (() => {
-
-  const paid = new Date(tx.paid_date);
-  const due = new Date(tx.due_date);
-
-  const isLate = paid > due;
-
-  paid.setHours(0,0,0,0);
-due.setHours(0,0,0,0);
-
-const diffDays = Math.max(
-  1,
-  Math.round(
-    (paid - due) / (1000 * 60 * 60 * 24)
-  )
-);
-
-  return (
-    <p style={{
-      color:
-        tx.early_paid
-          ? '#ff9800'
-          : isLate
-          ? '#f44336'
-          : '#4CAF50',
-      fontWeight: 'bold'
-    }}>
-      {tx.early_paid
-        ? `Early Pay on: ${paid.toDateString()}`
-        : isLate
-        ? `Paid Late (${diffDays} day${diffDays > 1 ? 's' : ''}) on ${paid.toDateString()}`
-        : `Paid on: ${paid.toDateString()}`
+    <button
+      style={{
+        ...miniButtonStyle,
+        background: '#ef4444',
+        width: '100%'
+      }}
+      onClick={() =>
+        setConfirmAction({
+          type: 'delete',
+          id: tx._id
+        })
       }
-    </p>
-  );
-
-})()}
-
-
-<p><b>Principal:</b> {formatCurrency(tx.principal_amount)}</p>
-{tx.early_paid && (
-  <p>
-    <b>Normal Interest:</b>{' '}
-    {formatCurrency(totalInterest)}
-  </p>
-)}
-
-<p>
-  <b>
-    {tx.early_paid
-      ? 'Early Paid Interest'
-      : 'Interest'}
-    :
-  </b>{' '}
-  {formatCurrency(finalInterest)}
-</p>
-
-<p><b>Total {formatCurrency(total)}</b></p>
-
-<div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-
-  {tx.status === 'paid' ? (
-    <button onClick={() =>
-      setConfirmAction({ type: 'delete', id: tx._id })
-    }>
+    >
       Delete
     </button>
-  ) : (
-    <>
-      <button
+
+  </div>
+
+)}
+      <div style={{
+  display: 'flex',
+  justifyContent: 'center',
+  marginTop: 14
+}}>
+
+<button
   style={{
-    background: '#4CAF50',
+    background: '#7c3aed',
     color: 'white',
     border: 'none',
     padding: '8px 14px',
-    borderRadius: 6,
-    cursor: 'pointer'
+    borderRadius: 10,
+    cursor: 'pointer',
+    fontWeight: 'bold'
   }}
-  onClick={() => setPayPopup(tx)}
+  onClick={() => setDetailsPopup(tx)}
 >
-  Pay
+
+  More Details
+
 </button>
 
-      <button onClick={() =>
-        setExtendId(tx._id)
-      }>
-        Extend
-      </button>
-
-      <button onClick={() => {
-        setEditId(tx._id);
-
-setEditForm({
-  ...tx,
-
-  due_date: tx.due_date
-});
-      }}>
-        Edit
-      </button>
-
-      <button onClick={() =>
-        setConfirmAction({ type: 'delete', id: tx._id })
-      }>
-        Delete
-      </button>
-    </>
-  )}
-
 </div>
-      </div>
-      
+    
+    </div>
+    
     );
   };
 
@@ -400,12 +650,12 @@ setEditForm({
 </select>
       
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(220px,1fr))',
-        gap: 12,
-        marginTop: 20
-      }}>
-        {/* {filteredData.map(renderCard)} */}
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(240px,1fr))',
+  gap: 40,
+  padding: 12,
+  marginTop: 20
+}}>
         {sortedData.map(renderCard)}
       </div>
 
@@ -526,11 +776,11 @@ setEditForm({
   <input
     type="date"
     onChange={(e) =>
-      setEditForm({
-        ...editForm,
-        new_due_date: e.target.value
-      })
-    }
+  setExtendForm({
+    ...extendForm,
+    new_due_date: e.target.value
+  })
+}
     style={{ width: '100%' }}
   />
 </div>
@@ -542,11 +792,11 @@ setEditForm({
     type="number"
     placeholder="Enter amount"
     onChange={(e) =>
-      setEditForm({
-        ...editForm,
-        extra_interest: Number(e.target.value)
-      })
-    }
+  setExtendForm({
+    ...extendForm,
+    extra_interest: Number(e.target.value)
+  })
+}
     style={{ width: '100%' }}
   />
 </div>
@@ -556,11 +806,11 @@ setEditForm({
   <input
     type="checkbox"
     onChange={(e) =>
-      setEditForm({
-        ...editForm,
-        interest_paid: e.target.checked
-      })
-    }
+  setExtendForm({
+    ...extendForm,
+    interest_paid: e.target.checked
+  })
+}
   />{' '}
   Last Interest Paid
 </label>
@@ -577,7 +827,7 @@ setEditForm({
       borderRadius: '6px'
     }}
     onClick={async () => {
-      await API.put(`/extend/${extendId}`, editForm);
+      await API.put(`/extend/${extendId}`, extendForm);
       setExtendId(null);
       refresh();
     }}
@@ -703,6 +953,188 @@ setEditForm({
 </div>
     </div>
   </div>
+)}
+
+{detailsPopup && (
+
+  <div
+    onClick={() => setDetailsPopup(null)}
+    style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      background: 'rgba(0,0,0,0.55)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 9999,
+      backdropFilter: 'blur(4px)'
+    }}
+  >
+
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        width: '420px',
+        maxHeight: '85vh',
+        overflowY: 'auto',
+        background: 'white',
+        borderRadius: 20,
+        padding: 24,
+        boxShadow: '0 10px 40px rgba(0,0,0,0.25)'
+      }}
+    >
+
+      <h2 style={{
+        marginTop: 0,
+        marginBottom: 20,
+        color: '#7c3aed',
+        textAlign: 'center'
+      }}>
+        Transaction Details
+      </h2>
+
+      {/* STATUS */}
+      <div style={{
+        background: '#f3f4f6',
+        padding: 14,
+        borderRadius: 12,
+        marginBottom: 15
+      }}>
+        <p><b>Status:</b> {detailsPopup.status}</p>
+
+        <p>
+          <b>Paid Date:</b><br />
+          {
+            detailsPopup.paid_date
+              ? new Date(detailsPopup.paid_date).toDateString()
+              : 'Not Paid'
+          }
+        </p>
+
+        <p>
+          <b>Final Interest:</b><br />
+          ₹{detailsPopup.final_interest || 0}
+        </p>
+
+        <p>
+          <b>Final Total:</b><br />
+          ₹{detailsPopup.final_total || 0}
+        </p>
+      </div>
+
+      {/* EXTENSIONS */}
+      <div>
+
+        <h3 style={{
+          color: '#2563eb',
+          marginBottom: 14
+        }}>
+          Extensions
+        </h3>
+
+        {
+
+          detailsPopup.final_extensions?.length > 0
+
+            ? detailsPopup.final_extensions.map((ext, index) => (
+
+                <div
+                  key={index}
+                  style={{
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 14,
+                    padding: 14,
+                    marginBottom: 12
+                  }}
+                >
+
+                  <h4 style={{
+                    marginTop: 0,
+                    color: '#7c3aed'
+                  }}>
+                    #{index + 1}
+                  </h4>
+
+                  <p>
+                    <b>Old Due:</b><br />
+                    {
+                      ext.old_due_date
+                        ? new Date(ext.old_due_date).toDateString()
+                        : 'N/A'
+                    }
+                  </p>
+
+                  <p>
+                    <b>New Due:</b><br />
+                    {
+                      ext.new_due_date
+                        ? new Date(ext.new_due_date).toDateString()
+                        : 'N/A'
+                    }
+                  </p>
+
+                  <p>
+                    <b>Extra Interest:</b><br />
+                    ₹{ext.extra_interest || 0}
+                  </p>
+
+                  <p>
+                    <b>Interest Paid:</b><br />
+                    {
+                      ext.interest_paid
+                        ? 'YES'
+                        : 'NO'
+                    }
+                  </p>
+
+                </div>
+
+              ))
+
+            : (
+
+              <div style={{
+                background: '#f8fafc',
+                padding: 15,
+                borderRadius: 12,
+                textAlign: 'center',
+                color: '#64748b'
+              }}>
+                No Extension History
+              </div>
+
+            )
+
+        }
+
+      </div>
+
+      <button
+        onClick={() => setDetailsPopup(null)}
+        style={{
+          width: '100%',
+          marginTop: 18,
+          background: '#ef4444',
+          color: 'white',
+          border: 'none',
+          padding: '12px',
+          borderRadius: 12,
+          fontWeight: 'bold',
+          cursor: 'pointer',
+          fontSize: 15
+        }}
+      >
+        Close
+      </button>
+
+    </div>
+
+  </div>
+
 )}
 {payPopup && (
   <div

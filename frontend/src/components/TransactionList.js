@@ -10,7 +10,36 @@ const getColor = (name) => {
   const colors = ['#e3f2fd', '#fce4ec', '#e8f5e9', '#fff3e0'];
   return colors[name.charCodeAt(0) % colors.length];
 };
+const miniButtonStyle = {
+  color: 'white',
+  border: 'none',
+  padding: '8px 10px',
+  borderRadius: 10,
+  fontWeight: 600,
+  fontSize: 12,
+  cursor: 'pointer',
+  flex: 1,
+  minWidth: 0
+};
 
+const miniStatCard = {
+  background: 'rgba(255,255,255,0.85)',
+  padding: 8,
+  borderRadius: 10
+};
+
+const miniStatTitle = {
+  margin: 0,
+  fontSize: 11,
+  color: '#64748b'
+};
+
+const miniStatValue = {
+  margin: '4px 0 0',
+  fontSize: 15,
+  fontWeight: 'bold',
+  color: '#0f172a'
+};
 function TransactionList({ refresh }) {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
@@ -169,7 +198,7 @@ const paidCount = data.filter(tx => {
 
 const extendedCount = data.filter(tx =>
   tx.transaction_type === 'rotation' &&
-  tx.extensions.length > 0
+  tx.extensions?.length > 0
 ).length;
   const dueCount = data.filter(
     tx => {
@@ -182,21 +211,65 @@ const extendedCount = data.filter(tx =>
   const totalDueAmount = data
   .filter(tx => {
     const due = new Date(tx.due_date);
+
     due.setHours(0,0,0,0);
-    return due < today && tx.status !== 'paid';
+
+    return (
+      due < today &&
+      tx.status !== 'paid'
+    );
   })
+
   .reduce((sum, tx) => {
-    let totalInterest = tx.base_interest;
+
+    let totalInterest =
+      Number(tx.base_interest || 0);
 
     tx.extensions.forEach(ext => {
+
       if (ext.interest_paid) {
-        totalInterest = ext.extra_interest;
+
+        totalInterest =
+          Number(ext.extra_interest || 0);
+
       } else {
-        totalInterest += ext.extra_interest;
+
+        totalInterest +=
+          Number(ext.extra_interest || 0);
+
       }
+
     });
 
-    return sum + tx.principal_amount + totalInterest;
+    const finalInterest =
+
+      tx.final_interest > 0
+
+        ? Number(tx.final_interest)
+
+        : (
+
+            tx.early_paid
+
+              ? Number(tx.early_paid_interest || 0)
+
+              : totalInterest
+
+          );
+
+    const total =
+
+      tx.final_total > 0
+
+        ? Number(tx.final_total)
+
+        : (
+            Number(tx.principal_amount || 0) +
+            Number(finalInterest || 0)
+          );
+
+    return sum + total;
+
   }, 0);
 
   const fetchData = () => {
@@ -729,26 +802,28 @@ if (selectedMonth) {
 }
 
 if (filterType === 'pending') {
-  filteredData = filteredData.filter(tx => {
-    if (tx.transaction_type === 'normal') {
-      return true;
-    }
-    return tx.status !== 'paid';
-  });
-}
 
-if (filterType === 'pending') {
   const today = new Date();
+
   today.setHours(0,0,0,0);
 
   filteredData = filteredData.filter(tx => {
-    const due = new Date(tx.due_date);
-    due.setHours(0,0,0,0);
 
-    if (tx.transaction_type === 'normal') return true;
+    // NORMAL
+    if (tx.transaction_type === 'normal') {
 
-    return tx.status !== 'paid'; // ✅ SHOW BOTH upcoming + due
+      return (
+        (tx.paid_amount || 0) <
+        tx.principal_amount
+      );
+
+    }
+
+    // LOAN + ROTATION
+    return tx.status !== 'paid';
+
   });
+
 }
 
   if (filterType === 'paid') {
@@ -756,7 +831,7 @@ if (filterType === 'pending') {
   }
 
   if (filterType === 'extended') {
-    filteredData = filteredData.filter(tx => tx.extensions.length > 0);
+    filteredData = filteredData.filter(tx => tx.extensions?.length > 0);
   }
 
   if (filterType === 'due') {
@@ -805,17 +880,51 @@ if (filterType === 'pending') {
   }
 
   const renderDueCard = (tx) => {
-    let totalInterest = tx.base_interest;
-  
-    tx.extensions.forEach(ext => {
-      if (ext.interest_paid) {
-        totalInterest = ext.extra_interest;
-      } else {
-        totalInterest += ext.extra_interest;
-      }
-    });
-  
-    const total = tx.principal_amount + totalInterest;
+    let totalInterest =
+  Number(tx.base_interest || 0);
+
+tx.extensions.forEach(ext => {
+
+  if (ext.interest_paid) {
+
+    totalInterest =
+      Number(ext.extra_interest || 0);
+
+  } else {
+
+    totalInterest +=
+      Number(ext.extra_interest || 0);
+
+  }
+
+});
+
+const finalInterest =
+
+  tx.final_interest > 0
+
+    ? Number(tx.final_interest)
+
+    : (
+
+        tx.early_paid
+
+          ? Number(tx.early_paid_interest || 0)
+
+          : totalInterest
+
+      );
+
+const total =
+
+  tx.final_total > 0
+
+    ? Number(tx.final_total)
+
+    : (
+        Number(tx.principal_amount || 0) +
+        Number(finalInterest || 0)
+      );
   
     const due = new Date(tx.due_date);
     const overdueDays = Math.floor((today - due) / (1000 * 60 * 60 * 24));
@@ -937,8 +1046,10 @@ const dueDate = new Date(tx.due_date);
 dueDate.setHours(0,0,0,0);
 
 const isOverdue =
-  dueDate < today &&
-  tx.status !== 'paid';
+
+  tx.status !== 'paid' &&
+
+  dueDate < today;
 
 const overdueDays = Math.max(
   1,
@@ -999,53 +1110,369 @@ const overdueDays = Math.max(
       </p>
 
       <hr />
-      {isOverdue && (
+        {tx.status !== 'paid' && isOverdue && (
+
   <p style={{
     color: 'red',
     fontWeight: 'bold'
   }}>
-    ⚠ {overdueDays} day{overdueDays > 1 ? 's' : ''} overdue
+    ⚠ {overdueDays} day
+    {overdueDays > 1 ? 's' : ''}
+    {' '}overdue
   </p>
+
 )}
       {/* 💰 DATA */}
+      
       <p>Total: {formatCurrency(total)}</p>
-      <p>Paid: {formatCurrency(paid)}</p>
-      <p>Balance: {formatCurrency(balance)}</p>
 
-      {tx.status === 'paid' && tx.paid_date && (() => {
+{tx.status !== 'paid' ? (
 
-  const paidDate = new Date(tx.paid_date);
+  <div style={{
+  marginTop: 14
+}}>
 
-  const dueDate = new Date(tx.due_date);
+  {/* PAYMENT BOX */}
 
-  paidDate.setHours(0,0,0,0);
+  <div style={{
 
-  dueDate.setHours(0,0,0,0);
+  padding: 10,
 
-  const isLate = paidDate > dueDate;
+  borderRadius: 14,
 
-  const diffDays = Math.max(
-    1,
-    Math.ceil(
-      (paidDate - dueDate) /
-      (1000 * 60 * 60 * 24)
-    )
-  );
+  background:
 
-  return (
+    (() => {
+
+      const percent =
+        (paid / total) * 100;
+
+      // RED
+      if (percent < 40) {
+        return '#fff1f2';
+      }
+
+      // BLUE
+      if (percent < 80) {
+        return '#eff6ff';
+      }
+
+      // GREEN
+      return '#f0fdf4';
+
+    })(),
+
+  border:
+
+    (() => {
+
+      const percent =
+        (paid / total) * 100;
+
+      // RED
+      if (percent < 40) {
+        return '1px solid #ef4444';
+      }
+
+      // BLUE
+      if (percent < 80) {
+        return '1px solid #3b82f6';
+      }
+
+      // GREEN
+      return '1px solid #22c55e';
+
+    })()
+
+}}>
+
     <p style={{
-      color: isLate ? '#f44336' : '#4CAF50',
+      margin: 0,
+      fontWeight: 'bold',
+      color:
+
+  (() => {
+
+    const percent =
+      (paid / total) * 100;
+
+    // RED
+    if (percent < 40) {
+      return '#dc2626';
+    }
+
+    // BLUE
+    if (percent < 80) {
+      return '#2563eb';
+    }
+
+    // GREEN
+    return '#15803d';
+
+  })()
+    }}>
+      🟢 Paid:
+      {' '}
+      {formatCurrency(paid)}
+    </p>
+
+    <p style={{
+      marginTop: 8,
+      marginBottom: 0,
+      fontWeight: 'bold',
+      color:
+
+  (() => {
+
+    const percent =
+      (paid / total) * 100;
+
+    // RED
+    if (percent < 40) {
+      return '#991b1b';
+    }
+
+    // BLUE
+    if (percent < 80) {
+      return '#1d4ed8';
+    }
+
+    // GREEN
+    return '#166534';
+
+  })()
+    }}>
+      🔵 Remaining:
+      {' '}
+      {formatCurrency(balance)}
+    </p>
+
+    {tx.last_payment_date && (
+
+      <p style={{
+        marginTop: 10,
+        marginBottom: 0,
+        color: '#475569',
+        fontSize: 14
+      }}>
+        Last Paid:
+        {' '}
+        {new Date(
+          tx.last_payment_date
+        ).toDateString()}
+      </p>
+
+    )}
+
+  </div>
+
+  {/* PROGRESS */}
+
+  <div style={{
+    marginTop: 14
+  }}>
+
+    <div style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      marginBottom: 6,
+      fontSize: 12,
       fontWeight: 'bold'
     }}>
-      {
-        isLate
-          ? `Paid Late (${diffDays} day${diffDays > 1 ? 's' : ''}) on ${paidDate.toDateString()}`
-          : `Paid on: ${paidDate.toDateString()}`
-      }
-    </p>
-  );
 
-})()}
+      <span>
+        Progress
+      </span>
+
+      <span>
+        {
+
+          Math.round(
+            (paid / total) * 100
+          )
+
+        }%
+      </span>
+
+    </div>
+
+    <div style={{
+      width: '100%',
+      height: 10,
+      borderRadius: 20,
+      background: '#dbeafe',
+      overflow: 'hidden'
+    }}>
+
+      <div style={{
+        width:
+          `${(paid / total) * 100}%`,
+        height: '100%',
+        background:
+
+  (() => {
+
+    const percent =
+      (paid / total) * 100;
+
+    // RED
+    if (percent < 40) {
+
+      return 'linear-gradient(90deg,#ef4444,#f87171)';
+
+    }
+
+    // BLUE
+    if (percent < 80) {
+
+      return 'linear-gradient(90deg,#2563eb,#60a5fa)';
+
+    }
+
+    // GREEN
+    return 'linear-gradient(90deg,#16a34a,#4ade80)';
+
+  })()
+      }} />
+
+    </div>
+
+  </div>
+
+</div>
+
+) : (
+
+  (() => {
+
+    const paidDate =
+      new Date(tx.paid_date);
+
+    const latestDueDate =
+
+  tx.final_due_date ||
+
+  tx.due_date;
+
+const dueDate =
+  new Date(latestDueDate);
+
+    paidDate.setHours(0,0,0,0);
+
+    dueDate.setHours(0,0,0,0);
+
+    const diff = Math.ceil(
+      (paidDate - dueDate) /
+      (1000 * 60 * 60 * 24)
+    );
+
+    const isLate = diff > 0;
+
+    const isEarly = diff < 0;
+
+    return (
+
+      <div style={{
+        marginTop: 12,
+        padding: 12,
+        borderRadius: 14,
+
+        background:
+
+          isLate
+            ? '#fee2e2'
+            : '#dcfce7',
+
+        border:
+
+          isLate
+            ? '1px solid #ef4444'
+            : '1px solid #22c55e'
+      }}>
+
+        <p style={{
+          margin: 0,
+          fontWeight: 'bold',
+
+          color:
+
+            isLate
+              ? '#dc2626'
+              : '#166534'
+        }}>
+
+          {
+
+            isLate
+
+              ? `🔴 Paid Late`
+
+              : isEarly
+
+                ? `🟢 Paid Early`
+
+                : `🔵 Paid On Time`
+
+          }
+
+        </p>
+
+        <p style={{
+          marginTop: 6,
+          marginBottom: 0,
+
+          color:
+
+            isLate
+              ? '#991b1b'
+              : '#166534'
+        }}>
+
+          Paid:
+          {' '}
+          {formatCurrency(total)}
+
+          {' • '}
+
+          {
+
+            isLate
+
+              ? `${diff} day late`
+
+              : isEarly
+
+                ? `${Math.abs(diff)} day early`
+
+                : 'On time'
+
+          }
+
+        </p>
+
+        <p style={{
+          marginTop: 5,
+          marginBottom: 0,
+          fontSize: 13,
+
+          color:
+
+            isLate
+              ? '#991b1b'
+              : '#166534'
+        }}>
+          {paidDate.toDateString()}
+        </p>
+
+      </div>
+
+    );
+
+  })()
+
+)}
+
+    
 
       {balance === 0 && (
   <div style={{
@@ -1066,12 +1493,21 @@ const overdueDays = Math.max(
 
   {tx.status === 'paid' ? (
     <button
-      onClick={() =>
-        setConfirmAction({ type: 'delete', id: tx._id })
-      }
-    >
-      Delete
-    </button>
+  style={{
+    background: '#ef4444',
+    color: 'white',
+    border: 'none',
+    padding: '10px 18px',
+    borderRadius: 12,
+    fontWeight: 'bold',
+    cursor: 'pointer'
+  }}
+  onClick={() =>
+    setConfirmAction({ type: 'delete', id: tx._id })
+  }
+>
+  Delete
+</button>
   ) : (
     <>
       <button onClick={() => setPayId(tx._id)}>Pay</button>
@@ -1097,63 +1533,76 @@ const overdueDays = Math.max(
   );
 }
 
-  // ================= ROTATION (OLD LOGIC) =================
+  // ================= ROTATION (NEW LOGIC) =================
 
-  let totalInterest = tx.base_interest;
+let totalInterest =
+  Number(tx.base_interest || 0);
 
 tx.extensions.forEach(ext => {
 
   if (ext.interest_paid) {
 
-    totalInterest = ext.extra_interest;
+    totalInterest =
+      Number(ext.extra_interest || 0);
 
   } else {
 
-    totalInterest += ext.extra_interest;
+    totalInterest +=
+      Number(ext.extra_interest || 0);
 
   }
 
 });
 
 const finalInterest =
-  tx.early_paid
-    ? tx.early_paid_interest
-    : totalInterest;
 
-const today = new Date();
+  tx.final_interest > 0
 
-const latestDueDate =
-  tx.extensions?.length > 0
-    ? tx.due_date
-    : tx.due_date;
+    ? Number(tx.final_interest)
 
-const dueDate = new Date(latestDueDate);
+    : (
 
-dueDate.setHours(0,0,0,0);
+        tx.early_paid
 
-today.setHours(0,0,0,0);
+          ? Number(tx.early_paid_interest || 0)
 
-const isOverdue =
-  dueDate < today &&
-  tx.status !== 'paid' &&
-  tx.status !== 'extended';
-
-const displayStatus =
-  isOverdue
-    ? 'overdue'
-    : tx.status;
+          : totalInterest
+      );
 
 const total =
-  tx.principal_amount + finalInterest;
+
+  tx.final_total > 0
+
+    ? Number(tx.final_total)
+
+    : (
+        Number(tx.principal_amount || 0) +
+        Number(finalInterest || 0)
+      );
 
   const due = new Date(tx.due_date);
-  const overdueDays = Math.max(
+
+const todayDate = new Date();
+
+todayDate.setHours(0,0,0,0);
+due.setHours(0,0,0,0);
+
+const isOverdue =
+  tx.status !== 'paid' &&
+  due < todayDate;
+
+const displayStatus =
+  tx.status === 'extended'
+    ? 'extended'
+    : tx.status === 'paid'
+    ? 'paid'
+    : 'pending';
+
+const overdueDays = Math.max(
   1,
   Math.ceil(
-    (
-      today.setHours(0,0,0,0) -
-      due.setHours(0,0,0,0)
-    ) / (1000 * 60 * 60 * 24)
+    (todayDate - due) /
+    (1000 * 60 * 60 * 24)
   )
 );
 
@@ -1164,267 +1613,391 @@ const total =
   });
 
   return (
-    
-    <div
+
+<div
   key={tx._id}
   style={{
-    padding: '12px',
-    borderRadius: '10px',
-    background: isOverdue
-  ? '#ffe5e5'
-  : tx.status === 'paid'
-  ? '#e8f5e9'
-  : '#fff3cd',
+    background:
+      isOverdue
+        ? '#ffe5e5'
+        : tx.status === 'paid'
+        ? '#e8f5e9'
+        : '#f6edcf',
 
-border: isOverdue ? '2px solid #f44336' : 'none',
-    boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+    border: isOverdue
+      ? '2px solid #ef4444'
+      : '1px solid #ececec',
 
-    position: 'relative'   // 🔥 ADD THIS LINE
+    borderRadius: 20,
+
+    padding: 14,
+
+    position: 'relative',
+
+    minHeight: 260,
+
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+
+    boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
   }}
 >
 
-      <div style={{
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center'
-}}>
-        <h4
-  style={{ marginBottom: 5, cursor: 'pointer', color: 'blue' }}
-  onClick={() => {
-  navigate(`/profile/${tx.person_name}`, {
-  state: { type: tx.transaction_type }
-});
-}}
->
-  {tx.person_name}
+  {/* TOP */}
+  <div>
 
-</h4>
+    <div style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center'
+    }}>
 
-        <span style={{
-  position: 'absolute',
-  top: 10,
-  right: 10,
-  background: tx.type === 'incoming' ? '#4CAF50' : '#f44336',
-  color: 'white',
-  padding: '4px 10px',
-  borderRadius: 12,
-  fontSize: 12,
-  fontWeight: 'bold'
-}}>
-  {tx.type === 'incoming' ? 'IN' : 'OUT'}
-</span>
-      </div>
+      <h4
+        onClick={() => {
+          navigate(`/profile/${tx.person_name}`, {
+            state: { type: tx.transaction_type }
+          });
+        }}
+        style={{
+          margin: 0,
+          color: '#2563eb',
+          cursor: 'pointer',
+          fontSize: 17,
+          fontWeight: '700'
+        }}
+      >
+        {tx.person_name}
+      </h4>
 
-      <p>
-  <b>Start:</b>{' '}
-  <span style={{ color: 'green', fontWeight: 'bold' }}>
-    {new Date(tx.start_date).toDateString()}
-  </span>
-</p>
-
-      <p>
-  <b>Due:</b>{' '}
-
-  <span
-    style={{
-      color:
-        tx.extensions?.length > 0
-          ? '#f44336'
-          : 'black',
-
-      textDecoration:
-        tx.extensions?.length > 0
-          ? 'line-through'
-          : 'none'
-    }}
-  >
-    {
-      tx.extensions?.length > 0
-        ? new Date(
-            tx.extensions[0].old_due_date
-          ).toDateString()
-        : new Date(tx.due_date).toDateString()
-    }
-  </span>
-</p>
-
-{tx.extensions?.length > 0 && (
-  <p style={{
-    color: '#f44336',
-    marginLeft: 10,
-    fontWeight: 'bold'
-  }}>
-    {
-      new Date(
-        tx.extensions[
-          tx.extensions.length - 1
-        ].new_due_date
-      ).toDateString()
-    }
-  </p>
-)}
-{isOverdue && (
-  <p style={{
-    color: '#f44336',
-    fontWeight: 'bold'
-  }}>
-    ⚠ {overdueDays} day{overdueDays > 1 ? 's' : ''} overdue
-  </p>
-)}
-
-<p>
-  {/* ❌ HIDE STATUS IF OVERDUE */}
-{displayStatus !== 'overdue' && (
-  <p>
-    <b>Status:</b>{' '}
-    {displayStatus === 'paid' ? (
       <span style={{
-        background: '#4CAF50',
+        background:
+          tx.type === 'incoming'
+            ? '#67b357'
+            : '#ef4444',
+
         color: 'white',
-        padding: '3px 10px',
-        borderRadius: 8,
+
+        padding: '6px 14px',
+
+        borderRadius: 999,
+
+        fontSize: 13,
+
         fontWeight: 'bold'
       }}>
-        PAID
+        {tx.type === 'incoming' ? 'IN' : 'OUT'}
       </span>
-    ) : (
+
+    </div>
+
+    {/* DUE DATE */}
+
+<div style={{
+  marginTop: 8
+}}>
+
+{/* START DATE */}
+
+  <p style={{
+    margin: 0,
+    color: '#3f9c35',
+    fontWeight: 700,
+    fontSize: 13
+  }}>
+
+    Start:
+    {' '}
+
+    {new Date(
+      tx.start_date
+    ).toDateString()}
+
+  </p>
+  {/* ORIGINAL DUE */}
+
+  <p style={{
+    margin: 0,
+    color:
+      tx.extensions?.length > 0
+        ? '#dc2626'
+        : '#111827',
+
+    fontWeight: 600,
+    fontSize: 13,
+
+    textDecoration:
+      tx.extensions?.length > 0
+        ? 'line-through'
+        : 'none'
+  }}>
+
+    Due:
+    {' '}
+
+    {new Date(
+      tx.extensions?.length > 0
+        ? tx.extensions[0].old_due_date
+        : tx.due_date
+    ).toDateString()}
+
+  </p>
+
+  {/* PREVIOUS EXTENSIONS */}
+
+  {tx.extensions?.map((ext, index) => {
+
+    const isLast =
+      index === tx.extensions.length - 1;
+
+    return (
+
+      <p
+        key={index}
+        style={{
+          marginTop: 6,
+          marginBottom: 0,
+
+          color:
+            isLast
+              ? '#7c3aed'
+              : '#dc2626',
+
+          fontWeight: 'bold',
+
+          fontSize: 13,
+
+          textDecoration:
+            isLast
+              ? 'none'
+              : 'line-through'
+        }}
+      >
+
+        {
+
+          isLast
+
+            ? 'New Due: '
+
+            : 'Due: '
+
+        }
+
+        {
+
+          new Date(
+            ext.new_due_date
+          ).toDateString()
+
+        }
+
+      </p>
+
+    );
+
+  })}
+
+</div>
+
+    {/* STATUS */}
+    <div style={{
+      marginTop: 16
+    }}>
+
       <span style={{
-        color:
-          displayStatus === 'extended'
-  ? '#f44336'
-    ? '#5E35B1'
-    : '#f44336'
-            : displayStatus === 'pending'
-            ? '#ff9800'
-            : 'black',
-        fontWeight: 'bold'
+        background:
+          displayStatus === 'paid'
+            ? '#16a34a'
+            : '#f0a83a',
+
+        color: 'white',
+
+        padding: '7px 16px',
+
+        borderRadius: 999,
+
+        fontWeight: 'bold',
+
+        fontSize: 12,
+
+        letterSpacing: 1
       }}>
         {displayStatus.toUpperCase()}
       </span>
+
+    </div>
+
+    {/* OVERDUE */}
+    {isOverdue && (
+
+      <div style={{
+        marginTop: 14,
+        color: '#dc2626',
+        fontWeight: 'bold',
+        fontSize: 13
+      }}>
+        ⚠ {overdueDays} days overdue
+      </div>
+
     )}
-  </p>
-  )}
-</p>
-<p><b>Principal:</b> {formatCurrency(tx.principal_amount)}</p>
-{tx.early_paid && (
-  <p>
-    <b>Normal Interest:</b>{' '}
-    {formatCurrency(totalInterest)}
-  </p>
-)}
 
-<p>
-  <b>
-    {tx.early_paid
-      ? 'Early Paid Interest'
-      : 'Interest'}
-    :
-  </b>{' '}
-  {formatCurrency(finalInterest)}
-</p>
-{tx.status === 'paid' && tx.paid_date && (() => {
-
-  const paid = new Date(tx.paid_date);
-
-  const due = new Date(tx.due_date);
-
-  paid.setHours(0,0,0,0);
-
-  due.setHours(0,0,0,0);
-
-  const isLate = paid > due;
-
-  const diffDays = Math.max(
-    1,
-    Math.ceil(
-      (paid - due) / (1000 * 60 * 60 * 24)
-    )
-  );
-
-  return (
-    <p style={{
-      color:
-        tx.early_paid
-          ? '#ff9800'
-          : isLate
-          ? '#f44336'
-          : '#4CAF50',
-
-      fontWeight: 'bold'
+    {/* STATS */}
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr 1fr',
+      gap: 8,
+      marginTop: 16
     }}>
-      {tx.early_paid
-        ? `Early Pay on: ${paid.toDateString()}`
-        : isLate
-        ? `Paid Late (${diffDays} day${diffDays > 1 ? 's' : ''}) on ${paid.toDateString()}`
-        : `Paid on: ${paid.toDateString()}`
-      }
-    </p>
-  );
 
-})()}
-<p><b>Total {formatCurrency(total)}</b></p>
-<div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+      <div style={miniStatCard}>
+        <p style={miniStatTitle}>Principal</p>
+        <h4 style={miniStatValue}>
+          {formatCurrency(tx.principal_amount)}
+        </h4>
+      </div>
 
+      <div style={miniStatCard}>
+        <p style={miniStatTitle}>Interest</p>
+        <h4 style={miniStatValue}>
+          {formatCurrency(finalInterest)}
+        </h4>
+      </div>
 
-  {tx.status === 'paid' ? (
-    
+      <div style={{
+        ...miniStatCard,
+        background: '#0f172a'
+      }}>
+        <p style={{
+          ...miniStatTitle,
+          color: '#cbd5e1'
+        }}>
+          Total
+        </p>
+
+        <h4 style={{
+          ...miniStatValue,
+          color: 'white'
+        }}>
+          {formatCurrency(total)}
+        </h4>
+      </div>
+
+    </div>
+
+  </div>
+
+  {/* BUTTONS */}
+  {tx.status !== 'paid' ? (
+
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 8,
+      marginTop: 16
+    }}>
+
+      <button
+        style={{
+          ...miniButtonStyle,
+          background: '#2563eb'
+        }}
+        onClick={() => {
+
+          const today = new Date();
+          const dueDate = new Date(tx.due_date);
+
+          today.setHours(0,0,0,0);
+          dueDate.setHours(0,0,0,0);
+
+          if (today < dueDate) {
+            setPayPopup(tx);
+          } else {
+            setNormalPayPopup(tx);
+          }
+
+        }}
+      >
+        Pay
+      </button>
+
+      <button
+        style={{
+          ...miniButtonStyle,
+          background: '#f59e0b'
+        }}
+        onClick={() =>
+          setConfirmAction({
+            type: 'extend',
+            id: tx._id
+          })
+        }
+      >
+        Extend
+      </button>
+
+      <button
+        style={{
+          ...miniButtonStyle,
+          background: '#0f172a'
+        }}
+        onClick={() =>
+          setConfirmAction({
+            type: 'edit',
+            id: tx._id,
+            tx
+          })
+        }
+      >
+        Edit
+      </button>
+
+      <button
+        style={{
+          ...miniButtonStyle,
+          background: '#ef4444'
+        }}
+        onClick={() =>
+          setConfirmAction({
+            type: 'delete',
+            id: tx._id
+          })
+        }
+      >
+        Delete
+      </button>
+
+    </div>
+
+) : (
+
+  <div style={{
+    marginTop: 16
+  }}>
+
     <button
+      style={{
+        ...miniButtonStyle,
+        background: '#ef4444',
+        width: '100%'
+      }}
       onClick={() =>
-        setConfirmAction({ type: 'delete', id: tx._id })
+        setConfirmAction({
+          type: 'delete',
+          id: tx._id
+        })
       }
     >
       Delete
     </button>
-  ) : (
-    <>
-      <button
-  onClick={() => {
 
-    // 🔥 EARLY PAYMENT
-    const today = new Date();
-    const dueDate = new Date(tx.due_date);
+  </div>
 
-    today.setHours(0,0,0,0);
-    dueDate.setHours(0,0,0,0);
-
-    if (today < dueDate) {
-
-  setPayPopup(tx);
-
-} else {
-
-  setNormalPayPopup(tx);
-
-}
-
-  }}
->
-  Pay
-</button>
-
-      <button onClick={() =>
-        setConfirmAction({ type: 'extend', id: tx._id })
-      }>
-        Extend
-      </button>
-
-      <button onClick={() =>
-        setConfirmAction({ type: 'edit', id: tx._id, tx })
-      }>
-        Edit
-      </button>
-
-      <button onClick={() =>
-        setConfirmAction({ type: 'delete', id: tx._id })
-      }>
-        Delete
-      </button>
-    </>
-  )}
+)}
 
 </div>
-</div>
-  );
+
+);
 };
 
   const getConfirmMessage = () => {
@@ -1487,6 +2060,36 @@ const loanData = filteredData
     alert("Error ❌");
   }
 };
+
+const filteredLoanData = loanData.filter(tx => {
+
+  const matchesSearch =
+    tx.person_name
+      .toLowerCase()
+      .includes(search.toLowerCase());
+
+  const matchesStatus =
+
+    filterType === 'all'
+
+      ? true
+
+      : filterType === 'pending'
+
+        ? tx.status !== 'paid'
+
+        : filterType === 'paid'
+
+          ? tx.status === 'paid'
+
+          : true;
+
+  return (
+    matchesSearch &&
+    matchesStatus
+  );
+
+});
 
 const handleFullPayment = async () => {
   try {
@@ -1970,17 +2573,51 @@ const handleFullPayment = async () => {
 
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {dueTransactions.map(tx => {
-        let totalInterest = tx.base_interest;
+        let totalInterest =
+  Number(tx.base_interest || 0);
 
-        tx.extensions.forEach(ext => {
-          if (ext.interest_paid) {
-            totalInterest = ext.extra_interest;
-          } else {
-            totalInterest += ext.extra_interest;
-          }
-        });
+tx.extensions.forEach(ext => {
 
-        const total = tx.principal_amount + totalInterest;
+  if (ext.interest_paid) {
+
+    totalInterest =
+      Number(ext.extra_interest || 0);
+
+  } else {
+
+    totalInterest +=
+      Number(ext.extra_interest || 0);
+
+  }
+
+});
+
+const finalInterest =
+
+  tx.final_interest > 0
+
+    ? Number(tx.final_interest)
+
+    : (
+
+        tx.early_paid
+
+          ? Number(tx.early_paid_interest || 0)
+
+          : totalInterest
+
+      );
+
+const total =
+
+  tx.final_total > 0
+
+    ? Number(tx.final_total)
+
+    : (
+        Number(tx.principal_amount || 0) +
+        Number(finalInterest || 0)
+      );
 
         const todayDate = new Date();
 todayDate.setHours(0, 0, 0, 0);
@@ -2045,17 +2682,51 @@ const overdueDays = Math.max(
 
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {upcomingTransactions.map(tx => {
-        let totalInterest = tx.base_interest;
+        let totalInterest =
+  Number(tx.base_interest || 0);
 
-        tx.extensions.forEach(ext => {
-          if (ext.interest_paid) {
-            totalInterest = ext.extra_interest;
-          } else {
-            totalInterest += ext.extra_interest;
-          }
-        });
+tx.extensions.forEach(ext => {
 
-        const total = tx.principal_amount + totalInterest;
+  if (ext.interest_paid) {
+
+    totalInterest =
+      Number(ext.extra_interest || 0);
+
+  } else {
+
+    totalInterest +=
+      Number(ext.extra_interest || 0);
+
+  }
+
+});
+
+const finalInterest =
+
+  tx.final_interest > 0
+
+    ? Number(tx.final_interest)
+
+    : (
+
+        tx.early_paid
+
+          ? Number(tx.early_paid_interest || 0)
+
+          : totalInterest
+
+      );
+
+const total =
+
+  tx.final_total > 0
+
+    ? Number(tx.final_total)
+
+    : (
+        Number(tx.principal_amount || 0) +
+        Number(finalInterest || 0)
+      );
         
         return (
 
@@ -2545,19 +3216,67 @@ transition: '0.25s ease',
 
 {/* 💰 TOTAL DUE */}
 <div style={{
-  marginTop: 10,
-  padding: 10,
-  background: '#fff3cd',
-  borderRadius: 10,
-  fontWeight: 'bold'
+  marginTop: 20,
+  marginBottom: 35,
+
+  background:
+    'linear-gradient(135deg,#fef3c7,#fde68a)',
+
+  borderRadius: 24,
+
+  padding: '22px 28px',
+
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+
+  boxShadow:
+    '0 10px 25px rgba(0,0,0,0.08)'
 }}>
 
+  <div>
 
-  💰 Total Due: {formatCurrency(totalDueAmount)}
+    <p style={{
+      margin: 0,
+      color: '#92400e',
+      fontSize: 13,
+      fontWeight: 'bold',
+      letterSpacing: 1
+    }}>
+      TOTAL ACTIVE DUE
+    </p>
+
+    <h1 style={{
+      margin: '8px 0 0',
+      color: '#78350f',
+      fontSize: 38,
+      fontWeight: '800'
+    }}>
+      {formatCurrency(totalDueAmount)}
+    </h1>
+
+  </div>
+
+  <div style={{
+    fontSize: 55
+  }}>
+    💰
+  </div>
+
 </div>
   <div style={{ marginTop: 20 }}>
 
-  <h3>Normal Payments</h3>
+  <h2 style={{
+  fontSize: 32,
+  fontWeight: '800',
+  marginBottom: 20,
+  color: '#0f172a',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10
+}}>
+  💵 Normal Payments
+</h2>
   <div style={{
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
@@ -2567,27 +3286,49 @@ transition: '0.25s ease',
     {normalData.map(renderCard)}
   </div>
 
-  <h3>Rotation Payments</h3>
+  <h2 style={{
+  fontSize: 32,
+  fontWeight: '800',
+  marginBottom: 20,
+  marginTop: 50,
+  color: '#eb530cec',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10
+}}>
+  🔄 Rotation Payments
+</h2>
   <div style={{
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+    gridTemplateColumns:
+  'repeat(5, minmax(0,1fr))',
     gap: 12
   }}>
     {rotationData.map(renderCard)}
   </div>
 
-  <h3 style={{
-  marginTop: 30,
-  color: '#4527A0'
+  <h2 style={{
+  fontSize: 32,
+  fontWeight: '800',
+  marginBottom: 20,
+  marginTop: 50,
+  color: '#4338ca',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10
 }}>
   💳 Loan Payments
-</h3>
+</h2>
 
-<LoanProfile
+{/* <LoanProfile
   data={loanData}
   refresh={fetchData}
-/>
+/> */}
 
+<LoanProfile
+  data={filteredLoanData}
+  refresh={fetchData}
+/>
 
 </div>
       {/* CARDS */}

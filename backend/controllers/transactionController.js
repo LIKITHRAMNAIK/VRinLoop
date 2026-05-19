@@ -122,22 +122,54 @@ if (tx.transaction_type === 'loan') {
   // ONLY active liability
   outgoing += remainingLoanAmount;
 
-  // ❌ DO NOT ADD TO PRINCIPAL
-  // ❌ DO NOT ADD TO INTEREST
 
   return;
 }
 
 // ================= ROTATION =================
 
-let totalInterest = tx.base_interest;
+let totalInterest =
+  Number(tx.base_interest || 0);
 
 tx.extensions?.forEach(ext => {
-  totalInterest += ext.extra_interest;
+
+  if (ext.interest_paid) {
+
+    totalInterest =
+      Number(ext.extra_interest || 0);
+
+  } else {
+
+    totalInterest +=
+      Number(ext.extra_interest || 0);
+
+  }
+
 });
 
+const finalInterest =
+
+  tx.status === 'paid'
+
+    ? Number(
+        tx.final_interest || totalInterest
+      )
+
+    : totalInterest;
+
 const total =
-  tx.principal_amount + totalInterest;
+
+  tx.status === 'paid'
+
+    ? Number(
+        tx.final_total ||
+        (tx.principal_amount + finalInterest)
+      )
+
+    : (
+        tx.principal_amount +
+        finalInterest
+      );
 
     principal += tx.principal_amount;
     interest += totalInterest;
@@ -410,81 +442,126 @@ lateDays = Math.round(
 exports.markAsPaid = async (req, res) => {
 
   try {
-    const { id } = req.params;
-    const { amount } = req.body;
 
-    const tx = await Transaction.findById(id);
+    const tx = await Transaction.findById(req.params.id);
 
     if (!tx) {
-      return res.status(404).json({ message: 'Transaction not found' });
+      return res.status(404).json({
+        message: 'Transaction not found'
+      });
     }
 
-    // ✅ NORMAL → INSTALLMENT LOGIC
+    // ================= NORMAL PAYMENT =================
+
     if (tx.transaction_type === 'normal') {
 
+      const amount = Number(req.body.amount || 0);
 
-// before normal logic
-if (tx.transaction_type === 'normal' && (amount === undefined || amount === null)) {
-  return res.status(400).json({ message: 'Amount required for normal transaction' });
-}
+      tx.paid_amount =
+        (tx.paid_amount || 0) + amount;
 
-// inside normal
-const remaining = tx.principal_amount - (tx.paid_amount || 0);
+      tx.installments.push({
+        amount,
+        date: new Date()
+      });
 
-const safeAmount = Number(amount || 0);
+      tx.last_payment_date = new Date();
 
-if (!safeAmount || safeAmount <= 0) {
-  return res.status(400).json({ message: 'Invalid amount' });
-}
+      if (tx.paid_amount >= tx.principal_amount) {
 
-const pay = Math.min(safeAmount, remaining);
+        tx.status = 'paid';
 
-  tx.paid_amount = (tx.paid_amount || 0) + pay;
+        tx.paid_date = new Date();
 
-  // 🔥 ADD INSTALLMENT ENTRY
-  if (!tx.installments) {
-    tx.installments = [];
+      }
+
+      await tx.save();
+
+      return res.json(tx);
+
+    }
+
+    // ================= ROTATION / LOAN =================
+
+    let totalInterest =
+  Number(tx.base_interest || 0);
+
+tx.extensions.forEach(ext => {
+
+  if (ext.interest_paid) {
+
+    totalInterest =
+      Number(ext.extra_interest || 0);
+
+  } else {
+
+    totalInterest +=
+      Number(ext.extra_interest || 0);
+
   }
 
-  tx.installments.push({
-    amount: pay,
-    date: new Date()
-  });
+});
 
-  // FULLY PAID
-  if (tx.paid_amount >= tx.principal_amount) {
+// ✅ USE SNAPSHOT FOR PAID
+if (tx.status === 'paid') {
+
+  totalInterest =
+    tx.final_interest || totalInterest;
+
+}
+
+    // ================= EARLY PAY =================
+
+    if (req.body.earlyPay) {
+
+      tx.early_paid = true;
+
+      tx.early_paid_interest =
+        Number(req.body.newInterest || 0);
+
+      totalInterest = tx.early_paid_interest;
+
+    }
+
+    const finalTotal =
+      tx.principal_amount + totalInterest;
+
     tx.status = 'paid';
+
     tx.paid_date = new Date();
-  }
 
-  await tx.save();  
-  return res.json(tx);
-}
+    // 🔥 IMPORTANT SNAPSHOTS
 
-    // ✅ ROTATION → FULL PAYMENT
+    tx.final_interest = totalInterest;
 
-if (req.body.earlyPay === true) {
+    tx.final_total = finalTotal;
 
-  tx.early_paid = true;
+    tx.final_due_date =
 
-  tx.early_paid_interest = Number(
-    req.body.newInterest
-  );
+  tx.extensions?.length > 0
 
-}
+    ? tx.extensions[
+        tx.extensions.length - 1
+      ].new_due_date
 
-tx.status = 'paid';
+    : tx.due_date;
 
-tx.paid_date = new Date();
+    tx.final_extensions = [...tx.extensions];
 
-await tx.save();
+    await tx.save();
 
-return res.json(tx);
+    res.json(tx);
 
   } catch (err) {
+
     console.log(err);
-    res.status(500).json({ message: 'Error' });
+
+    res.status(500).json({
+      message: 'Server Error'
+    });
+
   }
+
 };
 
   exports.getByPerson = async (req, res) => {
@@ -694,8 +771,86 @@ if (
   }
 
 }
+const totalPaid =
+  req.body.installments?.reduce(
+    (sum, inst) =>
+      sum + Number(inst.amount),
+    0
+  ) || 0;
+
+const remainingBalance =
+  Number(req.body.principal_amount) -
+  totalPaid;
+
+  let finalInterest = null;
+let finalTotal = null;
+
+if (
+  req.body.transaction_type === 'rotation' &&
+  req.body.rotation_entry_mode === 'completed'
+) {
+
+  let totalInterest =
+  Number(req.body.base_interest || 0);
+
+req.body.extensions?.forEach(ext => {
+
+  // ✅ Last interest paid
+  if (ext.interest_paid) {
+
+  totalInterest =
+    Number(ext.extra_interest || 0);
+
+}
+
+  // ✅ Normal extension
+  else {
+
+    totalInterest +=
+      Number(ext.extra_interest || 0);
+
+  }
+
+});
+
+  finalInterest = totalInterest;
+
+  finalTotal =
+    Number(req.body.principal_amount) +
+    totalInterest;
+
+}
+console.log({
+  completedEmi,
+  remainingEmi,
+  loanStatus:
+    Number(remainingEmi) <= 0
+      ? 'paid'
+      : 'pending'
+});
 
 const transaction = new Transaction({
+
+  
+
+  installments:
+  req.body.installments || [],
+
+total_paid_amount:
+  totalPaid,
+
+remaining_balance:
+  remainingBalance,
+
+last_payment_date:
+
+  req.body.installments?.length > 0
+
+    ? req.body.installments[
+        req.body.installments.length - 1
+      ].date
+
+    : null,
 
   person_name: req.body.person_name,
 
@@ -718,6 +873,16 @@ const transaction = new Transaction({
 
   notes:
     req.body.notes,
+  
+  paid_date:
+
+  req.body.installments?.length > 0
+
+    ? req.body.installments[
+        req.body.installments.length - 1
+      ].date
+
+    : req.body.paid_date || null,
 
   loan_duration:
     Number(req.body.loan_duration || 0),
@@ -735,7 +900,86 @@ const transaction = new Transaction({
     remainingEmi,
 
   emi_history:
-    emiHistory
+  emiHistory,
+
+  final_interest: finalInterest,
+
+final_total: finalTotal,
+
+final_due_date:
+  req.body.due_date,
+
+final_extensions:
+  (req.body.extensions || []).map(ext => ({
+
+    old_due_date:
+      ext.old_due_date,
+
+    new_due_date:
+      ext.new_due_date,
+
+    extra_interest:
+      Number(ext.extra_interest || 0),
+
+    interest_paid:
+      ext.interest_paid || false
+
+  })),
+
+status:
+
+// ================= ROTATION =================
+
+req.body.transaction_type === 'rotation'
+
+  ? (
+
+      req.body.rotation_entry_mode === 'completed'
+
+        ? 'paid'
+
+        : 'pending'
+    )
+
+// ================= LOAN =================
+
+: req.body.transaction_type === 'loan'
+
+  ? (
+
+      Number(remainingEmi) <= 0
+
+        ? 'paid'
+
+        : 'pending'
+    )
+
+// ================= NORMAL =================
+
+: (
+
+      req.body.entry_mode === 'completed'
+
+        ? (
+
+            totalPaid >=
+            Number(req.body.principal_amount)
+
+              ? 'paid'
+
+              : 'pending'
+          )
+
+        : 'pending'
+    ),
+
+paid_amount:
+
+req.body.transaction_type === 'normal'
+
+  ? totalPaid
+
+  : 0,
 
 });
 

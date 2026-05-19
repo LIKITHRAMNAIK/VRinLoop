@@ -28,25 +28,54 @@ const closeBtn = {
 function AddTransaction({ refresh }) {
   const [names, setNames] = useState([]);
   const [form, setForm] = useState({
+    rotation_entry_mode: 'new',
   person_name: '',
   type: 'incoming',
-  transaction_type: 'rotation',   // ✅ ADD THIS
+
+  transaction_type: 'rotation',
+
+  entry_mode: 'new',
+
   principal_amount: '',
   base_interest: '',
+
   start_date: '',
   due_date: '',
-  notes: '',
-  loan_duration: '',
-emi_amount: '',
-interest_type: 'flat',
 
-loan_mode: 'new',
-already_paid_months: 0,
-last_paid_date: ''
+  paid_date: '',
+
+  notes: '',
+
+  loan_duration: '',
+  emi_amount: '',
+  interest_type: 'flat',
+
+  loan_mode: 'new',
+  already_paid_months: 0,
+  last_paid_date: ''
 });
 const isRotation = form.transaction_type === 'rotation';
 const isNormal = form.transaction_type === 'normal';
 const isLoan = form.transaction_type === 'loan';
+const [
+  completedInstallments,
+  setCompletedInstallments
+] = useState([
+  {
+    amount: '',
+    date: ''
+  }
+]);
+
+const [rotationExtension, setRotationExtension] =
+  useState(false);
+
+const [extensionData, setExtensionData] =
+  useState({
+    new_due_date: '',
+    extra_interest: '',
+    interest_paid: false
+  });
   useEffect(() => {
     API.get('/')
       .then(res => {
@@ -80,6 +109,29 @@ const isLoan = form.transaction_type === 'loan';
 
   try {
     await API.post('/add', {
+      extensions:
+
+  rotationExtension
+
+    ? [
+        {
+          old_due_date:
+            form.due_date,
+
+          new_due_date:
+            extensionData.new_due_date,
+
+          extra_interest:
+            Number(
+              extensionData.extra_interest
+            ),
+
+          interest_paid:
+            extensionData.interest_paid
+        }
+      ]
+
+    : [],
       person_name: form.person_name.trim(),
       type: form.type,
       transaction_type: form.transaction_type,
@@ -91,9 +143,53 @@ const isLoan = form.transaction_type === 'loan';
       loan_duration: Number(form.loan_duration),
 emi_amount: Number(form.emi_amount),
 interest_type: form.interest_type,
+
+entry_mode: form.entry_mode,
+rotation_entry_mode:
+  form.rotation_entry_mode,
+
+paid_date:
+
+  form.transaction_type === 'rotation'
+
+    ? completedInstallments[0]?.date
+
+    : completedInstallments.length > 0
+
+      ? completedInstallments[
+          completedInstallments.length - 1
+        ].date
+
+      : '',
+
 loan_mode: form.loan_mode,
+
 already_paid_months: Number(form.already_paid_months),
-last_paid_date: form.last_paid_date
+
+last_paid_date: form.last_paid_date,
+
+installments:
+
+  completedInstallments.map(
+    inst => ({
+
+      amount:
+        Number(inst.amount),
+
+      date: inst.date
+
+    })
+  ),
+
+paid_amount:
+
+  completedInstallments.reduce(
+    (sum, inst) =>
+
+      sum + Number(inst.amount),
+
+    0
+  )
     });
 
     alert('Transaction Added ✅');
@@ -101,21 +197,50 @@ last_paid_date: form.last_paid_date
       setForm({
   person_name: '',
   type: 'incoming',
+
   transaction_type: 'rotation',
+
+  entry_mode: 'new',
+  rotation_entry_mode: 'new',
+
   principal_amount: '',
   base_interest: '',
+
   start_date: '',
   due_date: '',
+
+  paid_date: '',
+
   notes: '',
+
   loan_duration: '',
+
   emi_amount: '',
+
   interest_type: 'flat',
+
   loan_mode: 'new',
-already_paid_months: 0,
-last_paid_date: ''
+
+  already_paid_months: 0,
+
+  last_paid_date: ''
 });
 
       refresh();
+      setRotationExtension(false);
+
+setExtensionData({
+  new_due_date: '',
+  extra_interest: '',
+  interest_paid: false
+});
+
+setCompletedInstallments([
+  {
+    amount: '',
+    date: ''
+  }
+]);
 
     } catch (err) {
       console.log(err);
@@ -237,7 +362,66 @@ last_paid_date: ''
     <option value="loan">Loan</option>
   </select>
 </div>
-  
+  {/* ENTRY MODE ONLY FOR NORMAL */}
+
+{form.transaction_type === 'normal' && (
+
+
+  <div>
+
+    <label>Entry Mode</label><br />
+
+    <select
+      name="entry_mode"
+      value={form.entry_mode}
+      onChange={handleChange}
+      style={inputStyle}
+    >
+
+      <option value="new">
+        New Payment
+      </option>
+
+      <option value="completed">
+        Completed Payment
+      </option>
+
+    </select>
+
+  </div>
+
+)}
+
+{/* ROTATION ENTRY MODE */}
+
+{form.transaction_type === 'rotation' && (
+
+  <div>
+
+    <label>Rotation Mode</label><br />
+
+    <select
+      name="rotation_entry_mode"
+      value={form.rotation_entry_mode || 'new'}
+      onChange={handleChange}
+      style={inputStyle}
+    >
+
+      <option value="new">
+        New Rotation
+      </option>
+
+      <option value="completed">
+        Completed Rotation
+      </option>
+
+    </select>
+
+  </div>
+
+)}
+
+
       {/* NAME */}
       <div>
         <label>Name</label><br />
@@ -316,6 +500,8 @@ last_paid_date: ''
 
   </div>
 )}
+
+
 
     {form.transaction_type === 'loan' && (
   <div style={{
@@ -443,6 +629,8 @@ last_paid_date: ''
 }}
 />
 
+
+
 {form.loan_mode === 'existing' && (
 
   <>
@@ -534,6 +722,8 @@ max={form.loan_duration || 0}
   
       {/* DUE DATE */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+
+        
         <label style={{ width: '100px' }}>
   {isLoan
     ? 'EMI Due Date'
@@ -548,6 +738,385 @@ max={form.loan_duration || 0}
           style={{ ...inputStyle, flex: 1 }}
         />
       </div>
+      {form.rotation_entry_mode === 'completed' && (
+
+  <div style={{
+    marginTop: 18,
+    padding: 16,
+    borderRadius: 16,
+    background: '#fff7ed',
+    border: '1px solid #fdba74'
+  }}>
+
+    <div style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 14
+    }}>
+
+      <h4 style={{
+        margin: 0,
+        color: '#c2410c'
+      }}>
+        Extension Details
+      </h4>
+
+      <label style={{
+        fontWeight: 'bold',
+        fontSize: 14
+      }}>
+
+        <input
+          type="checkbox"
+
+          checked={rotationExtension}
+
+          onChange={(e) =>
+            setRotationExtension(
+              e.target.checked
+            )
+          }
+
+          style={{ marginRight: 8 }}
+        />
+
+        Extended
+
+      </label>
+
+    </div>
+
+    {rotationExtension && (
+
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12
+      }}>
+
+        {/* NEW DUE */}
+
+        <input
+          type="date"
+
+          value={
+            extensionData.new_due_date
+          }
+
+          onChange={(e) =>
+            setExtensionData({
+              ...extensionData,
+              new_due_date:
+                e.target.value
+            })
+          }
+
+          style={inputStyle}
+        />
+
+        {/* EXTRA INTEREST */}
+
+        <input
+          type="number"
+
+          placeholder="Extra Interest"
+
+          value={
+            extensionData.extra_interest
+          }
+
+          onChange={(e) =>
+            setExtensionData({
+              ...extensionData,
+              extra_interest:
+                e.target.value
+            })
+          }
+
+          style={inputStyle}
+        />
+
+        {/* INTEREST PAID */}
+
+        <label style={{
+          fontWeight: 'bold',
+          color: '#9a3412'
+        }}>
+
+          <input
+            type="checkbox"
+
+            checked={
+              extensionData.interest_paid
+            }
+
+            onChange={(e) =>
+              setExtensionData({
+                ...extensionData,
+
+                interest_paid:
+                  e.target.checked
+              })
+            }
+
+            style={{ marginRight: 8 }}
+          />
+
+          Last Interest Paid
+
+        </label>
+
+      </div>
+
+    )}
+
+  </div>
+
+)}
+
+      {(
+
+  form.entry_mode === 'completed' ||
+
+  form.rotation_entry_mode === 'completed'
+
+) && (
+
+  <div style={{
+    marginTop: 10,
+    padding: 18,
+    borderRadius: 16,
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0'
+  }}>
+
+    <label style={{
+  fontWeight: 'bold',
+  display: 'block',
+  marginBottom: 14,
+  color: '#0f172a'
+}}>
+
+  {
+
+    form.transaction_type === 'rotation'
+
+      ? 'Rotation Repayment History'
+
+      : 'Installment Payments'
+
+  }
+
+</label>
+
+{form.transaction_type === 'rotation' && (
+
+  <div style={{
+
+    marginBottom: 16,
+
+    padding: 14,
+
+    borderRadius: 14,
+
+    background: '#eff6ff',
+
+    border: '1px solid #bfdbfe'
+
+  }}>
+
+    <p style={{
+      margin: '4px 0',
+      fontWeight: 'bold'
+    }}>
+      Principal:
+      {' '}
+      ₹{Number(form.principal_amount || 0).toLocaleString()}
+    </p>
+
+    <p style={{
+      margin: '4px 0',
+      fontWeight: 'bold'
+    }}>
+      Interest:
+      {' '}
+      ₹{Number(form.base_interest || 0).toLocaleString()}
+    </p>
+
+    <p style={{
+      margin: '8px 0 0',
+      fontWeight: 'bold',
+      color: '#2563eb',
+      fontSize: 17
+    }}>
+      Total Payable:
+{' '}
+₹{
+  (
+  Number(form.principal_amount || 0) +
+
+  (
+    rotationExtension
+
+      ? extensionData.interest_paid
+
+        // ✅ old interest replaced
+        ? Number(
+            extensionData.extra_interest || 0
+          )
+
+        // ✅ old + new interest
+        : (
+            Number(form.base_interest || 0) +
+            Number(
+              extensionData.extra_interest || 0
+            )
+          )
+
+      // ✅ no extension
+      : Number(form.base_interest || 0)
+  )
+
+).toLocaleString()
+}
+    </p>
+
+  </div>
+
+)}
+
+    {(
+
+  form.transaction_type === 'rotation'
+
+    ? [completedInstallments[0]]
+
+    : completedInstallments
+
+).map((inst, index) => (
+
+  <div
+    key={index}
+    style={{
+      display: 'grid',
+
+      gridTemplateColumns:
+
+        form.transaction_type === 'rotation'
+
+          ? '1fr 1fr'
+
+          : '1fr 1fr auto',
+
+      gap: 10,
+      marginBottom: 12
+    }}
+  >
+
+    {/* AMOUNT */}
+
+    <input
+      type="number"
+
+      placeholder={
+
+        form.transaction_type === 'rotation'
+
+          ? 'Final Paid Amount'
+
+          : 'Amount'
+      }
+
+      value={inst.amount}
+
+      onChange={(e) => {
+
+        const updated =
+          [...completedInstallments];
+
+        updated[index].amount =
+          e.target.value;
+
+        setCompletedInstallments(
+          updated
+        );
+
+      }}
+
+      style={inputStyle}
+    />
+
+    {/* DATE */}
+
+    <input
+      type="date"
+
+      value={inst.date}
+
+      onChange={(e) => {
+
+        const updated =
+          [...completedInstallments];
+
+        updated[index].date =
+          e.target.value;
+
+        setCompletedInstallments(
+          updated
+        );
+
+      }}
+
+      style={inputStyle}
+    />
+
+    {/* DELETE ONLY FOR NORMAL */}
+
+    {
+
+      form.transaction_type !== 'rotation' && (
+
+        <button
+          type="button"
+
+          onClick={() => {
+
+            const updated =
+              completedInstallments.filter(
+                (_, i) => i !== index
+              );
+
+            setCompletedInstallments(
+              updated
+            );
+
+          }}
+
+          style={{
+            background: '#ef4444',
+            color: 'white',
+            border: 'none',
+            borderRadius: 10,
+            padding: '0 14px',
+            cursor: 'pointer',
+            fontWeight: 'bold'
+          }}
+        >
+          ✕
+        </button>
+
+      )
+
+    }
+
+  </div>
+
+))}
+
+  </div>
+
+)}
   
       {/* NOTES */}
       <div>
