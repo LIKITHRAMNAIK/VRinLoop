@@ -5,6 +5,7 @@ import TransactionList from './components/TransactionList';
 import UsersPage from './pages/UsersPage';
 import MyProfile from './pages/MyProfile';
 import LoanAnalyticsPage from './pages/LoanAnalyticsPage';
+import LoanUsersPage from './pages/LoanUsersPage';
 
 function App() {
   return (
@@ -17,6 +18,10 @@ function App() {
         <Route
   path="/loan-analytics/:name"
   element={<LoanAnalyticsPage />}
+/>
+<Route
+  path="/loan-users"
+  element={<LoanUsersPage />}
 />
       </Routes>
     </Router>

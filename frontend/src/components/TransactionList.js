@@ -1489,6 +1489,8 @@ const dueDate =
 )}
 
       {/* 🔘 BUTTONS */}
+
+    
       <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
 
   {tx.status === 'paid' ? (
@@ -2845,19 +2847,80 @@ const total =
       />
 
       {/* ACTION */}
-      <button
-        style={{ width: '100%' }}
-        onClick={() => {
-          if (showExportPopup === 'csv') {
-            handleExport(exportType, exportMonth);
-          } else {
-            handleExportPDF(exportType, exportMonth);
-          }
-          setShowExportPopup(false);
-        }}
-      >
-        Download
-      </button>
+      <div style={{
+  display: 'grid',
+  gap: 12,
+  marginTop: 20
+}}>
+
+  <button
+    onClick={() => {
+
+      handleExportPDF(
+        exportType,
+        exportMonth
+      );
+
+      setShowExportPopup(false);
+
+    }}
+    style={{
+      width: '100%',
+      padding: 14,
+      border: 'none',
+      borderRadius: 14,
+      background: '#dc2626',
+      color: 'white',
+      fontWeight: 'bold',
+      cursor: 'pointer'
+    }}
+  >
+    📕 Export PDF
+  </button>
+
+  <button
+    onClick={() => {
+
+      handleExport(
+        exportType,
+        exportMonth
+      );
+
+      setShowExportPopup(false);
+
+    }}
+    style={{
+      width: '100%',
+      padding: 14,
+      border: 'none',
+      borderRadius: 14,
+      background: '#16a34a',
+      color: 'white',
+      fontWeight: 'bold',
+      cursor: 'pointer'
+    }}
+  >
+    📗 Export CSV
+  </button>
+
+  <button
+    onClick={() =>
+      setShowExportPopup(false)
+    }
+    style={{
+      width: '100%',
+      padding: 12,
+      border: 'none',
+      borderRadius: 12,
+      background: '#e2e8f0',
+      fontWeight: 'bold',
+      cursor: 'pointer'
+    }}
+  >
+    Close
+  </button>
+
+</div>
 
     </div>
   </div>
@@ -3679,10 +3742,14 @@ transition: '0.25s ease',
     </div>
   </div>
 )}
+
+
   
     </div>
     
+    
   );
 }
+
 
 export default TransactionList;

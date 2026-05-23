@@ -40,7 +40,64 @@ function Dashboard() {
     fetchData();
   }, []);
 
-  if (!data) return <h2>Loading...</h2>;
+  if (!data)
+  return (
+    <div
+      style={{
+        height: '100vh',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        background: '#f4f7fb',
+        flexDirection: 'column',
+        gap: '20px'
+      }}
+    >
+      <div
+        style={{
+          width: '70px',
+          height: '70px',
+          border: '6px solid #dbeafe',
+          borderTop: '6px solid #2563eb',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }}
+      />
+
+      <h2
+        style={{
+          margin: 0,
+          color: '#1e293b',
+          fontSize: '28px'
+        }}
+      >
+        💰 Loading Dashboard...
+      </h2>
+
+      <p
+        style={{
+          margin: 0,
+          color: '#64748b',
+          fontSize: '15px'
+        }}
+      >
+        Fetching transactions & analytics
+      </p>
+
+      <style>
+        {`
+          @keyframes spin {
+            0% {
+              transform: rotate(0deg);
+            }
+            100% {
+              transform: rotate(360deg);
+            }
+          }
+        `}
+      </style>
+    </div>
+  );
   const profitLoss = data.incoming - data.outgoing;
 
   const total = data.incoming + data.outgoing;
@@ -53,94 +110,83 @@ const outgoingPercent =
 
   return (
   <div style={{
-  padding: '30px',
-  paddingLeft: '95px',
-  fontFamily: 'Arial',
-  transition: '0.3s',
-  background: '#f4f7fb',
-  minHeight: '100vh'
-}}>
-    <Sidebar
-  open={sidebarOpen}
-  setOpen={setSidebarOpen}
-/>
-    
-
-    <div style={{
-  background: 'linear-gradient(135deg, #0F2027, #203A43, #2C5364)',
-  color: 'white',
-  padding: '28px 30px',
-  borderRadius: 24,
-  marginBottom: 25,
-  boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  flexWrap: 'wrap',
-  gap: 20
-}}>
-
-  <div>
-    <h1 style={{
-      margin: 0,
-      fontSize: 32
-    }}>
-      💰 Money Dashboard
-    </h1>
-
-    <p style={{
-      marginTop: 8,
-      opacity: 0.75,
-      fontSize: 15
-    }}>
-      Manage payments, profiles and analytics
-    </p>
-  </div>
-
-  <div style={{
-    background: 'rgba(255, 255, 255, 0.06)',
-    padding: '14px 18px',
-    borderRadius: 16,
-    textAlign: 'center',
-    minWidth: 180
+    padding: '30px',
+    paddingLeft: '95px',
+    fontFamily: 'Arial',
+    transition: '0.3s',
+    background: '#f4f7fb',
+    minHeight: '100vh',
+    position: 'relative',
   }}>
-    <p style={{
-      margin: 0,
-      opacity: 0.7,
-      fontSize: 14
+    <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
+    
+    {/* HEADER CONTAINER */}
+    <div style={{
+      background: 'linear-gradient(135deg, #0F2027, #203A43, #2C5364)',
+      color: 'white',
+      padding: '28px 30px',
+      borderRadius: 24,
+      marginBottom: 25,
+      boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 20
     }}>
-      Today
-    </p>
+      {/* Title Section */}
+      <div>
+        <h1 style={{ margin: 0, fontSize: 32 }}>
+          💰 Money Dashboard
+        </h1>
+        <p style={{ marginTop: 8, opacity: 0.75, fontSize: 15 }}>
+          Manage payments, profiles and analytics
+        </p>
+      </div>
 
-    <h3 style={{
-      margin: '8px 0 0'
-    }}>
-      {new Date().toDateString()}
-    </h3>
-  </div>
+      {/* Right Actions Section (Bundles Date and Button Together) */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '20px', 
+        flexWrap: 'wrap' 
+      }}>
+        {/* Date Card */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.06)',
+          padding: '14px 18px',
+          borderRadius: 16,
+          textAlign: 'center',
+          minWidth: 180
+        }}>
+          <p style={{ margin: 0, opacity: 0.7, fontSize: 14 }}>
+            Today
+          </p>
+          <h3 style={{ margin: '8px 0 0' }}>
+            {new Date().toDateString()}
+          </h3>
+        </div>
 
-</div>
+        {/* NEW TRANSACTION BUTTON (Moved inside the layout flow) */}
+        <button
+  onClick={() => setOpenForm(true)}
+  style={{
+            background: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            padding: '12px 18px',
+            borderRadius: '25px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            boxShadow: '0 3px 10px rgba(0,0,0,0.2)',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          + New Transaction
+        </button>
 
-    {/* + BUTTON */}
-    <button
-      onClick={() => setOpenForm(true)}
-      style={{
-        position: 'fixed',
-        top: '20px',
-        right: '20px',
-        background: '#4CAF50',
-        color: 'white',
-        border: 'none',
-        padding: '10px 16px',
-        borderRadius: '25px',
-        cursor: 'pointer',
-        fontWeight: 'bold',
-        boxShadow: '0 3px 10px rgba(0,0,0,0.2)',
-        zIndex: 1000
-      }}
-    >
-      + New Transaction
-    </button>
+      </div>
+    </div>
 
     {/* POPUP */}
     {openForm && (

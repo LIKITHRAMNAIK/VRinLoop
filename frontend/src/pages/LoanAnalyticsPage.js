@@ -1,7 +1,9 @@
 import { useState } from 'react';
 
-import { useParams } from 'react-router-dom';
-
+import {
+  useParams,
+  useNavigate
+} from 'react-router-dom';
 import Charts from '../components/Charts';
 
 function LoanAnalyticsPage() {
@@ -9,6 +11,7 @@ function LoanAnalyticsPage() {
   useState('all');
 
   const { name } = useParams();
+  const navigate = useNavigate();
 
   const data =
     JSON.parse(
@@ -92,8 +95,8 @@ function LoanAnalyticsPage() {
 
       <button
         onClick={() =>
-          window.history.back()
-        }
+  navigate('/loan-users')
+}
         style={{
           background:
             'rgba(18, 240, 33, 0.71)',

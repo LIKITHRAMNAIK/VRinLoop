@@ -160,10 +160,16 @@ else {
 
   return (
     <div style={{
-      padding: 25,
-      paddingLeft: 95,
-      fontFamily: 'Arial'
-    }}>
+  padding: 30,
+  paddingLeft: 95,
+  minHeight: '100vh',
+
+  background:
+    'linear-gradient(135deg,#f8fafc,#eef2ff)',
+
+  fontFamily:
+    "'Inter', sans-serif"
+}}>
 
       <button
   onClick={() => navigate('/')}
@@ -239,11 +245,30 @@ else {
   + New Transaction
 </button>
 
-<h1 style={{
-  marginBottom: 25
+<div style={{
+  marginBottom: 35
 }}>
-  👥 User Profiles
-</h1>
+
+  <h1 style={{
+    margin: 0,
+    fontSize: 46,
+    fontWeight: '900',
+    color: '#0f172a',
+    letterSpacing: '-1px'
+  }}>
+    👥 User Profiles
+  </h1>
+
+  <p style={{
+    marginTop: 10,
+    color: '#64748b',
+    fontSize: 17
+  }}>
+    Smart financial overview of all users,
+    transactions and payment activity
+  </p>
+
+</div>
 
       <div style={{
         display: 'grid',
@@ -260,48 +285,200 @@ else {
 
           return (
             <div
-              key={user.name}
-              onClick={() =>
-                navigate(`/profile/${user.name}`)
-              }
+  key={user.name}
+
+  onMouseEnter={(e) => {
+
+    e.currentTarget.style.transform =
+      'translateY(-8px)';
+
+    e.currentTarget.style.boxShadow =
+      '0 18px 40px rgba(99,102,241,0.18)';
+  }}
+
+  onMouseLeave={(e) => {
+
+    e.currentTarget.style.transform =
+      'translateY(0px)';
+
+    e.currentTarget.style.boxShadow =
+      '0 10px 30px rgba(15,23,42,0.08)';
+  }}
+
+  onClick={() =>
+    navigate(`/profile/${user.name}`)
+  }
               style={{
-                background: 'white',
-                borderRadius: 16,
-                padding: 20,
-                cursor: 'pointer',
-                boxShadow:
-                  '0 3px 12px rgba(0,0,0,0.12)',
-                transition: '0.2s'
-              }}
+  background:
+    'linear-gradient(145deg,#ffffff,#f8fafc)',
+
+  borderRadius: 30,
+
+  padding: 28,
+
+  cursor: 'pointer',
+
+  border:
+    '1px solid rgba(255,255,255,0.6)',
+
+  boxShadow:
+    '0 10px 30px rgba(15,23,42,0.08)',
+
+  transition:
+    'all 0.25s ease',
+
+  position: 'relative',
+
+  overflow: 'hidden'
+}}
             >
 
-              <h2 style={{
-                marginTop: 0,
-                marginBottom: 15,
-                color: '#1565C0'
-              }}>
-                {user.name}
-              </h2>
+              <div style={{
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  marginBottom: 20
+}}>
 
-              <p>
-                <b>Total Payments:</b>{' '}
-                {user.total}
-              </p>
+  <div>
 
-              <p style={{ color: '#4CAF50' }}>
-                <b>Upcoming:</b>{' '}
-                {user.upcoming}
-              </p>
+    <h2 style={{
+      margin: 0,
+      fontSize: 34,
+      fontWeight: '800',
+      color: '#2563eb'
+    }}>
+      {user.name}
+    </h2>
 
-              <p style={{ color: '#f44336' }}>
-                <b>Overdue:</b>{' '}
-                {user.overdue}
-              </p>
+    <p style={{
+      marginTop: 6,
+      color: '#64748b',
+      fontSize: 14
+    }}>
+      Financial Profile Overview
+    </p>
 
-              <p style={{ color: '#2196F3' }}>
-                <b>Paid:</b>{' '}
-                {user.paid}
-              </p>
+  </div>
+
+  <div style={{
+    width: 58,
+    height: 58,
+    borderRadius: '50%',
+
+    background:
+      'linear-gradient(135deg,#6366f1,#8b5cf6)',
+
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+
+    color: 'white',
+
+    fontSize: 22,
+    fontWeight: 'bold'
+  }}>
+    {user.name.charAt(0)}
+  </div>
+
+</div>
+
+              <div style={{
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr',
+  gap: 14,
+  marginBottom: 24
+}}>
+
+  <div style={{
+    background: '#eff6ff',
+    padding: 16,
+    borderRadius: 18
+  }}>
+    <p style={{
+      margin: 0,
+      color: '#64748b',
+      fontSize: 13
+    }}>
+      Total Payments
+    </p>
+
+    <h2 style={{
+      marginTop: 10,
+      marginBottom: 0,
+      color: '#2563eb'
+    }}>
+      {user.total}
+    </h2>
+  </div>
+
+  <div style={{
+    background: '#f0fdf4',
+    padding: 16,
+    borderRadius: 18
+  }}>
+    <p style={{
+      margin: 0,
+      color: '#64748b',
+      fontSize: 13
+    }}>
+      Upcoming
+    </p>
+
+    <h2 style={{
+      marginTop: 10,
+      marginBottom: 0,
+      color: '#16a34a'
+    }}>
+      {user.upcoming}
+    </h2>
+  </div>
+
+  <div style={{
+    background: '#fef2f2',
+    padding: 16,
+    borderRadius: 18
+  }}>
+    <p style={{
+      margin: 0,
+      color: '#64748b',
+      fontSize: 13
+    }}>
+      Overdue
+    </p>
+
+    <h2 style={{
+      marginTop: 10,
+      marginBottom: 0,
+      color: '#dc2626'
+    }}>
+      {user.overdue}
+    </h2>
+  </div>
+
+  <div style={{
+    background: '#eef2ff',
+    padding: 16,
+    borderRadius: 18
+  }}>
+    <p style={{
+      margin: 0,
+      color: '#64748b',
+      fontSize: 13
+    }}>
+      Paid
+    </p>
+
+    <h2 style={{
+      marginTop: 10,
+      marginBottom: 0,
+      color: '#4f46e5'
+    }}>
+      {user.paid}
+    </h2>
+  </div>
+
+</div>
 
               <hr />
 
