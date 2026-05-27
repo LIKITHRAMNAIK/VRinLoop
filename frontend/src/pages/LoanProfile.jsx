@@ -6,7 +6,6 @@ import { formatCurrency } from '../utils/format';
 function LoanProfile({ data, refresh }) {
   const navigate = useNavigate();
 
-  const [filterType, setFilterType] = useState('all');
   const [openHistory, setOpenHistory] = useState(null);
   const [deleteLoanId, setDeleteLoanId] =
   useState(null);
@@ -22,20 +21,7 @@ const [editDate, setEditDate] = useState('');
   const today = new Date();
   today.setHours(0,0,0,0);
 
-  const filteredData = data.filter(tx => {
-
-
-  if (filterType === 'paid') {
-    return tx.status === 'paid';
-  }
-
-  if (filterType === 'pending') {
-    return tx.status !== 'paid';
-  }
-
-  return true;
-
-});
+  const filteredData = data;
 
 
   const payLoanEmi = async (id) => {
@@ -565,58 +551,6 @@ const isUpcoming =
   return (
 
     <div>
-
-        <div style={{
-   display: 'flex',
-   justifyContent: 'flex-start',
-   marginBottom: 25
- }}>
-
-  <div style={{
-    background: 'white',
-    padding: 6,
-    borderRadius: 16,
-    boxShadow:
-      '0 8px 20px rgba(0,0,0,0.08)',
-    border: '1px solid #e2e8f0'
-  }}>
-
-    <select
-      value={filterType}
-      onChange={(e) =>
-        setFilterType(e.target.value)
-      }
-      style={{
-        border: 'none',
-        outline: 'none',
-        background: 'transparent',
-
-        padding: '10px 18px',
-
-        fontSize: 15,
-        fontWeight: '700',
-
-        color: '#4338ca',
-
-        cursor: 'pointer',
-
-        borderRadius: 12
-      }}
-    >
-
-      <option value="pending">
-        ⏳ Pending Loans
-      </option>
-
-      <option value="paid">
-        ✅ Paid Loans
-      </option>
-
-    </select>
-
-  </div>
-
-</div>
 
             <div style={{
         display: 'grid',

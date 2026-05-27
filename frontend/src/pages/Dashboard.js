@@ -30,6 +30,9 @@ function Dashboard() {
   const [reload, setReload] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const [showExportPopup, setShowExportPopup] =
+  useState(false);
+
   const fetchData = () => {
     API.get('/dashboard')
       .then(res => setData(res.data))
@@ -118,7 +121,13 @@ const outgoingPercent =
     minHeight: '100vh',
     position: 'relative',
   }}>
-    <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
+    <Sidebar
+  open={sidebarOpen}
+  setOpen={setSidebarOpen}
+  onOpenExport={() =>
+    setShowExportPopup(true)
+  }
+/>
     
     {/* HEADER CONTAINER */}
     <div style={{
@@ -430,6 +439,262 @@ const outgoingPercent =
 
     </div>
 
+{showExportPopup && (
+
+  <div
+    onClick={() =>
+      setShowExportPopup(false)
+    }
+    style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0,0,0,0.45)',
+      backdropFilter: 'blur(5px)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 9999
+    }}
+  >
+
+    <div
+      onClick={(e) =>
+        e.stopPropagation()
+      }
+      style={{
+        width: '420px',
+        background: 'white',
+        borderRadius: '28px',
+        padding: '30px',
+        boxShadow:
+          '0 15px 35px rgba(0,0,0,0.25)'
+      }}
+    >
+
+      <h2 style={{
+        marginTop: 0,
+        marginBottom: 8,
+        color: '#0f172a'
+      }}>
+        📁 Export Statements
+      </h2>
+
+      <p style={{
+        marginTop: 0,
+        color: '#64748b',
+        fontSize: '14px'
+      }}>
+        Export transaction and loan reports
+      </p>
+
+      <div style={{
+        display: 'grid',
+        gap: '16px',
+        marginTop: '28px'
+      }}>
+
+        {/* CSV */}
+        <div
+          onClick={async () => {
+
+            try {
+
+              const res =
+                await API.get('/');
+
+              const data =
+                res.data.filter(
+                  tx =>
+                    tx.transaction_type !==
+                    'loan'
+                );
+
+              const {
+                exportTransactionsCSV
+              } = await import(
+                '../utils/exportTransactions'
+              );
+
+              exportTransactionsCSV(
+                data,
+                'all'
+              );
+
+              setShowExportPopup(false);
+
+            } catch (err) {
+
+              console.log(err);
+
+            }
+
+          }}
+          style={{
+            padding: '18px',
+            borderRadius: '18px',
+            background:
+              'linear-gradient(135deg,#16a34a,#22c55e)',
+            color: 'white',
+            cursor: 'pointer'
+          }}
+        >
+          <h3 style={{
+            margin: 0
+          }}>
+            📗 Export CSV
+          </h3>
+
+          <p style={{
+            marginBottom: 0,
+            opacity: 0.9,
+            fontSize: '13px'
+          }}>
+            Download transaction CSV report
+          </p>
+        </div>
+
+        {/* PDF */}
+        <div
+          onClick={async () => {
+
+            try {
+
+              const res =
+                await API.get('/');
+
+              const data =
+                res.data.filter(
+                  tx =>
+                    tx.transaction_type !==
+                    'loan'
+                );
+
+              const {
+                exportTransactionsPDF
+              } = await import(
+                '../utils/exportTransactions'
+              );
+
+              exportTransactionsPDF(
+                data,
+                'all'
+              );
+
+              setShowExportPopup(false);
+
+            } catch (err) {
+
+              console.log(err);
+
+            }
+
+          }}
+          style={{
+            padding: '18px',
+            borderRadius: '18px',
+            background:
+              'linear-gradient(135deg,#dc2626,#ef4444)',
+            color: 'white',
+            cursor: 'pointer'
+          }}
+        >
+          <h3 style={{
+            margin: 0
+          }}>
+            📕 Export PDF
+          </h3>
+
+          <p style={{
+            marginBottom: 0,
+            opacity: 0.9,
+            fontSize: '13px'
+          }}>
+            Download formatted PDF report
+          </p>
+        </div>
+
+        {/* LOAN */}
+        <div
+          onClick={async () => {
+
+            try {
+
+              const res =
+                await API.get('/');
+
+              const loans =
+                res.data.filter(
+                  tx =>
+                    tx.transaction_type ===
+                    'loan'
+                );
+
+              const {
+                exportLoanPDF
+              } = await import(
+                '../utils/exportTransactions'
+              );
+
+              exportLoanPDF(loans);
+
+              setShowExportPopup(false);
+
+            } catch (err) {
+
+              console.log(err);
+
+            }
+
+          }}
+          style={{
+            padding: '18px',
+            borderRadius: '18px',
+            background:
+              'linear-gradient(135deg,#2563eb,#3b82f6)',
+            color: 'white',
+            cursor: 'pointer'
+          }}
+        >
+          <h3 style={{
+            margin: 0
+          }}>
+            🏦 Loan Statements
+          </h3>
+
+          <p style={{
+            marginBottom: 0,
+            opacity: 0.9,
+            fontSize: '13px'
+          }}>
+            Export professional loan reports
+          </p>
+        </div>
+
+      </div>
+
+      <button
+        onClick={() =>
+          setShowExportPopup(false)
+        }
+        style={{
+          marginTop: '24px',
+          width: '100%',
+          padding: '12px',
+          border: 'none',
+          borderRadius: '14px',
+          background: '#e2e8f0',
+          fontWeight: 'bold',
+          cursor: 'pointer'
+        }}
+      >
+        Close
+      </button>
+
+    </div>
+
+  </div>
+
+)}
     {/* TRANSACTIONS */}
     <TransactionList refresh={reload} />
 

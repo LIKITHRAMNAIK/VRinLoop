@@ -15,10 +15,12 @@ import {
 
 } from '../utils/exportTransactions';
 
-function Sidebar({ open, setOpen }) {
+function Sidebar({
+  open,
+  setOpen,
+  onOpenExport
+}){
 
-  const [showLoanPopup, setShowLoanPopup] =
-  React.useState(false);
 
   const navigate = useNavigate();
   
@@ -378,18 +380,10 @@ const exportPDF = async () => {
   path: '/loan-users'
 },
 {
-  icon: '🏦',
-  label: 'Loan Statements'
+  icon: '📁',
+  label: 'Export Statements',
+  action: 'export'
 },
-    {
-      icon: '📄',
-      label: 'Export CSV'
-    },
-    {
-      icon: '📑',
-      label: 'Export PDF'
-    },
-    
     {
       icon: '👤',
       label: 'My Profile',
@@ -481,57 +475,15 @@ const exportPDF = async () => {
               key={index}
               onClick={async () => {
 
-                if (
-  item.label === 'Loan Statements'
-) {
+                if (item.action === 'export') {
 
-  setShowLoanPopup(true);
+  onOpenExport();
 
   return;
 
 }
 
-  if (item.label === 'Export CSV') {
 
-    try {
-
-      const res = await API.get('/');
-
-      exportTransactionsCSV(
-        res.data,
-        'all'
-      );
-
-    } catch (err) {
-
-      console.log(err);
-
-    }
-
-    return;
-
-  }
-
-  if (item.label === 'Export PDF') {
-
-    try {
-
-      const res = await API.get('/');
-
-      exportTransactionsPDF(
-        res.data,
-        'all'
-      );
-
-    } catch (err) {
-
-      console.log(err);
-
-    }
-
-    return;
-
-  }
 
   if (item.path) {
 
@@ -575,146 +527,6 @@ const exportPDF = async () => {
         </div>
 
       </div>
-
-      {showLoanPopup && (
-
-  <div style={{
-    position: 'fixed',
-    inset: 0,
-    background:
-      'rgba(0,0,0,0.45)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 9999
-  }}>
-
-    <div style={{
-      width: 340,
-      background: 'white',
-      borderRadius: 24,
-      padding: 30
-    }}>
-
-      <h2 style={{
-        marginTop: 0
-      }}>
-        🏦 Loan Statements
-      </h2>
-
-      <div style={{
-        display: 'grid',
-        gap: 14,
-        marginTop: 25
-      }}>
-
-        <button
-
-          onClick={async () => {
-
-            try {
-
-              const res =
-                await API.get('/');
-
-              const loans =
-                res.data.filter(
-                  tx =>
-                    tx.transaction_type ===
-                    'loan'
-                );
-
-              exportLoanCSV(loans);
-
-              setShowLoanPopup(false);
-
-            } catch (err) {
-
-              console.log(err);
-
-            }
-
-          }}
-
-          style={{
-            padding: 14,
-            border: 'none',
-            borderRadius: 14,
-            background: '#16a34a',
-            color: 'white',
-            fontWeight: 'bold',
-            cursor: 'pointer'
-          }}
-        >
-          📗 Export Loan CSV
-        </button>
-
-        <button
-
-          onClick={async () => {
-
-            try {
-
-              const res =
-                await API.get('/');
-
-              const loans =
-                res.data.filter(
-                  tx =>
-                    tx.transaction_type ===
-                    'loan'
-                );
-
-              exportLoanPDF(loans);
-
-              setShowLoanPopup(false);
-
-            } catch (err) {
-
-              console.log(err);
-
-            }
-
-          }}
-
-          style={{
-            padding: 14,
-            border: 'none',
-            borderRadius: 14,
-            background: '#dc2626',
-            color: 'white',
-            fontWeight: 'bold',
-            cursor: 'pointer'
-          }}
-        >
-          📕 Export Loan PDF
-        </button>
-
-        <button
-
-          onClick={() =>
-            setShowLoanPopup(false)
-          }
-
-          style={{
-            padding: 12,
-            border: 'none',
-            borderRadius: 12,
-            background: '#e2e8f0',
-            fontWeight: 'bold',
-            cursor: 'pointer'
-          }}
-        >
-          Close
-        </button>
-
-      </div>
-
-    </div>
-
-  </div>
-
-)}
 
     </>
   );

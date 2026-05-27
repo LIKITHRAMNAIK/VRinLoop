@@ -262,156 +262,320 @@ export const exportTransactionsCSV = (
 
   let csv =
     'Name,Type,Stage,Principal,Start,Due,Interest,Total,Paid,Balance,Paid Date,Installments,Status\n';
+const normalTransactions =
+  transactions.filter(
+    tx => tx.transaction_type === 'normal'
+  );
 
-  transactions.forEach((tx) => {
+const rotationTransactions =
+  transactions.filter(
+    tx => tx.transaction_type === 'rotation'
+  );
+  csv +=
+'\n================ NORMAL PAYMENTS ================\n\n';
 
-    const isRotation =
-      tx.transaction_type === 'rotation';
+csv +=
+'Name,Type,Stage,Principal,Start,Due,Interest,Total,Paid,Balance,Paid Date,Installments,Status\n';
 
-    const isLoan =
-      tx.transaction_type === 'loan';
+normalTransactions.forEach((tx) => {
 
-    let totalInterest = 0;
+  let totalInterest = 0;
 
-    if (isRotation) {
+  const totalAmount =
+    Number(tx.principal_amount || 0);
 
-      totalInterest =
-        tx.base_interest || 0;
+  const paidAmount =
 
-      tx.extensions?.forEach((ext) => {
+    tx.status === 'paid'
 
-        totalInterest +=
-          ext.extra_interest || 0;
+      ? totalAmount
 
-      });
+      : Number(tx.paid_amount || 0);
 
-    }
+  const balanceAmount =
+    Math.max(
+      totalAmount - paidAmount,
+      0
+    );
 
-    const totalAmount =
-      Number(tx.principal_amount || 0) +
-      Number(totalInterest || 0);
+  const dueDate =
+    new Date(tx.due_date);
 
-    let runningPaid = 0;
+  dueDate.setHours(0,0,0,0);
 
-    csv += `${tx.person_name} - ${
-      isLoan
-        ? 'Loan'
-        : isRotation
-        ? 'Rotation'
-        : 'Normal'
-    },`;
+  const today = new Date();
 
-    csv += `${tx.type || '-'},`;
+  today.setHours(0,0,0,0);
 
-    csv += `Original,`;
+  const exportStatus =
 
-    csv += `${tx.principal_amount || 0},`;
+    tx.status !== 'paid' &&
+    dueDate < today
 
-    csv += `${
-      tx.start_date
-        ? new Date(
-            tx.start_date
-          ).toLocaleDateString('en-GB')
-        : '-'
-    },`;
+      ? 'OVERDUE'
 
-    csv += `${
-      tx.due_date
-        ? new Date(
-            tx.due_date
-          ).toLocaleDateString('en-GB')
-        : '-'
-    },`;
+      : (
+          tx.status || 'PENDING'
+        ).toUpperCase();
 
-    csv += `${totalInterest},`;
+  csv += `${tx.person_name} - Normal,`;
 
-    csv += `${totalAmount},`;
+  csv += `${tx.type},`;
 
-    csv += `${tx.paid_amount || 0},`;
+  csv += `Original,`;
 
-    csv += `${
-      totalAmount -
-      Number(tx.paid_amount || 0)
-    },`;
+  csv += `${tx.principal_amount || 0},`;
 
-    csv += `${
-      tx.paid_date
-        ? new Date(
-            tx.paid_date
-          ).toLocaleDateString('en-GB')
-        : '-'
-    },`;
+  csv += `${
+    tx.start_date
+      ? new Date(
+          tx.start_date
+        ).toLocaleDateString('en-GB')
+      : '-'
+  },`;
 
-    csv += `${tx.installments?.filter(
-  inst => Number(inst.amount) > 0
-).length || 0},`;
+  csv += `${
+    tx.due_date
+      ? new Date(
+          tx.due_date
+        ).toLocaleDateString('en-GB')
+      : '-'
+  },`;
 
-    csv += `${tx.status || 'pending'}\n`;
+  csv += `0,`;
 
-    tx.installments
+  csv += `${totalAmount},`;
+
+  csv += `${paidAmount},`;
+
+  csv += `${balanceAmount},`;
+
+  csv += `${
+    tx.paid_date
+      ? new Date(
+          tx.paid_date
+        ).toLocaleDateString('en-GB')
+      : '-'
+  },`;
+
+  csv += `${
+    tx.installments?.filter(
+      inst => Number(inst.amount) > 0
+    ).length || 0
+  },`;
+
+  csv += `${exportStatus}\n`;
+
+  let runningPaid = 0;
+
+  tx.installments
 ?.filter(inst => Number(inst.amount) > 0)
 .forEach((inst, i) => {
 
-      runningPaid += Number(inst.amount);
+    runningPaid +=
+      Number(inst.amount);
 
-      csv += `,,Payment ${i + 1},,,,,,`;
+    csv += `,,Payment ${i + 1},,,,,,`;
 
-      csv += `${inst.amount},`;
+    csv += `${inst.amount},`;
 
-      csv += `${
-        Math.max(
-  totalAmount - runningPaid,
-  0
-)
-      },`;
+    csv += `${
+      Math.max(
+        totalAmount - runningPaid,
+        0
+      )
+    },`;
 
-      csv += `${
-        inst.date
-          ? new Date(
-              inst.date
-            ).toLocaleDateString('en-GB')
-          : '-'
-      },`;
+    csv += `${
+      inst.date
+        ? new Date(
+            inst.date
+          ).toLocaleDateString('en-GB')
+        : '-'
+    },`;
 
-      csv += `₹${inst.amount},`;
+    csv += `₹${inst.amount},`;
 
-      csv += `${
-        runningPaid >= totalAmount
-          ? 'paid'
-          : 'partial'
-      }\n`;
-
-    });
-
-    tx.extensions?.forEach((ext, i) => {
-
-      csv += `,,Extension ${i + 1},,,,,`;
-
-      csv += `${ext.extra_interest || 0},`;
-
-      csv += `${
-        Number(tx.principal_amount || 0) +
-Number(tx.base_interest || 0) +
-tx.extensions
-  .slice(0, i + 1)
-  .reduce(
-    (sum, ex) =>
-      sum + Number(ex.extra_interest || 0),
-    0
-  )
-      },,,,`;
-
-      csv += `${
-        ext.paid_last_interest
-          ? 'Interest Paid'
-          : 'Interest Pending'
-      }\n`;
-
-    });
-
-    csv += '\n';
+    csv += `${
+      runningPaid >= totalAmount
+        ? 'PAID'
+        : 'PARTIAL'
+    }\n`;
 
   });
+
+  csv += '\n';
+
+});
+
+csv +=
+'\n=============== ROTATION PAYMENTS ===============\n\n';
+
+csv +=
+'Name,Type,Stage,Principal,Start,Due,Extended Date,Interest,Total,Paid,Balance,Paid Date,Status\n';
+
+rotationTransactions.forEach((tx) => {
+
+  let totalInterest =
+    Number(tx.base_interest || 0);
+
+  tx.extensions?.forEach(ext => {
+
+  if (ext.interest_paid) {
+
+    totalInterest =
+      Number(ext.extra_interest || 0);
+
+  } else {
+
+    totalInterest +=
+      Number(ext.extra_interest || 0);
+
+  }
+
+});
+
+  const totalAmount =
+    Number(tx.principal_amount || 0) +
+    totalInterest;
+
+  const paidAmount =
+
+    tx.status === 'paid'
+
+      ? totalAmount
+
+      : Number(tx.paid_amount || 0);
+
+  const balanceAmount =
+    Math.max(
+      totalAmount - paidAmount,
+      0
+    );
+
+  const latestExtension =
+
+    tx.extensions?.length > 0
+
+      ? tx.extensions[
+          tx.extensions.length - 1
+        ]
+
+      : null;
+
+  const extendedDate =
+
+    latestExtension?.new_due_date
+
+      ? new Date(
+          latestExtension.new_due_date
+        ).toLocaleDateString('en-GB')
+
+      : '-';
+
+  const dueDate =
+    new Date(tx.due_date);
+
+  dueDate.setHours(0,0,0,0);
+
+  const today = new Date();
+
+  today.setHours(0,0,0,0);
+
+  const exportStatus =
+
+    tx.status !== 'paid' &&
+tx.status !== 'extended' &&
+dueDate < today
+
+      ? 'OVERDUE'
+
+      : (
+          tx.status || 'PENDING'
+        ).toUpperCase();
+
+  csv += `${tx.person_name} - Rotation,`;
+
+  csv += `${tx.type},`;
+
+  csv += `Original,`;
+
+  csv += `${tx.principal_amount || 0},`;
+
+  csv += `${
+    tx.start_date
+      ? new Date(
+          tx.start_date
+        ).toLocaleDateString('en-GB')
+      : '-'
+  },`;
+
+  csv += `${
+    tx.due_date
+      ? new Date(
+          tx.due_date
+        ).toLocaleDateString('en-GB')
+      : '-'
+  },`;
+
+  csv += `${extendedDate},`;
+
+  csv += `${totalInterest},`;
+
+  csv += `${totalAmount},`;
+
+  csv += `${paidAmount},`;
+
+  csv += `${balanceAmount},`;
+
+  csv += `${
+    tx.paid_date
+      ? new Date(
+          tx.paid_date
+        ).toLocaleDateString('en-GB')
+      : '-'
+  },`;
+
+  csv += `${exportStatus}\n`;
+
+  tx.extensions?.forEach((ext, i) => {
+
+    csv += `,,Extension ${i + 1},,,,,`;
+
+    csv += `${
+      ext.new_due_date
+        ? new Date(
+            ext.new_due_date
+          ).toLocaleDateString('en-GB')
+        : '-'
+    },`;
+
+    csv += `${ext.extra_interest || 0},`;
+
+    csv += `${
+      Number(tx.principal_amount || 0) +
+      Number(tx.base_interest || 0) +
+      tx.extensions
+        .slice(0, i + 1)
+        .reduce(
+          (sum, ex) =>
+            sum +
+            Number(ex.extra_interest || 0),
+          0
+        )
+    },,,,`;
+
+    csv += `${
+      ext.interest_paid
+        ? 'INTEREST PAID'
+        : 'INTEREST PENDING'
+    }\n`;
+
+  });
+
+  csv += '\n';
+
+});
   
 
   const blob = new Blob(
@@ -445,172 +609,20 @@ export const exportTransactionsPDF = (
     'landscape'
   );
 
+  const normalTransactions =
+  transactions.filter(
+    tx => tx.transaction_type === 'normal'
+  );
+
+const rotationTransactions =
+  transactions.filter(
+    tx => tx.transaction_type === 'rotation'
+  );
+
   const rows = [];
 
-  transactions.forEach((tx) => {
-
-    const isRotation =
-      tx.transaction_type === 'rotation';
-
-    const isLoan =
-      tx.transaction_type === 'loan';
-
-    let totalInterest = 0;
-
-    if (isRotation) {
-
-      totalInterest =
-        tx.base_interest || 0;
-
-      tx.extensions?.forEach((ext) => {
-
-        totalInterest +=
-          ext.extra_interest || 0;
-
-      });
-
-    }
-
-    const totalAmount =
-      Number(tx.principal_amount || 0) +
-      Number(totalInterest || 0);
-
-    let runningPaid = 0;
-
-    rows.push([
-
-      `${tx.person_name} - ${
-        isLoan
-          ? 'Loan'
-          : isRotation
-          ? 'Rotation'
-          : 'Normal'
-      }`,
-
-      tx.type || '-',
-
-      'Original',
-
-      tx.principal_amount || 0,
-
-      tx.start_date
-        ? new Date(
-            tx.start_date
-          ).toLocaleDateString('en-GB')
-        : '-',
-
-      tx.due_date
-        ? new Date(
-            tx.due_date
-          ).toLocaleDateString('en-GB')
-        : '-',
-
-      totalInterest,
-
-      totalAmount,
-
-      tx.status === 'paid'
-  ? totalAmount
-  : (tx.paid_amount || 0),
-
-      tx.status === 'paid'
-  ? 0
-  : Math.max(
-      totalAmount -
-      Number(tx.paid_amount || 0),
-      0
-    ),
-
-      tx.paid_date
-        ? new Date(
-            tx.paid_date
-          ).toLocaleDateString('en-GB')
-        : '-',
-
-      tx.installments?.length || 0,
-
-      tx.status || 'pending'
-
-    ]);
-
-    tx.installments
-?.filter(inst => Number(inst.amount) > 0)
-.forEach((inst, i) => {
-
-      runningPaid += Number(inst.amount);
-
-      rows.push([
-
-        '',
-        '',
-        `Payment ${i + 1}`,
-        '',
-        '',
-        '',
-        '',
-        '',
-
-        inst.amount,
-
-        Math.max(
-  totalAmount - runningPaid,
-  0
-),
-
-        inst.date
-          ? new Date(
-              inst.date
-            ).toLocaleDateString('en-GB')
-          : '-',
-
-        `Rs.${inst.amount}`,
-
-        runningPaid >= totalAmount
-          ? 'paid'
-          : 'partial'
-
-      ]);
-
-    });
-
-    tx.extensions?.forEach((ext, i) => {
-
-      rows.push([
-
-        '',
-        '',
-        `Extension ${i + 1}`,
-        '',
-        '',
-        '',
-
-        ext.extra_interest || 0,
-
-        Number(tx.principal_amount || 0) +
-Number(tx.base_interest || 0) +
-tx.extensions
-  .slice(0, i + 1)
-  .reduce(
-    (sum, ex) =>
-      sum + Number(ex.extra_interest || 0),
-    0
-  ),
-
-        '',
-        '',
-        '',
-        '',
-
-        ext.paid_last_interest
-          ? 'Interest Paid'
-          : 'Interest Pending'
-
-      ]);
-
-    });
-
-    rows.push([
-  '',
+rows.push([
+  'NORMAL PAYMENTS',
   '',
   '',
   '',
@@ -625,27 +637,399 @@ tx.extensions
   ''
 ]);
 
+rows.push([
+  'Name',
+  'Type',
+  'Stage',
+  'Principal',
+  'Start',
+  'Due',
+  'Interest',
+  'Total',
+  'Paid',
+  'Balance',
+  'Paid Date',
+  'Installments',
+  'Status'
+]);
+
+normalTransactions.forEach((tx) => {
+
+  const totalAmount =
+    Number(tx.principal_amount || 0);
+
+  const paidAmount =
+
+    tx.status === 'paid'
+
+      ? totalAmount
+
+      : Number(tx.paid_amount || 0);
+
+  const balanceAmount =
+    Math.max(
+      totalAmount - paidAmount,
+      0
+    );
+
+  const dueDate =
+    new Date(tx.due_date);
+
+  dueDate.setHours(0,0,0,0);
+
+  const today = new Date();
+
+  today.setHours(0,0,0,0);
+
+  const exportStatus =
+
+    tx.status !== 'paid' &&
+    dueDate < today
+
+      ? 'OVERDUE'
+
+      : (
+          tx.status || 'PENDING'
+        ).toUpperCase();
+
+  rows.push([
+
+    `${tx.person_name} (${tx.type?.toUpperCase()})`,
+
+    tx.type,
+
+    'Original',
+
+    tx.principal_amount || 0,
+
+    tx.start_date
+      ? new Date(
+          tx.start_date
+        ).toLocaleDateString('en-GB')
+      : '-',
+
+    tx.due_date
+      ? new Date(
+          tx.due_date
+        ).toLocaleDateString('en-GB')
+      : '-',
+
+    0,
+
+    totalAmount,
+
+    paidAmount,
+
+    balanceAmount,
+
+    tx.paid_date
+      ? new Date(
+          tx.paid_date
+        ).toLocaleDateString('en-GB')
+      : '-',
+
+    tx.installments?.filter(
+      inst => Number(inst.amount) > 0
+    ).length || 0,
+
+    exportStatus
+
+  ]);
+
+  let runningPaid = 0;
+
+  tx.installments
+?.filter(inst => Number(inst.amount) > 0)
+.forEach((inst, i) => {
+
+    runningPaid +=
+      Number(inst.amount);
+
+    rows.push([
+
+      '',
+
+      '',
+
+      `Payment ${i + 1}`,
+
+      '',
+
+      '',
+
+      '',
+
+      '',
+
+      '',
+
+      inst.amount,
+
+      Math.max(
+        totalAmount - runningPaid,
+        0
+      ),
+
+      inst.date
+        ? new Date(
+            inst.date
+          ).toLocaleDateString('en-GB')
+        : '-',
+
+      `₹${inst.amount}`,
+
+      runningPaid >= totalAmount
+        ? 'PAID'
+        : 'PARTIAL'
+
+    ]);
+
+  });
+
+  rows.push([
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    ''
+  ]);
+
+});
+
+rows.push([
+  'ROTATION PAYMENTS',
+  '',
+  '',
+  '',
+  '',
+  '',
+  '',
+  '',
+  '',
+  '',
+  '',
+  '',
+  ''
+]);
+
+rows.push([
+  'Name',
+  'Type',
+  'Stage',
+  'Principal',
+  'Start',
+  'Due',
+  'Extended Date',
+  'Interest',
+  'Total',
+  'Paid',
+  'Balance',
+  'Paid Date',
+  'Status'
+]);
+
+rotationTransactions.forEach((tx) => {
+
+  let totalInterest =
+    Number(tx.base_interest || 0);
+
+  tx.extensions?.forEach(ext => {
+
+  if (ext.interest_paid) {
+
+    totalInterest =
+      Number(ext.extra_interest || 0);
+
+  } else {
+
+    totalInterest +=
+      Number(ext.extra_interest || 0);
+
+  }
+
+});
+
+  const totalAmount =
+    Number(tx.principal_amount || 0) +
+    totalInterest;
+
+  const paidAmount =
+
+    tx.status === 'paid'
+
+      ? totalAmount
+
+      : Number(tx.paid_amount || 0);
+
+  const balanceAmount =
+    Math.max(
+      totalAmount - paidAmount,
+      0
+    );
+
+  const latestExtension =
+
+    tx.extensions?.length > 0
+
+      ? tx.extensions[
+          tx.extensions.length - 1
+        ]
+
+      : null;
+
+  const extendedDate =
+
+    latestExtension?.new_due_date
+
+      ? new Date(
+          latestExtension.new_due_date
+        ).toLocaleDateString('en-GB')
+
+      : '-';
+
+  const dueDate =
+    new Date(tx.due_date);
+
+  dueDate.setHours(0,0,0,0);
+
+  const today = new Date();
+
+  today.setHours(0,0,0,0);
+
+  const exportStatus =
+
+    tx.status !== 'paid' &&
+tx.status !== 'extended' &&
+dueDate < today
+
+      ? 'OVERDUE'
+
+      : (
+          tx.status || 'PENDING'
+        ).toUpperCase();
+
+  rows.push([
+
+    `${tx.person_name} (${tx.type?.toUpperCase()})`,
+
+    tx.type,
+
+    'Original',
+
+    tx.principal_amount || 0,
+
+    tx.start_date
+      ? new Date(
+          tx.start_date
+        ).toLocaleDateString('en-GB')
+      : '-',
+
+    tx.due_date
+      ? new Date(
+          tx.due_date
+        ).toLocaleDateString('en-GB')
+      : '-',
+
+    extendedDate,
+
+    totalInterest,
+
+    totalAmount,
+
+    paidAmount,
+
+    balanceAmount,
+
+    tx.paid_date
+      ? new Date(
+          tx.paid_date
+        ).toLocaleDateString('en-GB')
+      : '-',
+
+    exportStatus
+
+  ]);
+
+  tx.extensions?.forEach((ext, i) => {
+
+    rows.push([
+
+  '',
+
+  '',
+
+  `Extension ${i + 1}`,
+
+  '',
+
+  '',
+
+  '',
+
+  ext.new_due_date
+    ? new Date(
+        ext.new_due_date
+      ).toLocaleDateString('en-GB')
+    : '-',
+
+  ext.extra_interest || 0,
+
+  Number(tx.principal_amount || 0) +
+  Number(tx.base_interest || 0) +
+  tx.extensions
+    .slice(0, i + 1)
+    .reduce(
+      (sum, ex) =>
+        sum +
+        Number(ex.extra_interest || 0),
+      0
+    ),
+
+  '',
+
+  '',
+
+  '',
+
+  ext.interest_paid
+    ? 'INTEREST PAID'
+    : 'INTEREST PENDING'
+
+]);
+
+  });
+
+  rows.push([
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    ''
+  ]);
+
 });
 
 autoTable(doc, {
 
     startY: 20,
 
-    head: [[
-      'Name',
-      'Type',
-      'Stage',
-      'Principal',
-      'Start',
-      'Due',
-      'Interest',
-      'Total',
-      'Paid',
-      'Balance',
-      'Paid Date',
-      'Installments',
-      'Status'
-    ]],
+    head: [],
 
     body: rows,
 
@@ -656,7 +1040,7 @@ autoTable(doc, {
     },
 
     columnStyles: {
-      0: { cellWidth: 35 },
+      0: { cellWidth: 55 },
       1: { cellWidth: 18 },
       2: { cellWidth: 20 },
       3: { cellWidth: 22 },
@@ -672,6 +1056,25 @@ autoTable(doc, {
     },
 
     didParseCell: function (data) {
+
+      if (
+  data.row.raw &&
+  (
+    data.row.raw[0] === 'NORMAL PAYMENTS' ||
+    data.row.raw[0] === 'ROTATION PAYMENTS'
+  )
+) {
+
+  data.cell.styles.fillColor =
+    [15, 23, 42];
+
+  data.cell.styles.textColor =
+    [255,255,255];
+
+  data.cell.styles.fontStyle =
+    'bold';
+
+}
 
         if (
   data.row.raw &&

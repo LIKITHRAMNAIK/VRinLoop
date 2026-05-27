@@ -45,7 +45,7 @@ function TransactionList({ refresh }) {
   const [search, setSearch] = useState('');
   const [data, setData] = useState([]);
   const [selectedName, setSelectedName] = useState('all');
-  const [showAlert, setShowAlert] = useState(true);
+  const [showAlert, setShowAlert] = useState(false);
 
   const [confirmAction, setConfirmAction] = useState(null);
 
@@ -289,6 +289,36 @@ const extendedCount = data.filter(tx =>
       ).values()
     )
   ];
+  useEffect(() => {
+
+  const lastShown =
+    sessionStorage.getItem('alertShownTime');
+
+  const now = Date.now();
+
+  // 5 minutes
+  const FIVE_MINUTES =
+    5 * 60 * 1000;
+
+  if (
+    !lastShown ||
+    now - Number(lastShown) > FIVE_MINUTES
+  ) {
+
+    setShowAlert(true);
+
+    sessionStorage.setItem(
+      'alertShownTime',
+      now
+    );
+
+  }
+
+}, []);
+
+window.addEventListener('beforeunload', () => {
+  sessionStorage.removeItem('alertShownTime');
+});
 
   useEffect(() => {
     fetchData();
@@ -1490,43 +1520,121 @@ const dueDate =
 
       {/* 🔘 BUTTONS */}
 
-    
-      <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+<div style={{
+  marginTop: 16,
+  display: 'grid',
+  gridTemplateColumns:
+    tx.status === 'paid'
+      ? '1fr'
+      : '1fr 1fr 1fr',
+  gap: 10
+}}>
 
   {tx.status === 'paid' ? (
-    <button
-  style={{
-    background: '#ef4444',
-    color: 'white',
-    border: 'none',
-    padding: '10px 18px',
-    borderRadius: 12,
-    fontWeight: 'bold',
-    cursor: 'pointer'
-  }}
-  onClick={() =>
-    setConfirmAction({ type: 'delete', id: tx._id })
-  }
->
-  Delete
-</button>
-  ) : (
-    <>
-      <button onClick={() => setPayId(tx._id)}>Pay</button>
 
-      <button onClick={() => {
-        setEditId(tx._id);
-        setEditForm(tx);
-      }}>
-        Edit
+    <button
+      style={{
+        background: 'linear-gradient(135deg,#ef4444,#dc2626)',
+        color: 'white',
+        border: 'none',
+        padding: '12px',
+        borderRadius: 14,
+        fontWeight: '700',
+        cursor: 'pointer',
+        fontSize: 14,
+        boxShadow: '0 4px 10px rgba(239,68,68,0.25)',
+        transition: '0.2s'
+      }}
+      onClick={() =>
+        setConfirmAction({
+          type: 'delete',
+          id: tx._id
+        })
+      }
+    >
+      🗑 Delete
+    </button>
+
+  ) : (
+
+    <>
+      {/* PAY */}
+
+      <button
+        style={{
+          background:
+            'linear-gradient(135deg,#2563eb,#1d4ed8)',
+          color: 'white',
+          border: 'none',
+          padding: '12px',
+          borderRadius: 14,
+          fontWeight: '700',
+          cursor: 'pointer',
+          fontSize: 14,
+          boxShadow:
+            '0 4px 10px rgba(37,99,235,0.25)',
+          transition: '0.2s'
+        }}
+        onClick={() =>
+          setPayId(tx._id)
+        }
+      >
+        💰 Pay
       </button>
 
-      <button onClick={() =>
-        setConfirmAction({ type: 'delete', id: tx._id })
-      }>
-        Delete
+      {/* EDIT */}
+
+      <button
+        style={{
+          background:
+            'linear-gradient(135deg,#0f172a,#334155)',
+          color: 'white',
+          border: 'none',
+          padding: '12px',
+          borderRadius: 14,
+          fontWeight: '700',
+          cursor: 'pointer',
+          fontSize: 14,
+          boxShadow:
+            '0 4px 10px rgba(15,23,42,0.25)',
+          transition: '0.2s'
+        }}
+        onClick={() => {
+          setEditId(tx._id);
+          setEditForm(tx);
+        }}
+      >
+        ✏ Edit
+      </button>
+
+      {/* DELETE */}
+
+      <button
+        style={{
+          background:
+            'linear-gradient(135deg,#ef4444,#dc2626)',
+          color: 'white',
+          border: 'none',
+          padding: '12px',
+          borderRadius: 14,
+          fontWeight: '700',
+          cursor: 'pointer',
+          fontSize: 14,
+          boxShadow:
+            '0 4px 10px rgba(239,68,68,0.25)',
+          transition: '0.2s'
+        }}
+        onClick={() =>
+          setConfirmAction({
+            type: 'delete',
+            id: tx._id
+          })
+        }
+      >
+        🗑 Delete
       </button>
     </>
+
   )}
 
 </div>
@@ -2024,6 +2132,89 @@ const overdueDays = Math.max(
   
     return 'Are you sure?';
   };
+
+  const normalStats = data.filter(tx => {
+
+  if (tx.transaction_type !== 'normal') {
+    return false;
+  }
+
+  // search
+  if (
+    search &&
+    !tx.person_name
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  ) {
+    return false;
+  }
+
+  // selected user
+  if (
+    selectedName !== 'all' &&
+    tx.person_name.toLowerCase() !==
+    selectedName.toLowerCase()
+  ) {
+    return false;
+  }
+
+  return true;
+
+});
+
+const rotationStats = data.filter(tx => {
+
+  if (tx.transaction_type !== 'rotation') {
+    return false;
+  }
+
+  if (
+    search &&
+    !tx.person_name
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  ) {
+    return false;
+  }
+
+  if (
+    selectedName !== 'all' &&
+    tx.person_name.toLowerCase() !==
+    selectedName.toLowerCase()
+  ) {
+    return false;
+  }
+
+  return true;
+
+});
+
+const loanStats = data.filter(tx => {
+
+  if (tx.transaction_type !== 'loan') {
+    return false;
+  }
+
+  if (
+    search &&
+    !tx.person_name
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  ) {
+    return false;
+  }
+
+  if (
+    selectedName !== 'all' &&
+    tx.person_name.toLowerCase() !==
+    selectedName.toLowerCase()
+  ) {
+    return false;
+  }
+
+  return true;
+
+});
  const normalData = filteredData   // ✅ USE FILTERED DATA
   .filter(tx => tx.transaction_type === 'normal')
   
@@ -2541,6 +2732,7 @@ const handleFullPayment = async () => {
     </div>
   </div>
 )}
+
 
 {showAlert && (dueTransactions.length > 0 || upcomingTransactions.length > 0) && (
   <div style={{
@@ -3327,71 +3519,422 @@ transition: '0.25s ease',
   </div>
 
 </div>
-  <div style={{ marginTop: 20 }}>
 
-  <h2 style={{
-  fontSize: 32,
-  fontWeight: '800',
-  marginBottom: 20,
-  color: '#0f172a',
-  display: 'flex',
-  alignItems: 'center',
-  gap: 10
-}}>
-  💵 Normal Payments
-</h2>
+  <div style={{ marginTop: 25 }}>
+
+  {/* NORMAL SECTION */}
   <div style={{
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-    gap: 12,
-    marginBottom: 20
+    background: 'white',
+    borderRadius: 28,
+    padding: 24,
+    marginBottom: 28,
+    boxShadow: '0 10px 30px rgba(0,0,0,0.06)',
+    border: '1px solid #e2e8f0'
   }}>
-    {normalData.map(renderCard)}
+
+    {/* HEADER */}
+    <div style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 14,
+      marginBottom: 22
+    }}>
+
+      <div>
+
+        <h2 style={{
+          fontSize: 32,
+          fontWeight: '800',
+          margin: 0,
+          color: '#0f172a',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10
+        }}>
+          💵 Normal Payments
+        </h2>
+
+        <p style={{
+          marginTop: 8,
+          color: '#64748b'
+        }}>
+          Installment based transactions
+        </p>
+
+      </div>
+      
+
+      {/* STATS */}
+<div style={{
+  display: 'flex',
+  gap: 10,
+  flexWrap: 'wrap'
+}}>
+
+  <div style={{
+    background: '#eff6ff',
+    color: '#2563eb',
+    padding: '10px 16px',
+    borderRadius: 14,
+    fontWeight: 'bold'
+  }}>
+    Total: {normalStats.length}
   </div>
 
-  <h2 style={{
-  fontSize: 32,
-  fontWeight: '800',
-  marginBottom: 20,
-  marginTop: 50,
-  color: '#eb530cec',
-  display: 'flex',
-  alignItems: 'center',
-  gap: 10
-}}>
-  🔄 Rotation Payments
-</h2>
   <div style={{
-    display: 'grid',
-    gridTemplateColumns:
-  'repeat(5, minmax(0,1fr))',
-    gap: 12
+    background: '#f0fdf4',
+    color: '#16a34a',
+    padding: '10px 16px',
+    borderRadius: 14,
+    fontWeight: 'bold'
   }}>
-    {rotationData.map(renderCard)}
+    Paid: {
+      normalStats.filter(
+        tx => tx.status === 'paid'
+      ).length
+    }
   </div>
 
-  <h2 style={{
-  fontSize: 32,
-  fontWeight: '800',
-  marginBottom: 20,
-  marginTop: 50,
-  color: '#4338ca',
+  <div style={{
+    background: '#fff7ed',
+    color: '#ea580c',
+    padding: '10px 16px',
+    borderRadius: 14,
+    fontWeight: 'bold'
+  }}>
+    Pending: {
+      normalData.filter(
+        tx => tx.status !== 'paid'
+      ).length
+    }
+  </div>
+
+  <div style={{
+    background: '#fef2f2',
+    color: '#dc2626',
+    padding: '10px 16px',
+    borderRadius: 14,
+    fontWeight: 'bold'
+  }}>
+    Overdue: {
+
+      normalData.filter(tx => {
+
+        const due =
+          new Date(tx.due_date);
+
+        const today =
+          new Date();
+
+        due.setHours(0,0,0,0);
+        today.setHours(0,0,0,0);
+
+        return (
+          tx.status !== 'paid' &&
+          due < today
+        );
+
+      }).length
+
+    }
+  </div>
+
+</div>
+</div>
+
+    {/* GRID */}
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns:
+        'repeat(auto-fill,minmax(320px,1fr))',
+      gap: 16
+    }}>
+      {normalData.map(renderCard)}
+    </div>
+
+  </div>
+
+  {/* ROTATION SECTION */}
+  <div style={{
+    background: 'white',
+    borderRadius: 28,
+    padding: 24,
+    marginBottom: 28,
+    boxShadow: '0 10px 30px rgba(0,0,0,0.06)',
+    border: '1px solid #e2e8f0'
+  }}>
+
+    <div style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 14,
+      marginBottom: 22
+    }}>
+
+      <div>
+
+        <h2 style={{
+          fontSize: 32,
+          fontWeight: '800',
+          margin: 0,
+          color: '#ea580c',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10
+        }}>
+          🔄 Rotation Payments
+        </h2>
+
+        <p style={{
+          marginTop: 8,
+          color: '#64748b'
+        }}>
+          Interest & rotation based payments
+        </p>
+
+      </div>
+
+      <div style={{
   display: 'flex',
-  alignItems: 'center',
-  gap: 10
+  gap: 10,
+  flexWrap: 'wrap'
 }}>
-  💳 Loan Payments
-</h2>
 
-{/* <LoanProfile
-  data={loanData}
-  refresh={fetchData}
-/> */}
+  <div style={{
+    background: '#fff7ed',
+    color: '#ea580c',
+    padding: '10px 16px',
+    borderRadius: 14,
+    fontWeight: 'bold'
+  }}>
+    Total: {rotationStats.length}
+  </div>
 
-<LoanProfile
-  data={filteredLoanData}
-  refresh={fetchData}
-/>
+  <div style={{
+    background: '#f0fdf4',
+    color: '#16a34a',
+    padding: '10px 16px',
+    borderRadius: 14,
+    fontWeight: 'bold'
+  }}>
+    Paid: {
+      rotationStats.filter(
+        tx => tx.status === 'paid'
+      ).length
+    }
+  </div>
+
+  <div style={{
+    background: '#eff6ff',
+    color: '#2563eb',
+    padding: '10px 16px',
+    borderRadius: 14,
+    fontWeight: 'bold'
+  }}>
+    Extended: {
+      rotationStats.filter(
+        tx => tx.extensions?.length > 0
+      ).length
+    }
+  </div>
+
+  <div style={{
+    background: '#fff7ed',
+    color: '#ea580c',
+    padding: '10px 16px',
+    borderRadius: 14,
+    fontWeight: 'bold'
+  }}>
+    Pending: {
+      rotationStats.filter(
+        tx => tx.status !== 'paid'
+      ).length
+    }
+  </div>
+
+  <div style={{
+    background: '#fef2f2',
+    color: '#dc2626',
+    padding: '10px 16px',
+    borderRadius: 14,
+    fontWeight: 'bold'
+  }}>
+    Overdue: {
+
+      rotationStats.filter(tx => {
+
+        const due =
+          new Date(tx.due_date);
+
+        const today =
+          new Date();
+
+        due.setHours(0,0,0,0);
+        today.setHours(0,0,0,0);
+
+        return (
+          tx.status !== 'paid' &&
+          due < today
+        );
+
+      }).length
+
+    }
+  </div>
+
+</div>
+</div>
+
+{/* GRID */}
+<div style={{
+  display: 'grid',
+  gridTemplateColumns:
+    'repeat(auto-fill,minmax(320px,1fr))',
+  gap: 16
+}}>
+  {rotationData.map(renderCard)}
+</div>
+
+</div>
+
+
+  {/* LOAN SECTION */}
+  <div style={{
+    background: 'white',
+    borderRadius: 28,
+    padding: 24,
+    marginBottom: 28,
+    boxShadow: '0 10px 30px rgba(0,0,0,0.06)',
+    border: '1px solid #e2e8f0'
+  }}>
+
+    <div style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 14,
+      marginBottom: 22
+    }}>
+
+      <div>
+
+        <h2 style={{
+          fontSize: 32,
+          fontWeight: '800',
+          margin: 0,
+          color: '#4338ca',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10
+        }}>
+          💳 Loan Payments
+        </h2>
+
+        <p style={{
+          marginTop: 8,
+          color: '#64748b'
+        }}>
+          EMI and loan management
+        </p>
+
+      </div>
+
+{/* LOAN FILTER */}
+<div>
+
+  <select
+    value={filterType}
+    onChange={(e) =>
+      setFilterType(e.target.value)
+    }
+    style={{
+      padding: '12px 18px',
+      borderRadius: 14,
+      border: '1px solid #ddd',
+      background: '#f8fafc',
+      fontWeight: '600',
+      cursor: 'pointer',
+      minWidth: 220
+    }}
+  >
+    <option value="pending">
+      ⏳ Pending Loans
+    </option>
+
+    <option value="paid">
+      ✅ Paid Loans
+    </option>
+
+  </select>
+
+</div>
+
+<div style={{
+  display: 'flex',
+  gap: 10,
+  flexWrap: 'wrap'
+}}>
+
+  <div style={{
+    background: '#eef2ff',
+    color: '#4338ca',
+    padding: '10px 16px',
+    borderRadius: 14,
+    fontWeight: 'bold'
+  }}>
+    Total: {loanStats.length}
+  </div>
+
+  <div style={{
+    background: '#f0fdf4',
+    color: '#16a34a',
+    padding: '10px 16px',
+    borderRadius: 14,
+    fontWeight: 'bold'
+  }}>
+    Paid: {
+      loanStats.filter(
+        tx => tx.status === 'paid'
+      ).length
+    }
+  </div>
+
+  <div style={{
+    background: '#fff7ed',
+    color: '#ea580c',
+    padding: '10px 16px',
+    borderRadius: 14,
+    fontWeight: 'bold'
+  }}>
+    Pending: {
+      loanData.filter(
+        tx => tx.status !== 'paid'
+      ).length
+    }
+  </div>
+
+</div>
+</div>
+
+{/* LOAN GRID */}
+<div style={{
+  display: 'grid',
+  gridTemplateColumns:
+    'repeat(auto-fill,minmax(320px,1fr))',
+  gap: 16
+}}>
+
+  <LoanProfile
+    data={filteredLoanData}
+    refresh={fetchData}
+  />
+
+</div>
 
 </div>
       {/* CARDS */}
@@ -3743,10 +4286,9 @@ transition: '0.25s ease',
   </div>
 )}
 
-
-  
     </div>
-    
+
+    </div>
     
   );
 }
