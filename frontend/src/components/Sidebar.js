@@ -23,6 +23,10 @@ function Sidebar({
 
 
   const navigate = useNavigate();
+
+  const user = JSON.parse(
+  localStorage.getItem('user')
+);
   
   const exportCSV = async () => {
 
@@ -388,8 +392,28 @@ const exportPDF = async () => {
       icon: '👤',
       label: 'My Profile',
       path: '/my-profile'
-    }
+    },
+    {
+  icon: '🚪',
+  label: 'Logout',
+  action: 'logout'
+}
   ];
+
+  const handleLogout = () => {
+
+  localStorage.removeItem(
+    'token'
+  );
+
+  localStorage.removeItem(
+    'user'
+  );
+
+  window.location.href =
+    '/login';
+
+};
 
   return (
     <>
@@ -414,7 +438,7 @@ const exportPDF = async () => {
         left: 0,
         width: open ? 240 : 70,
         height: '100vh',
-        background: '#fbf7fb00',
+        background: '#270d64dc',
         color: 'white',
         transition: '0.3s',
         zIndex: 1000,
@@ -422,7 +446,7 @@ const exportPDF = async () => {
         flexDirection: 'column',
         paddingTop: 15,
         overflow: 'hidden',
-        boxShadow: '2px 0 15px rgba(15, 14, 14, 0.25)'
+        boxShadow: '2px 0 15px rgba(22, 21, 21, 0.16)'
       }}>
 
         {/* TOP MENU BUTTON */}
@@ -450,7 +474,7 @@ const exportPDF = async () => {
               height: 40,
               borderRadius: 10,
               border: 'none',
-              background: '#e70f9f',
+              background: '#f311a8',
               color: 'white',
               cursor: 'pointer',
               fontSize: 20,
@@ -461,6 +485,113 @@ const exportPDF = async () => {
           </button>
 
         </div>
+
+        {/* USER PROFILE */}
+
+<div
+
+  onClick={() =>
+    navigate('/my-profile')
+  }
+
+  style={{
+
+    display: 'flex',
+
+    alignItems: 'center',
+
+    gap: 12,
+
+    padding: open ? '0 14px' : '0',
+
+    marginBottom: 24,
+
+    justifyContent:
+      open ? 'flex-start' : 'center',
+
+    cursor: 'pointer',
+
+    transition: '0.3s'
+
+  }}
+
+>
+
+  <img
+
+    src={
+      user?.profile_image
+
+        ? `http://localhost:5000/uploads/${user.profile_image}`
+
+        : 'https://ui-avatars.com/api/?name=User'
+    }
+
+    alt="profile"
+
+    style={{
+
+      width: 52,
+
+      height: 52,
+
+      borderRadius: '50%',
+
+      objectFit: 'cover',
+
+      border:
+        '3px solid #e70f9f',
+
+      boxShadow:
+        '0 4px 10px rgba(0,0,0,0.2)'
+
+    }}
+
+  />
+
+  {open && (
+
+    <div>
+
+      <div style={{
+
+        fontWeight: 'bold',
+
+        fontSize: 15,
+
+        color: 'white'
+
+      }}>
+
+        {user?.name || 'User'}
+
+      </div>
+
+      <div style={{
+
+        fontSize: 12,
+
+        color: '#e2e8f0',
+
+        marginTop: 2,
+
+        maxWidth: 130,
+
+        overflow: 'hidden',
+
+        textOverflow: 'ellipsis'
+
+      }}>
+
+        {user?.email}
+
+      </div>
+
+    </div>
+
+  )}
+
+</div>
 
         {/* MENU ITEMS */}
         <div style={{
@@ -478,6 +609,14 @@ const exportPDF = async () => {
                 if (item.action === 'export') {
 
   onOpenExport();
+
+  return;
+
+}
+
+if (item.action === 'logout') {
+
+  handleLogout();
 
   return;
 

@@ -12,6 +12,16 @@ function Profile() {
   const navigate = useNavigate();
 
   const [data, setData] = useState([]);
+  const [profileFilter, setProfileFilter] =
+  useState('all');
+  const [filter, setFilter] =
+  useState('pending');
+
+  const [rotationFilter, setRotationFilter] =
+  useState('pending');
+
+  const [loanFilter, setLoanFilter] =
+  useState('pending');
 
   const fetchData = () => {
     API.get(`/person/${name}`)
@@ -43,6 +53,34 @@ const loanData = data.filter(
   
   tx => tx.transaction_type === 'loan'
 );
+
+const filteredNormalData =
+
+  profileFilter === 'all' ||
+  profileFilter === 'normal'
+
+    ? normalData
+
+    : [];
+
+const filteredRotationData =
+
+  profileFilter === 'all' ||
+  profileFilter === 'rotation'
+
+    ? rotationData
+
+    : [];
+
+const filteredLoanData =
+
+  profileFilter === 'all' ||
+  profileFilter === 'loan'
+
+    ? loanData
+
+    : [];
+
   let incoming = 0;
 let outgoing = 0;
 
@@ -90,6 +128,197 @@ loanData.forEach(tx => {
   });
 
 });
+const today = new Date();
+
+today.setHours(0,0,0,0);
+
+const finalFilteredNormalData =
+  filteredNormalData.filter(tx => {
+
+    const dueDate =
+      new Date(tx.due_date);
+
+    dueDate.setHours(0,0,0,0);
+
+    const paid =
+      tx.paid_amount || 0;
+
+    const isPartial =
+
+      paid > 0 &&
+
+      paid < tx.principal_amount;
+
+    const isDue =
+
+      (
+        tx.status !== 'paid' &&
+        dueDate < today
+      )
+
+      ||
+
+      (
+
+        tx.status === 'paid' &&
+
+        tx.paid_date &&
+
+        new Date(tx.paid_date) >
+        dueDate
+
+      );
+
+    if (filter === 'pending') {
+
+      return tx.status !== 'paid';
+
+    }
+
+    if (filter === 'paid') {
+
+      return tx.status === 'paid';
+
+    }
+
+    if (filter === 'partial') {
+
+      return isPartial;
+
+    }
+
+    if (filter === 'due') {
+
+      return isDue;
+
+    }
+
+    return true;
+
+  });
+
+  const finalFilteredRotationData =
+  filteredRotationData.filter(tx => {
+
+    const dueDate =
+      new Date(
+        tx.final_due_date ||
+        tx.due_date
+      );
+
+    dueDate.setHours(0,0,0,0);
+
+    const today =
+      new Date();
+
+    today.setHours(0,0,0,0);
+
+    const isExtended =
+      tx.extensions?.length > 0;
+
+    const paidLate =
+
+      tx.status === 'paid' &&
+
+      tx.paid_date &&
+
+      new Date(tx.paid_date) >
+      dueDate;
+
+    const overdue =
+
+      tx.status !== 'paid' &&
+      dueDate < today;
+
+    if (rotationFilter === 'pending') {
+
+      return tx.status !== 'paid';
+
+    }
+
+    if (rotationFilter === 'paid') {
+
+      return tx.status === 'paid';
+
+    }
+
+    if (rotationFilter === 'extended') {
+
+      return isExtended;
+
+    }
+
+    if (rotationFilter === 'due') {
+
+      return overdue || paidLate;
+
+    }
+
+    return true;
+
+  });
+
+  const finalFilteredLoanData =
+  filteredLoanData.filter(tx => {
+
+    const dueDate =
+      new Date(tx.next_due_date);
+
+    dueDate.setHours(0,0,0,0);
+
+    const today =
+      new Date();
+
+    today.setHours(0,0,0,0);
+
+    const overdue =
+
+      tx.status !== 'paid' &&
+      dueDate < today;
+
+    const paidLate =
+
+      tx.status === 'paid' &&
+
+      tx.last_paid_date &&
+
+      new Date(tx.last_paid_date) >
+      dueDate;
+
+    const partial =
+
+      tx.paid_months > 0 &&
+
+      tx.paid_months <
+      tx.duration_months;
+
+    if (loanFilter === 'pending') {
+
+      return tx.status !== 'paid';
+
+    }
+
+    if (loanFilter === 'paid') {
+
+      return tx.status === 'paid';
+
+    }
+
+    if (loanFilter === 'partial') {
+
+      return partial;
+
+    }
+
+    if (loanFilter === 'due') {
+
+      return overdue || paidLate;
+
+    }
+
+    return true;
+
+  });
 
 const totalLoanHistory =
 
@@ -788,6 +1017,72 @@ data.forEach(tx => {
     '0 12px 35px rgba(0,0,0,0.08)'
 }}>
 
+{/* PROFILE FILTER */}
+
+<div style={{
+  display: 'flex',
+  gap: 12,
+  flexWrap: 'wrap',
+  marginBottom: 28
+}}>
+
+  {[
+    {
+      key: 'all',
+      label: '📋 All'
+    },
+    {
+      key: 'normal',
+      label: '💵 Normal'
+    },
+    {
+      key: 'rotation',
+      label: '🔄 Rotation'
+    },
+    {
+      key: 'loan',
+      label: '💳 Loans'
+    }
+  ].map(item => (
+
+    <button
+      key={item.key}
+      onClick={() =>
+        setProfileFilter(item.key)
+      }
+      style={{
+        border: 'none',
+        padding: '12px 18px',
+        borderRadius: 14,
+        cursor: 'pointer',
+        fontWeight: 'bold',
+        fontSize: 14,
+
+        background:
+
+          profileFilter === item.key
+            ? '#2563eb'
+            : 'white',
+
+        color:
+
+          profileFilter === item.key
+            ? 'white'
+            : '#0f172a',
+
+        boxShadow:
+          '0 4px 12px rgba(0,0,0,0.06)',
+
+        transition: '0.2s'
+      }}
+    >
+      {item.label}
+    </button>
+
+  ))}
+
+</div>
+
   {/* PROFILE HERO */}
   <div style={{
     background:
@@ -1139,91 +1434,94 @@ data.forEach(tx => {
   {/* HEADER */}
 
   <div style={{
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 15,
-    marginBottom: 28
-  }}>
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 20,
+  marginBottom: 28
+}}>
 
-    <div>
+  <div>
 
-      <h2 style={{
-        margin: 0,
-        color: '#0f172a'
-      }}>
-        📊 Financial Analytics
-      </h2>
-      <button
-  onClick={() =>
-    navigate(
-      `/loan-analytics/${name}`
-    )
-  }
-  style={{
-    background:
-      'linear-gradient(135deg,#5E35B1,#7C3AED)',
-    color: 'white',
-    border: 'none',
-    padding: '12px 18px',
-    borderRadius: 14,
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    marginTop: 18,
-    boxShadow:
-      '0 10px 24px rgba(94,53,177,0.25)'
-  }}
->
-  📈 View Loan Analytics
-</button>
+    <h2 style={{
+      margin: 0,
+      color: '#0f172a',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10
+    }}>
+      📊 Financial Analytics
+    </h2>
 
-      <p style={{
-        marginTop: 6,
-        color: '#64748b',
-        fontSize: 14
-      }}>
-        Combined loan performance & transaction insights
-      </p>
-
-    </div>
-
-    {loanData.length > 0 && (
-
-      <div style={{
-        padding: '10px 16px',
-        borderRadius: 14,
-
-        background:
-
-          globalRiskScore >= 80
-            ? '#dcfce7'
-
-          : globalRiskScore >= 50
-            ? '#fef9c3'
-
-          : '#fee2e2',
-
-        color:
-
-          globalRiskScore >= 80
-            ? '#16a34a'
-
-          : globalRiskScore >= 50
-            ? '#ca8a04'
-
-          : '#dc2626',
-
-        fontWeight: 'bold'
-      }}>
-        Risk Score:
-        {' '}
-        {globalRiskScore}%
-      </div>
-
-    )}
+    <p style={{
+      marginTop: 6,
+      color: '#64748b',
+      fontSize: 14
+    }}>
+      Combined loan performance & transaction insights
+    </p>
 
   </div>
+
+  <button
+    onClick={() =>
+      navigate(
+        `/loan-analytics/${name}`
+      )
+    }
+    style={{
+      background:
+        'linear-gradient(135deg,#5E35B1,#7C3AED)',
+      color: 'white',
+      border: 'none',
+      padding: '12px 18px',
+      borderRadius: 14,
+      cursor: 'pointer',
+      fontWeight: 'bold',
+      boxShadow:
+        '0 10px 24px rgba(94,53,177,0.25)'
+    }}
+  >
+    📈 View Loan Analytics
+  </button>
+
+  {filteredLoanData.length > 0 && (
+
+    <div style={{
+      padding: '10px 16px',
+      borderRadius: 14,
+
+      background:
+
+        globalRiskScore >= 80
+          ? '#dcfce7'
+
+        : globalRiskScore >= 50
+          ? '#fef9c3'
+
+        : '#fee2e2',
+
+      color:
+
+        globalRiskScore >= 80
+          ? '#16a34a'
+
+        : globalRiskScore >= 50
+          ? '#ca8a04'
+
+        : '#dc2626',
+
+      fontWeight: 'bold'
+    }}>
+      Risk Score:
+      {' '}
+      {globalRiskScore}%
+    </div>
+
+  )}
+
+</div>
 
   {/* GRID */}
 
@@ -1236,7 +1534,7 @@ data.forEach(tx => {
 
     {/* LOAN BALANCE */}
 
-    {loanData.length > 0 && (
+    {filteredLoanData.length > 0 && (
 
       <div style={{
         background: '#f8fafc',
@@ -1266,69 +1564,87 @@ data.forEach(tx => {
 
     )}
 
-    {/* PENDING EMIS */}
+    {/* EMI STATUS */}
 
-    {loanData.length > 0 && (
+{filteredLoanData.length > 0 && (
 
-      <div style={{
-        background: '#f8fafc',
-        borderRadius: 22,
-        padding: 20
-      }}>
+  <div style={{
+    background: '#f8fafc',
+    borderRadius: 22,
+    padding: 20
+  }}>
+
+    <p style={{
+      margin: 0,
+      color: '#64748b',
+      fontSize: 13
+    }}>
+      EMI Status
+    </p>
+
+    <div style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 18,
+      gap: 18
+    }}>
+
+      <div>
 
         <p style={{
           margin: 0,
-          color: '#64748b',
-          fontSize: 13
+          fontSize: 13,
+          color: '#64748b'
         }}>
-          Pending EMIs
+          Pending
         </p>
 
         <h2 style={{
-          marginTop: 10,
+          marginTop: 8,
           marginBottom: 0,
-          color: '#ea580c'
+          color: '#dc2626'
         }}>
           {totalPendingEmis}
         </h2>
 
       </div>
 
-    )}
-
-    {/* PAID EMIS */}
-
-    {loanData.length > 0 && (
-
       <div style={{
-        background: '#f8fafc',
-        borderRadius: 22,
-        padding: 20
-      }}>
+        width: 1,
+        alignSelf: 'stretch',
+        background: '#e2e8f0'
+      }} />
+
+      <div>
 
         <p style={{
           margin: 0,
-          color: '#64748b',
-          fontSize: 13
+          fontSize: 13,
+          color: '#64748b'
         }}>
-          EMIs Paid
+          Paid
         </p>
 
         <h2 style={{
-          marginTop: 10,
+          marginTop: 8,
           marginBottom: 0,
-          color: '#2563eb'
+          color: '#16a34a'
         }}>
           {totalLoanEmisPaid}
         </h2>
 
       </div>
 
-    )}
+    </div>
+
+  </div>
+
+)}
 
     {/* PENALTY */}
 
-    {totalLoanPenalty > 0 && (
+    {filteredLoanData.length > 0 && totalLoanPenalty > 0 && (
 
       <div style={{
         background: '#fef2f2',
@@ -1360,7 +1676,7 @@ data.forEach(tx => {
 
     {/* LATE */}
 
-    {loanData.length > 0 && (
+    {filteredLoanData.length > 0 && (
 
       <div style={{
         background: '#fff7ed',
@@ -1509,30 +1825,405 @@ data.forEach(tx => {
 </div>
 
       {/* NORMAL */}
-      {normalData.length > 0 && (
+      {filteredNormalData.length > 0 && (
         <>
-          <h2 style={{ marginTop: 25 }}>
-            Normal Payments
-          </h2>
 
-          <NormalProfile
-            data={normalData}
-            refresh={fetchData}
-          />
+          {filteredNormalData.length > 0 && (
+
+  <div style={{
+    marginBottom: 30
+  }}>
+
+    <div style={{
+      background: 'white',
+      borderRadius: 28,
+      padding: 24,
+      boxShadow:
+        '0 10px 30px rgba(0,0,0,0.06)',
+      border:
+        '1px solid #e2e8f0'
+    }}>
+
+      <div style={{
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  flexWrap: 'wrap',
+  gap: 20,
+  marginBottom: 24
+}}>
+
+  <div>
+
+    <h2 style={{
+      margin: 0,
+      fontSize: 30,
+      fontWeight: '800',
+      color: '#2563eb'
+    }}>
+      💵 Normal Payments
+    </h2>
+
+    <p style={{
+      marginTop: 8,
+      color: '#64748b'
+    }}>
+      Installment based payments
+    </p>
+
+  </div>
+
+  <div style={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: 14,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end'
+  }}>
+
+    <select
+
+  value={filter}
+
+  onChange={(e) =>
+    setFilter(e.target.value)
+  }
+
+  style={{
+        padding: '10px 14px',
+        borderRadius: 12,
+        border: '1px solid #dbeafe',
+        background: '#f8fafc',
+        fontWeight: '600',
+        minWidth: 140
+      }}
+    >
+      <option value="all">
+  All
+</option>
+
+<option value="pending">
+  Pending
+</option>
+
+<option value="paid">
+  Paid
+</option>
+
+<option value="partial">
+  Partial
+</option>
+
+<option value="due">
+  Due
+</option>
+    </select>
+
+    <div style={{
+      display: 'flex',
+      gap: 10,
+      flexWrap: 'wrap'
+    }}>
+
+      <div style={{
+        background: '#eff6ff',
+        color: '#2563eb',
+        padding: '10px 16px',
+        borderRadius: 14,
+        fontWeight: 'bold'
+      }}>
+        Total: {filteredNormalData.length}
+      </div>
+
+      <div style={{
+        background: '#f0fdf4',
+        color: '#16a34a',
+        padding: '10px 16px',
+        borderRadius: 14,
+        fontWeight: 'bold'
+      }}>
+        Paid: {
+          filteredNormalData.filter(
+            tx => tx.status === 'paid'
+          ).length
+        }
+      </div>
+
+      <div style={{
+        background: '#fff7ed',
+        color: '#ea580c',
+        padding: '10px 16px',
+        borderRadius: 14,
+        fontWeight: 'bold'
+      }}>
+        Pending: {
+          filteredNormalData.filter(
+            tx => tx.status !== 'paid'
+          ).length
+        }
+      </div>
+
+      <div style={{
+        background: '#fef2f2',
+        color: '#dc2626',
+        padding: '10px 16px',
+        borderRadius: 14,
+        fontWeight: 'bold'
+      }}>
+        Overdue: {
+
+          filteredNormalData.filter(tx => {
+
+            const due =
+              new Date(tx.due_date);
+
+            const today =
+              new Date();
+
+            due.setHours(0,0,0,0);
+            today.setHours(0,0,0,0);
+
+            return (
+              tx.status !== 'paid' &&
+              due < today
+            );
+
+          }).length
+
+        }
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+      <NormalProfile
+  data={finalFilteredNormalData}
+  refresh={fetchData}
+/>
+
+    </div>
+    
+
+  </div>
+  
+
+)}
         </>
       )}
 
       {/* ROTATION */}
-      {rotationData.length > 0 && (
+      {filteredRotationData.length > 0 && (
         <>
-          <h2 style={{ marginTop: 35 }}>
-            Rotation Payments
-          </h2>
 
-          <RotationProfile
-            data={rotationData}
-            refresh={fetchData}
-          />
+          {filteredRotationData.length > 0 && (
+
+  <div style={{
+    marginBottom: 30
+  }}>
+
+    <div style={{
+      background: 'white',
+      borderRadius: 28,
+      padding: 24,
+      boxShadow:
+        '0 10px 30px rgba(0,0,0,0.06)',
+      border:
+        '1px solid #e2e8f0'
+    }}>
+
+      <div style={{
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  flexWrap: 'wrap',
+  gap: 20,
+  marginBottom: 24
+}}>
+
+  <div>
+
+    <h2 style={{
+      margin: 0,
+      fontSize: 30,
+      fontWeight: '800',
+      color: '#ea580c'
+    }}>
+      🔄 Rotation Payments
+    </h2>
+
+    <p style={{
+      marginTop: 8,
+      color: '#64748b'
+    }}>
+      Interest and rotation based payments
+    </p>
+
+  </div>
+
+  <div style={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: 14,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end'
+  }}>
+
+    <select
+
+      value={rotationFilter}
+
+      onChange={(e) =>
+        setRotationFilter(
+          e.target.value
+        )
+      }
+
+      style={{
+        padding: '10px 14px',
+        borderRadius: 12,
+        border: '1px solid #fed7aa',
+        background: '#fff7ed',
+        fontWeight: '600',
+        minWidth: 160
+      }}
+    >
+
+      <option value="all">
+        All
+      </option>
+
+      <option value="pending">
+        Pending
+      </option>
+
+      <option value="paid">
+        Paid
+      </option>
+
+      <option value="extended">
+        Extended
+      </option>
+
+      <option value="due">
+        Due
+      </option>
+
+    </select>
+
+    <div style={{
+      display: 'flex',
+      gap: 10,
+      flexWrap: 'wrap'
+    }}>
+
+      <div style={{
+        background: '#fff7ed',
+        color: '#ea580c',
+        padding: '10px 16px',
+        borderRadius: 14,
+        fontWeight: 'bold'
+      }}>
+        Total:
+        {' '}
+        {finalFilteredRotationData.length}
+      </div>
+
+      <div style={{
+        background: '#f0fdf4',
+        color: '#16a34a',
+        padding: '10px 16px',
+        borderRadius: 14,
+        fontWeight: 'bold'
+      }}>
+        Paid:
+        {' '}
+        {
+          finalFilteredRotationData.filter(
+            tx => tx.status === 'paid'
+          ).length
+        }
+      </div>
+
+      <div style={{
+        background: '#eff6ff',
+        color: '#2563eb',
+        padding: '10px 16px',
+        borderRadius: 14,
+        fontWeight: 'bold'
+      }}>
+        Extended:
+        {' '}
+        {
+          finalFilteredRotationData.filter(
+            tx => tx.extensions?.length > 0
+          ).length
+        }
+      </div>
+
+      <div style={{
+        background: '#fef2f2',
+        color: '#dc2626',
+        padding: '10px 16px',
+        borderRadius: 14,
+        fontWeight: 'bold'
+      }}>
+        Due:
+        {' '}
+        {
+          finalFilteredRotationData.filter(tx => {
+
+            const dueDate =
+              new Date(
+                tx.final_due_date ||
+                tx.due_date
+              );
+
+            dueDate.setHours(0,0,0,0);
+
+            const today =
+              new Date();
+
+            today.setHours(0,0,0,0);
+
+            const paidLate =
+
+              tx.status === 'paid' &&
+
+              tx.paid_date &&
+
+              new Date(tx.paid_date) >
+              dueDate;
+
+            const overdue =
+
+              tx.status !== 'paid' &&
+              dueDate < today;
+
+            return overdue || paidLate;
+
+          }).length
+        }
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+      <RotationProfile
+  data={finalFilteredRotationData}
+  refresh={fetchData}
+/>
+
+    </div>
+
+  </div>
+
+)}
         </>
       )}
 
@@ -1540,59 +2231,212 @@ data.forEach(tx => {
 
 
 {/* LOANS */}
-{loanData.length > 0 && (
+{filteredLoanData.length > 0 && (
   <>
 
+    {filteredLoanData.length > 0 && (
+
+  <div style={{
+    marginBottom: 30
+  }}>
+
     <div style={{
-      marginTop: 40,
-      marginBottom: 20,
-      padding: '18px 22px',
-      borderRadius: 18,
-      background: 'linear-gradient(135deg, #ede7f6, #d1c4e9)',
-      border: '1px solid #b39ddb',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      flexWrap: 'wrap',
-      gap: 15
+      background: 'white',
+      borderRadius: 28,
+      padding: 24,
+      boxShadow:
+        '0 10px 30px rgba(0,0,0,0.06)',
+      border:
+        '1px solid #e2e8f0'
     }}>
 
-      <div>
+      <div style={{
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  flexWrap: 'wrap',
+  gap: 20,
+  marginBottom: 24
+}}>
 
-        <h2 style={{
-          margin: 0,
-          color: '#4527A0'
-        }}>
-          💳 Loan Payments
-        </h2>
+  <div>
 
-        <p style={{
-          marginTop: 6,
-          color: '#5E35B1',
-          fontSize: 14
-        }}>
-          EMI tracking, progress history and payment management
-        </p>
+    <h2 style={{
+      margin: 0,
+      fontSize: 30,
+      fontWeight: '800',
+      color: '#4338ca'
+    }}>
+      💳 Loan Payments
+    </h2>
 
+    <p style={{
+      marginTop: 8,
+      color: '#64748b'
+    }}>
+      EMI and loan management
+    </p>
+
+  </div>
+
+  <div style={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: 14,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end'
+  }}>
+
+    <select
+
+      value={loanFilter}
+
+      onChange={(e) =>
+        setLoanFilter(
+          e.target.value
+        )
+      }
+
+      style={{
+        padding: '10px 14px',
+        borderRadius: 12,
+        border: '1px solid #c7d2fe',
+        background: '#eef2ff',
+        fontWeight: '600',
+        minWidth: 160
+      }}
+    >
+      <option value="all">
+        All
+      </option>
+
+      <option value="pending">
+        Pending
+      </option>
+
+      <option value="paid">
+        Paid
+      </option>
+
+      <option value="due">
+        Due
+      </option>
+
+    </select>
+
+    <div style={{
+      display: 'flex',
+      gap: 10,
+      flexWrap: 'wrap'
+    }}>
+
+      <div style={{
+        background: '#eef2ff',
+        color: '#4338ca',
+        padding: '10px 16px',
+        borderRadius: 14,
+        fontWeight: 'bold'
+      }}>
+        Total:
+        {' '}
+        {finalFilteredLoanData.length}
       </div>
 
       <div style={{
-        background: '#5E35B1',
-        color: 'white',
-        padding: '10px 18px',
-        borderRadius: 12,
-        fontWeight: 'bold',
-        fontSize: 14
+        background: '#f0fdf4',
+        color: '#16a34a',
+        padding: '10px 16px',
+        borderRadius: 14,
+        fontWeight: 'bold'
       }}>
-        Total Loans: {loanData.length}
+        Paid:
+        {' '}
+        {
+          finalFilteredLoanData.filter(
+            tx => tx.status === 'paid'
+          ).length
+        }
+      </div>
+
+      <div style={{
+        background: '#fff7ed',
+        color: '#ea580c',
+        padding: '10px 16px',
+        borderRadius: 14,
+        fontWeight: 'bold'
+      }}>
+        Partial:
+        {' '}
+        {
+          finalFilteredLoanData.filter(
+            tx =>
+
+              tx.paid_months > 0 &&
+
+              tx.paid_months <
+              tx.duration_months
+          ).length
+        }
+      </div>
+
+      <div style={{
+        background: '#fef2f2',
+        color: '#dc2626',
+        padding: '10px 16px',
+        borderRadius: 14,
+        fontWeight: 'bold'
+      }}>
+        Due:
+        {' '}
+        {
+          finalFilteredLoanData.filter(tx => {
+
+            const dueDate =
+              new Date(tx.next_due_date);
+
+            dueDate.setHours(0,0,0,0);
+
+            const today =
+              new Date();
+
+            today.setHours(0,0,0,0);
+
+            const overdue =
+
+              tx.status !== 'paid' &&
+              dueDate < today;
+
+            const paidLate =
+
+              tx.status === 'paid' &&
+
+              tx.last_paid_date &&
+
+              new Date(tx.last_paid_date) >
+              dueDate;
+
+            return overdue || paidLate;
+
+          }).length
+        }
       </div>
 
     </div>
 
-    <LoanProfile
-      data={loanData}
-      refresh={fetchData}
-    />
+  </div>
+
+</div>
+
+      <LoanProfile
+  data={finalFilteredLoanData}
+  refresh={fetchData}
+/>
+
+    </div>
+
+  </div>
+
+)}
 
   </>
 )}

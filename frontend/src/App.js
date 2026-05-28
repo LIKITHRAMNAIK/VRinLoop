@@ -1,28 +1,81 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Dashboard from './pages/Dashboard';
-import Profile from './pages/Profile';
-import TransactionList from './components/TransactionList';
-import UsersPage from './pages/UsersPage';
-import MyProfile from './pages/MyProfile';
-import LoanAnalyticsPage from './pages/LoanAnalyticsPage';
-import LoanUsersPage from './pages/LoanUsersPage';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
+import TransactionList from "./components/TransactionList";
+import UsersPage from "./pages/UsersPage";
+import MyProfile from "./pages/MyProfile";
+import LoanAnalyticsPage from "./pages/LoanAnalyticsPage";
+import LoanUsersPage from "./pages/LoanUsersPage";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import ProtectedRoute from "./components/ProtectedRoute";
+import ForgotPassword from "./pages/ForgotPassword";
+
+import VerifyOtp from "./pages/VerifyOtp";
+
+import ResetPassword from "./pages/ResetPassword";
 
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/profile/:name" element={<Profile />} />
-        <Route path="/users" element={<UsersPage />} />
-        <Route path="/my-profile" element={<MyProfile />} />
         <Route
-  path="/loan-analytics/:name"
-  element={<LoanAnalyticsPage />}
-/>
-<Route
-  path="/loan-users"
-  element={<LoanUsersPage />}
-/>
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile/:name"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute>
+              <UsersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/my-profile"
+          element={
+            <ProtectedRoute>
+              <MyProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/loan-analytics/:name"
+          element={
+            <ProtectedRoute>
+              <LoanAnalyticsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/loan-users"
+          element={
+            <ProtectedRoute>
+              <LoanUsersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/login" element={<Login />} />
+
+        <Route path="/signup" element={<Signup />} />
+
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+
+        <Route path="/verify-otp" element={<VerifyOtp />} />
+
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
     </Router>
   );

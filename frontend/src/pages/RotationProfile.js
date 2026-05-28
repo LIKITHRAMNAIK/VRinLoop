@@ -25,7 +25,6 @@ const [earlyPayPopup, setEarlyPayPopup] = useState(null);
 
 const [earlyInterest, setEarlyInterest] = useState('');
 const [normalPayPopup, setNormalPayPopup] = useState(null);
-  const [filterType, setFilterType] = useState('upcoming');
 
   if (!data) return <h2>Loading...</h2>;
 
@@ -44,44 +43,7 @@ const [normalPayPopup, setNormalPayPopup] = useState(null);
 const today = new Date();
 today.setHours(0,0,0,0);
 
-const filteredData = data.filter(tx => {
-  const dueDate = new Date(tx.due_date);
-  dueDate.setHours(0,0,0,0);
-
-  if (filterType === 'paid') {
-  return tx.status === 'paid';
-}
-
-if (filterType === 'extended') {
-
-  return tx.extensions?.length > 0;
-
-}
-
-if (filterType === 'due') {
-
-  return (
-    dueDate < today &&
-    tx.status !== 'extended' &&
-    (
-      tx.status !== 'paid' ||
-      (
-        tx.status === 'paid' &&
-        new Date(tx.paid_date) > dueDate
-      )
-    )
-  );
-
-}
-
-  // ✅ FIXED UPCOMING (IMPORTANT)
-  if (filterType === 'upcoming') {
-    return tx.status !== 'paid'; // keep ALL active (including due)
-  }
-
-  return true;
-});
-const sortedData = [...filteredData].sort((a, b) => {
+const sortedData = [...data].sort((a, b) => {
 
   const today = new Date();
   today.setHours(0,0,0,0);
@@ -638,16 +600,6 @@ maxWidth: '100%',
 
   return (
     <div>
-      <select
-  value={filterType}
-  onChange={(e) => setFilterType(e.target.value)}
-  style={{ marginTop: 10 }}
->
-  <option value="upcoming">Upcoming</option>
-  <option value="due">Due</option>   {/* ✅ ADD THIS */}
-  <option value="paid">Paid</option>
-  <option value="extended">Extended</option>
-</select>
       
       <div style={{
   display: 'grid',

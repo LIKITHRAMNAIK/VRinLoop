@@ -225,7 +225,8 @@ export const exportLoanPDF = (loans) => {
 
   // Now draw the autotable containing your compiled row datasets cleanly outside loops
   autoTable(doc, {
-    startY: startY,
+
+  startY,
     theme: 'grid',
     head: [[
       'Name',
@@ -1139,5 +1140,928 @@ autoTable(doc, {
   doc.save(
     `${type}-transactions.pdf`
   );
+
+};
+export const exportProfileCSV = (
+  stats
+) => {
+
+  const rows = [
+
+    ['MMS FINANCIAL REPORT'],
+
+    [],
+
+    [
+      'Metric',
+      'Value'
+    ],
+
+    [
+      'Total Users',
+      stats.users
+    ],
+
+    [
+      'Transactions',
+      stats.transactions
+    ],
+
+    [
+      'Active Incoming',
+      stats.incoming
+    ],
+
+    [
+      'Active Outgoing',
+      stats.outgoing
+    ],
+
+    [
+      'Paid Incoming',
+      stats.paidIncoming
+    ],
+
+    [
+      'Paid Outgoing',
+      stats.paidOutgoing
+    ],
+
+    [
+      'Net Profit',
+      stats.totalProfit
+    ],
+
+    [
+      'Overdue Cases',
+      stats.overdue
+    ],
+
+    [
+      'Total Loans',
+      stats.totalLoans
+    ],
+
+    [
+      'Pending Loans',
+      stats.pendingLoans
+    ],
+
+    [
+      'Completed Loans',
+      stats.completedLoans
+    ],
+
+    [
+      'Recovery Rate',
+      `${stats.recoveryRate}%`
+    ],
+
+    [
+      'Loan Success Rate',
+      `${stats.loanSuccessRate}%`
+    ]
+
+  ];
+
+  const csvContent =
+    rows
+      .map(row => row.join(','))
+      .join('\n');
+
+  const blob = new Blob(
+    [csvContent],
+    {
+      type:
+        'text/csv;charset=utf-8;'
+    }
+  );
+
+  const url =
+    window.URL.createObjectURL(blob);
+
+  const link =
+    document.createElement('a');
+
+  link.href = url;
+
+  link.download =
+    'MMS-Financial-Analytics.csv';
+
+  link.click();
+
+};
+
+export const exportProfilePDF = ({
+  users = 0,
+  transactions = [],
+  incoming = 0,
+  outgoing = 0,
+  netIncoming = 0,
+  netOutgoing = 0,
+  overdue = 0,
+  loans = []
+}) => {
+
+  const doc = new jsPDF('landscape');
+
+  const today =
+    new Date().toLocaleDateString('en-GB');
+
+  // ================= PAGE 1 =================
+
+  doc.setFillColor(37, 99, 235);
+
+  doc.roundedRect(
+    12,
+    10,
+    270,
+    26,
+    6,
+    6,
+    'F'
+  );
+
+  doc.setTextColor(255,255,255);
+
+  doc.setFontSize(22);
+
+  doc.text(
+    'MoMaS Financial Analytics Report',
+    18,
+    26
+  );
+
+  doc.setFontSize(10);
+
+  doc.text(
+    `Generated: ${today}`,
+    230,
+    27
+  );
+
+  const totalLoans =
+    loans.length;
+
+  const completedLoans =
+    loans.filter(
+      loan => loan.status === 'paid'
+    ).length;
+
+  const pendingLoans =
+    loans.filter(
+      loan => loan.status !== 'paid'
+    ).length;
+
+const stats = [
+
+  ['Total Users', users],
+  ['Transactions', transactions.length],
+  ['Active Incoming', `₹${Number(incoming).toLocaleString('en-IN')}`],
+  ['Active Outgoing', `₹${Number(outgoing).toLocaleString('en-IN')}`],
+
+  ['Paid Incoming', `₹${Number(netIncoming).toLocaleString('en-IN')}`],
+  ['Paid Outgoing', `₹${Number(netOutgoing).toLocaleString('en-IN')}`],
+
+  ['Overdue Cases', overdue],
+  ['Net Profit', `₹${Number(netIncoming - netOutgoing).toLocaleString('en-IN')}`],
+
+  ['Total Loans', totalLoans],
+
+  [
+    'Loan Status',
+    `Pending: ${pendingLoans}\nCompleted: ${completedLoans}`
+  ]
+
+];
+
+  let x = 14;
+  let y = 50;
+
+  stats.forEach((item, index) => {
+
+    const colors = [
+
+      [59,130,246],
+      [124,58,237],
+      [34,197,94],
+      [239,68,68],
+      [16,185,129],
+      [245,158,11],
+      [220,38,38],
+      [14,165,233],
+      [99,102,241],
+      [15,23,42]
+
+    ];
+
+    const color =
+      colors[index % colors.length];
+
+    doc.setFillColor(
+      color[0],
+      color[1],
+      color[2]
+    );
+
+    doc.roundedRect(
+      x,
+      y,
+      48,
+      32,
+      4,
+      4,
+      'F'
+    );
+
+    doc.setTextColor(255,255,255);
+
+    doc.setFontSize(9);
+
+    doc.text(
+      item[0],
+      x + 4,
+      y + 9
+    );
+
+    doc.setFontSize(14);
+
+    const valueLines =
+      String(item[1]).split('\n');
+
+    valueLines.forEach((line, i) => {
+
+      doc.text(
+        line,
+        x + 4,
+        y + 22 + (i * 7)
+      );
+
+    });
+
+    x += 54;
+
+    if (x > 230) {
+
+      x = 14;
+      y += 42;
+
+    }
+
+  });
+
+  // ================= PAGE 2 =================
+
+  doc.addPage();
+
+  const normalTransactions =
+    transactions.filter(
+      tx => tx.transaction_type === 'normal'
+    );
+
+  const normalRows = [];
+
+  normalRows.push([
+    'NORMAL PAYMENTS',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    ''
+  ]);
+
+  normalRows.push([
+    'Name',
+    'Type',
+    'Stage',
+    'Principal',
+    'Start',
+    'Due',
+    'Interest',
+    'Total',
+    'Paid',
+    'Balance',
+    'Paid Date',
+    'Installments',
+    'Status'
+  ]);
+
+  normalTransactions.forEach((tx) => {
+
+    const totalAmount =
+      Number(tx.principal_amount || 0);
+
+    const paidAmount =
+      tx.status === 'paid'
+        ? totalAmount
+        : Number(tx.paid_amount || 0);
+
+    const balanceAmount =
+      Math.max(
+        totalAmount - paidAmount,
+        0
+      );
+
+    normalRows.push([
+
+      `${tx.person_name} (${tx.type?.toUpperCase()})`,
+
+      tx.type,
+
+      'Original',
+
+      tx.principal_amount || 0,
+
+      tx.start_date
+        ? new Date(
+            tx.start_date
+          ).toLocaleDateString('en-GB')
+        : '-',
+
+      tx.due_date
+        ? new Date(
+            tx.due_date
+          ).toLocaleDateString('en-GB')
+        : '-',
+
+      0,
+
+      totalAmount,
+
+      paidAmount,
+
+      balanceAmount,
+
+      tx.paid_date
+        ? new Date(
+            tx.paid_date
+          ).toLocaleDateString('en-GB')
+        : '-',
+
+      tx.installments?.length || 0,
+
+      tx.status?.toUpperCase()
+
+    ]);
+
+    let runningPaid = 0;
+
+    tx.installments
+?.filter(inst => Number(inst.amount) > 0)
+.forEach((inst, i) => {
+
+      runningPaid +=
+        Number(inst.amount);
+
+      normalRows.push([
+
+        '',
+        '',
+        `Payment ${i + 1}`,
+        '',
+        '',
+        '',
+        '',
+        '',
+        inst.amount,
+
+        Math.max(
+          totalAmount - runningPaid,
+          0
+        ),
+
+        inst.date
+          ? new Date(
+              inst.date
+            ).toLocaleDateString('en-GB')
+          : '-',
+
+        `₹${Number(inst.amount).toLocaleString('en-IN')}`,
+
+        runningPaid >= totalAmount
+          ? 'PAID'
+          : 'PARTIAL'
+
+      ]);
+
+    });
+
+    normalRows.push([
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      ''
+    ]);
+
+  });
+
+  doc.setFillColor(15, 23, 42);
+
+doc.roundedRect(
+  10,
+  10,
+  277,
+  12,
+  2,
+  2,
+  'F'
+);
+
+doc.setTextColor(255,255,255);
+
+doc.setFontSize(16);
+
+doc.text(
+  'NORMAL PAYMENTS',
+  16,
+  18
+);
+
+autoTable(doc, {
+
+  startY: 28,
+
+  body: normalRows,
+
+  styles: {
+    fontSize: 8
+  },
+
+  headStyles: {
+    fillColor: [37, 99, 235],
+    textColor: [255,255,255],
+    fontStyle: 'bold'
+  }
+
+});
+
+  // ================= PAGE 3 =================
+
+  doc.addPage();
+
+  const rotationTransactions =
+    transactions.filter(
+      tx => tx.transaction_type === 'rotation'
+    );
+
+  const rotationRows = [];
+
+  rotationRows.push([
+    'ROTATION PAYMENTS',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    ''
+  ]);
+
+  rotationRows.push([
+    'Name',
+    'Type',
+    'Stage',
+    'Principal',
+    'Start',
+    'Due',
+    'Extended Date',
+    'Interest',
+    'Total',
+    'Paid',
+    'Balance',
+    'Paid Date',
+    'Status'
+  ]);
+
+  rotationTransactions.forEach((tx) => {
+
+    let totalInterest =
+      Number(tx.base_interest || 0);
+
+    tx.extensions?.forEach(ext => {
+
+      totalInterest +=
+        Number(ext.extra_interest || 0);
+
+    });
+
+    const totalAmount =
+      Number(tx.principal_amount || 0) +
+      totalInterest;
+
+    const latestExtension =
+
+      tx.extensions?.length > 0
+
+        ? tx.extensions[
+            tx.extensions.length - 1
+          ]
+
+        : null;
+
+    rotationRows.push([
+
+      `${tx.person_name} (${tx.type?.toUpperCase()})`,
+
+      tx.type,
+
+      'Original',
+
+      tx.principal_amount || 0,
+
+      tx.start_date
+        ? new Date(
+            tx.start_date
+          ).toLocaleDateString('en-GB')
+        : '-',
+
+      tx.due_date
+        ? new Date(
+            tx.due_date
+          ).toLocaleDateString('en-GB')
+        : '-',
+
+      latestExtension?.new_due_date
+        ? new Date(
+            latestExtension.new_due_date
+          ).toLocaleDateString('en-GB')
+        : '-',
+
+      totalInterest,
+
+      totalAmount,
+
+      tx.paid_amount || 0,
+
+      totalAmount -
+      Number(tx.paid_amount || 0),
+
+      tx.paid_date
+        ? new Date(
+            tx.paid_date
+          ).toLocaleDateString('en-GB')
+        : '-',
+
+      tx.status?.toUpperCase()
+
+    ]);
+
+    tx.extensions?.forEach((ext, i) => {
+
+      rotationRows.push([
+
+        '',
+        '',
+        `Extension ${i + 1}`,
+        '',
+        '',
+        '',
+
+        ext.new_due_date
+          ? new Date(
+              ext.new_due_date
+            ).toLocaleDateString('en-GB')
+          : '-',
+
+        ext.extra_interest || 0,
+
+        '',
+        '',
+        '',
+        '',
+
+        ext.interest_paid
+          ? 'INTEREST PAID'
+          : 'INTEREST PENDING'
+
+      ]);
+
+    });
+
+    rotationRows.push([
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      ''
+    ]);
+
+  });
+
+  doc.setFillColor(124, 58, 237);
+
+doc.roundedRect(
+  10,
+  10,
+  277,
+  12,
+  2,
+  2,
+  'F'
+);
+
+doc.setTextColor(255,255,255);
+
+doc.setFontSize(16);
+
+doc.text(
+  'ROTATION PAYMENTS',
+  16,
+  18
+);
+
+autoTable(doc, {
+
+  startY: 28,
+
+  body: rotationRows,
+
+  styles: {
+    fontSize: 8
+  },
+
+  headStyles: {
+    fillColor: [124, 58, 237],
+    textColor: [255,255,255],
+    fontStyle: 'bold'
+  }
+
+});
+
+  // ================= PAGE 4 =================
+
+  doc.addPage();
+
+  exportLoanPDFToDocument(
+    doc,
+    loans
+  );
+
+  doc.save(
+    'MoMaS-Full-Financial-Report.pdf'
+  );
+
+};
+
+const exportLoanPDFToDocument = (
+  doc,
+  loans
+) => {
+
+  doc.setFillColor(20, 184, 166);
+
+doc.roundedRect(
+  10,
+  10,
+  277,
+  12,
+  2,
+  2,
+  'F'
+);
+
+doc.setTextColor(255,255,255);
+
+doc.setFontSize(16);
+
+doc.text(
+  'LOAN STATEMENTS',
+  16,
+  18
+);
+
+doc.setTextColor(0,0,0);
+
+  doc.setFontSize(10);
+
+  doc.text(
+    `Generated On: ${new Date().toLocaleDateString('en-GB')}`,
+    14,
+    22
+  );
+
+  let startY = 40;
+
+  const rows = [];
+
+  loans.forEach((loan) => {
+
+    doc.setFontSize(14);
+
+doc.setTextColor(15,23,42);
+
+doc.text(
+  `Loan Holder: ${loan.person_name}`,
+  14,
+  startY
+);
+
+doc.setFontSize(10);
+
+doc.text(
+  `Principal Amount: ₹${loan.loan_amount || loan.principal_amount}`,
+  14,
+  startY + 7
+);
+
+doc.text(
+  `EMI Plan: ₹${loan.emi_amount} x ${
+    Number(loan.completed_emi || 0) +
+    Number(loan.remaining_emi || 0)
+  } Months`,
+  90,
+  startY + 7
+);
+
+doc.text(
+  `Loan Status: ${
+    loan.status?.toUpperCase()
+  }`,
+  200,
+  startY + 7
+);
+
+startY += 14;
+
+    let runningBalance =
+
+      Number(
+        loan.emi_amount || 0
+      ) *
+
+      (
+        Number(
+          loan.completed_emi || 0
+        ) +
+
+        Number(
+          loan.remaining_emi || 0
+        )
+      );
+
+    rows.push([
+
+      `${loan.person_name}-${loan.loan_amount || loan.principal_amount}`,
+
+      `₹${loan.emi_amount} x ${Number(loan.completed_emi || 0) + Number(loan.remaining_emi || 0)} Months`,
+
+      'LOAN SUMMARY',
+
+      loan.status?.toUpperCase(),
+
+      `₹${runningBalance}`,
+
+      '0',
+
+      `₹${runningBalance}`,
+
+      loan.due_date
+        ? new Date(
+            loan.due_date
+          ).toLocaleDateString('en-GB')
+        : '-',
+
+      '-'
+
+    ]);
+
+    rows.push([
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      ''
+    ]);
+
+    (
+      loan.loan_history ||
+      loan.emi_history ||
+      []
+    ).forEach((history, i) => {
+
+      const emiAmount =
+        Number(
+          history.amount ||
+          loan.emi_amount ||
+          0
+        );
+
+      runningBalance -= emiAmount;
+
+      rows.push([
+
+  loan.person_name,
+
+  `₹${loan.emi_amount} x ${String(
+    (
+      Number(loan.completed_emi || 0) +
+      Number(loan.remaining_emi || 0)
+    ) - i
+  ).padStart(2,'0')} Months`,
+
+  `EMI #${i + 1}`,
+
+  history.payment_type || 'PAID',
+
+  emiAmount,
+
+  history.penalty || 0,
+
+  `₹${runningBalance}`,
+
+  (() => {
+
+    const emiDueDate =
+      new Date(loan.start_date);
+
+    emiDueDate.setMonth(
+      emiDueDate.getMonth() + i
+    );
+
+    return emiDueDate.toLocaleDateString(
+      'en-GB'
+    );
+
+  })(),
+
+  history.date ||
+  history.paid_date ||
+  history.payment_date
+
+    ? new Date(
+        history.date ||
+        history.paid_date ||
+        history.payment_date
+      ).toLocaleDateString('en-GB')
+
+    : '-'
+
+]);
+
+    });
+
+  });
+
+  autoTable(doc, {
+
+    startY,
+
+    head: [[
+      'Name',
+      'EMI Info',
+      'Stage',
+      'Type',
+      'Amount',
+      'Penalty',
+      'Balance',
+      'Due Date',
+      'Paid Date'
+    ]],
+
+    body: rows,
+
+    styles: {
+      fontSize: 8
+    },
+    headStyles: {
+  fillColor: [20, 184, 166],
+  textColor: [255,255,255],
+  fontStyle: 'bold'
+},
+
+  });
 
 };

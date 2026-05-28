@@ -6,7 +6,14 @@ exports.extendTransaction = async (req, res) => {
     const { id } = req.params;
     let { new_due_date, extra_interest, interest_paid } = req.body;
 
-    const transaction = await Transaction.findById(id);
+    const transaction =
+  await Transaction.findOne({
+
+    _id: id,
+
+    user: req.user.id
+
+  });
 
     if (!transaction) {
       return res.status(404).json({ message: 'Transaction not found' });
@@ -48,7 +55,18 @@ exports.extendTransaction = async (req, res) => {
 
 exports.getTransactions = async (req, res) => {
   try {
-    const transactions = await Transaction.find().sort({ createdAt: -1 });
+    const transactions =
+  await Transaction.find({
+
+    user: req.user.id
+
+  })
+
+  .sort({
+
+    createdAt: -1
+
+  });
     res.json(transactions);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -57,7 +75,12 @@ exports.getTransactions = async (req, res) => {
 
 exports.getDashboard = async (req, res) => {
   try {
-    const transactions = await Transaction.find();
+    const transactions =
+  await Transaction.find({
+
+    user: req.user.id
+
+  });
 
     let incoming = 0;
     let outgoing = 0;
@@ -200,12 +223,20 @@ exports.getByDateRange = async (req, res) => {
   try {
     const { start, end } = req.query;
 
-    const transactions = await Transaction.find({
-      due_date: {
-        $gte: new Date(start),
-        $lte: new Date(end)
-      }
-    });
+    const transactions =
+  await Transaction.find({
+
+    user: req.user.id,
+
+    due_date: {
+
+      $gte: new Date(start),
+
+      $lte: new Date(end)
+
+    }
+
+  });
 
     let incoming = 0;
     let outgoing = 0;
@@ -250,7 +281,13 @@ exports.payLoanEmi = async (req, res) => {
 
     const { id } = req.params;
 
-    const tx = await Transaction.findById(id);
+    const tx = await Transaction.findOne({
+
+  _id: id,
+
+  user: req.user.id
+
+});
 
     if (!tx) {
       return res.status(404).json({
@@ -443,7 +480,14 @@ exports.markAsPaid = async (req, res) => {
 
   try {
 
-    const tx = await Transaction.findById(req.params.id);
+    const tx =
+  await Transaction.findOne({
+
+    _id: req.params.id,
+
+    user: req.user.id
+
+  });
 
     if (!tx) {
       return res.status(404).json({
@@ -568,9 +612,28 @@ if (tx.status === 'paid') {
     try {
       const { name } = req.params;
   
-      const transactions = await Transaction.find({
-        person_name: { $regex: new RegExp(`^${name}$`, 'i') }
-      }).sort({ createdAt: -1 });
+      const transactions =
+  await Transaction.find({
+
+    user: req.user.id,
+
+    person_name: {
+
+      $regex:
+        new RegExp(
+          `^${name}$`,
+          'i'
+        )
+
+    }
+
+  })
+
+  .sort({
+
+    createdAt: -1
+
+  });
   
       let principal = 0;
 let interest = 0;
@@ -622,7 +685,14 @@ tx.extensions.forEach(ext => {
 
     const { id } = req.params;
 
-    const tx = await Transaction.findById(id);
+    const tx =
+  await Transaction.findOne({
+
+    _id: id,
+
+    user: req.user.id
+
+  });
 
     if (!tx) {
       return res.status(404).json({
@@ -685,7 +755,13 @@ tx.interest_type =
     try {
       const { id } = req.params;
   
-      await Transaction.findByIdAndDelete(id);
+      await Transaction.findOneAndDelete({
+
+  _id: id,
+
+  user: req.user.id
+
+});
   
       res.json({ message: 'Deleted successfully' });
   
@@ -828,10 +904,13 @@ console.log({
       ? 'paid'
       : 'pending'
 });
-
+console.log(
+  'REQ USER:',
+  req.user
+);
 const transaction = new Transaction({
 
-  
+  user: req.user.id,
 
   installments:
   req.body.installments || [],
@@ -1006,7 +1085,13 @@ const updateLoanHistoryDate = async (req, res) => {
     } = req.body;
 
     const transaction =
-      await Transaction.findById(txId);
+  await Transaction.findOne({
+
+    _id: txId,
+
+    user: req.user.id
+
+  });
 
     if (!transaction) {
       return res.status(404).json({

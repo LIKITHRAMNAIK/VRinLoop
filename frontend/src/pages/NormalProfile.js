@@ -19,7 +19,6 @@ import { formatCurrency } from '../utils/format';
 
   const [confirmAction, setConfirmAction] = useState(null);
 
-  const [filterType, setFilterType] = useState('upcoming');
 
 
   if (!data.length) return <h2>Loading...</h2>;
@@ -57,80 +56,6 @@ import { formatCurrency } from '../utils/format';
     setEditId(null);
     refresh();
   };
-  let filtered = [...data];
-const today = new Date();
-
-if (filterType === 'paid') {
-  filtered = filtered.filter(tx => tx.status === 'paid');
-}
-
-if (filterType === 'extended') {
-  filtered = filtered.filter(tx => tx.extensions.length > 0);
-}
-
-if (filterType === 'due') {
-
-  filtered = filtered.filter(tx => {
-
-    const dueDate =
-      new Date(tx.due_date);
-
-    dueDate.setHours(0,0,0,0);
-
-    // PENDING OVERDUE
-    const pendingDue =
-
-      dueDate < today &&
-
-      (tx.paid_amount || 0) <
-      tx.principal_amount;
-
-    // PAID LATE
-    let paidLate = false;
-
-    if (
-      tx.status === 'paid' &&
-      tx.paid_date
-    ) {
-
-      const paidDate =
-        new Date(tx.paid_date);
-
-      paidDate.setHours(0,0,0,0);
-
-      paidLate =
-        paidDate > dueDate;
-
-    }
-
-    return (
-      pendingDue || paidLate
-    );
-
-  });
-
-}
-
-if (filterType === 'upcoming') {
-
-  filtered = filtered
-
-    .filter(tx => {
-
-      return (
-        (tx.paid_amount || 0) <
-        tx.principal_amount
-      );
-
-    })
-
-    .sort(
-      (a, b) =>
-        new Date(a.due_date) -
-        new Date(b.due_date)
-    );
-
-}
 
 const renderCard = (tx) => {
   const paid = tx.paid_amount || 0;
@@ -890,19 +815,6 @@ fontSize: '13px',
     <div>
 
       <div style={{ marginBottom: 15 }}>
-  <select
-    value={filterType}
-    onChange={(e) => setFilterType(e.target.value)}
-    style={{
-      padding: '6px 10px',
-      borderRadius: 6
-    }}
-  >
-    <option value="upcoming">Upcoming</option>
-    <option value="paid">Paid</option>
-    <option value="extended">Extended</option>
-    <option value="due">Due</option>
-  </select>
 </div>
 
       <div style={{
@@ -911,7 +823,7 @@ fontSize: '13px',
         gap: 12,
         marginTop: 20
       }}>
-        {filtered.map(renderCard)}
+        {data.map(renderCard)}
       </div>
 
       {/* PAYMENT POPUP */}

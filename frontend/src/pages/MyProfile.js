@@ -2,10 +2,16 @@ import React, { useEffect, useState } from 'react';
 import API from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../utils/format';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-
+import {
+  exportProfilePDF,
+  exportProfileCSV,
+  exportTransactionsPDF,
+  exportLoanPDF
+} from '../utils/exportTransactions';
+import authAPI
+from '../services/authApi';
 import CountUp from 'react-countup';
+
 
 import {
   ResponsiveContainer,
@@ -27,6 +33,203 @@ import {
 function MyProfile() {
 
   const navigate = useNavigate();
+  const [allTransactions, setAllTransactions] = useState([]);
+
+  const user = JSON.parse(
+  localStorage.getItem('user')
+);
+
+const [showOtpPopup,
+  setShowOtpPopup] =
+  useState(false);
+
+const [otp, setOtp] =
+  useState('');
+
+const [loading,
+  setLoading] =
+  useState(false);
+  
+const [profileForm, setProfileForm] =
+  useState({
+
+    name:
+      user?.name || '',
+
+    email:
+      user?.email || '',
+
+    phone:
+      user?.phone || ''
+
+  });
+
+const [profileImage, setProfileImage] =
+  useState(null);
+
+const [showEditProfile, setShowEditProfile] =
+  useState(false);
+
+  const handleProfileUpdate =
+  async () => {
+
+    try {
+
+      setLoading(true);
+
+      const token =
+        localStorage.getItem(
+          'token'
+        );
+
+      await authAPI.post(
+
+        '/send-profile-update-otp',
+
+        {},
+
+        {
+
+          headers: {
+
+            Authorization:
+              `Bearer ${token}`
+
+          }
+
+        }
+
+      );
+
+      setShowOtpPopup(true);
+
+      alert(
+        'OTP sent to your email'
+      );
+
+    } catch (error) {
+
+      alert(
+
+        error.response?.data?.message ||
+
+        'Failed to send OTP'
+
+      );
+
+    } finally {
+
+      setLoading(false);
+
+    }
+
+};
+
+
+  const handleVerifyOtp =
+  async () => {
+
+    try {
+
+      setLoading(true);
+
+      const formData =
+        new FormData();
+
+      formData.append(
+        'otp',
+        otp
+      );
+
+      formData.append(
+        'name',
+        profileForm.name
+      );
+
+      formData.append(
+        'email',
+        profileForm.email
+      );
+
+      formData.append(
+        'phone',
+        profileForm.phone
+      );
+
+      if (profileImage) {
+
+        formData.append(
+          'profile_image',
+          profileImage
+        );
+
+      }
+
+      const token =
+        localStorage.getItem(
+          'token'
+        );
+
+      const res =
+        await authAPI.put(
+
+          '/verify-profile-update-otp',
+
+          formData,
+
+          {
+
+            headers: {
+
+              Authorization:
+                `Bearer ${token}`,
+
+              'Content-Type':
+                'multipart/form-data'
+
+            }
+
+          }
+
+        );
+
+      localStorage.setItem(
+
+        'user',
+
+        JSON.stringify(
+          res.data.user
+        )
+
+      );
+
+      alert(
+        'Profile updated successfully'
+      );
+
+      setShowOtpPopup(false);
+
+      setShowEditProfile(false);
+
+      window.location.reload();
+
+    } catch (error) {
+
+      alert(
+
+        error.response?.data?.message ||
+
+        'OTP verification failed'
+
+      );
+
+    } finally {
+
+      setLoading(false);
+
+    }
+
+};
 
   const monthlyData = [
 
@@ -145,103 +348,8 @@ const COLORS = [
   '#ef4444'
 ];
 
-const exportPDF = () => {
 
-  const doc = new jsPDF();
 
-  doc.setFontSize(22);
-
-  doc.text(
-    'MMS Financial Report',
-    14,
-    20
-  );
-
-  autoTable(doc, {
-
-    startY: 35,
-
-    head: [[
-      'Users',
-      'Transactions',
-      'Incoming',
-      'Outgoing',
-      'Overdue'
-    ]],
-
-    body: [[
-
-      stats.users,
-
-      stats.transactions,
-
-      formatCurrency(stats.incoming),
-
-      formatCurrency(stats.outgoing),
-
-      stats.overdue
-
-    ]]
-
-  });
-
-  doc.save('MMS-Report.pdf');
-
-};
-
-const exportCSV = () => {
-
-  const rows = [
-
-    [
-      'Users',
-      'Transactions',
-      'Incoming',
-      'Outgoing',
-      'Overdue'
-    ],
-
-    [
-
-      stats.users,
-
-      stats.transactions,
-
-      stats.incoming,
-
-      stats.outgoing,
-
-      stats.overdue
-
-    ]
-
-  ];
-
-  const csvContent = rows
-    .map(e => e.join(','))
-    .join('\n');
-
-  const blob = new Blob(
-    [csvContent],
-    {
-      type: 'text/csv;charset=utf-8;'
-    }
-  );
-
-  const url =
-    window.URL.createObjectURL(blob);
-
-  const link =
-    document.createElement('a');
-
-  link.href = url;
-
-  link.download =
-    'MMS-Report.csv';
-
-  link.click();
-
-};
 
   useEffect(() => {
 
@@ -250,6 +358,7 @@ const exportCSV = () => {
       .then(res => {
 
         const data = res.data;
+        setAllTransactions(data);
 
         const usersSet = new Set();
 
@@ -589,91 +698,181 @@ maxWidth: '100vw',
       gap: 15
     }}>
 
-      <button
-        onClick={() => navigate('/')}
-        style={{
-          background:
-            'linear-gradient(135deg,#22c55e,#16a34a)',
-          color: 'white',
-          border: 'none',
-          padding: '12px 22px',
-          borderRadius: 14,
-          cursor: 'pointer',
-          fontWeight: 'bold',
-          fontSize: 15,
-          boxShadow:
-            '0 8px 18px rgba(34,197,94,0.25)'
-        }}
-      >
-        ⬅ Dashboard
-      </button>
+      <div style={{
+  display: 'flex',
+  gap: 12,
+  alignItems: 'center',
+  flexWrap: 'wrap'
+}}>
 
-      <button
-        onClick={() => navigate('/users')}
-        style={{
-          background:
-            'linear-gradient(135deg,#4f46e5,#7c3aed)',
-          color: 'white',
-          border: 'none',
-          padding: '12px 22px',
-          borderRadius: 14,
-          cursor: 'pointer',
-          fontWeight: 'bold',
-          fontSize: 15,
-          boxShadow:
-            '0 8px 18px rgba(124,58,237,0.25)'
-        }}
-      >
-        👥 User Profiles
-      </button>
+  <button
+    onClick={() => navigate('/')}
+    style={{
+      background:
+        'linear-gradient(135deg,#22c55e,#16a34a)',
+      color: 'white',
+      border: 'none',
+      padding: '12px 22px',
+      borderRadius: 14,
+      cursor: 'pointer',
+      fontWeight: 'bold',
+      fontSize: 15,
+      boxShadow:
+        '0 8px 18px rgba(34,197,94,0.25)'
+    }}
+  >
+    ⬅ Dashboard
+  </button>
 
-      <button
-  onClick={() =>
-    setShowExportPopup(true)
-  }
-  style={{
-    background:
-      'linear-gradient(135deg,#0f766e,#115e59)',
-    color: 'white',
-    border: 'none',
-    padding: '12px 22px',
-    borderRadius: 14,
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: 15,
-    boxShadow:
-      '0 8px 18px rgba(13,148,136,0.25)'
+  <button
+    onClick={() => navigate('/users')}
+    style={{
+      background:
+        'linear-gradient(135deg,#4f46e5,#7c3aed)',
+      color: 'white',
+      border: 'none',
+      padding: '12px 22px',
+      borderRadius: 14,
+      cursor: 'pointer',
+      fontWeight: 'bold',
+      fontSize: 15,
+      boxShadow:
+        '0 8px 18px rgba(124,58,237,0.25)'
+    }}
+  >
+    👥 User Profiles
+  </button>
+
+</div>
+
+      <div style={{
+  display: 'flex',
+  gap: 12,
+  alignItems: 'center'
+}}>
+
+  <button
+
+    onClick={() =>
+      setShowEditProfile(true)
+    }
+
+    style={{
+
+      background:
+        'linear-gradient(135deg,#2563eb,#1d4ed8)',
+
+      color: 'white',
+
+      border: 'none',
+
+      padding: '12px 22px',
+
+      borderRadius: 14,
+
+      cursor: 'pointer',
+
+      fontWeight: 'bold',
+
+      fontSize: 15,
+
+      boxShadow:
+        '0 8px 18px rgba(37,99,235,0.25)'
+
+    }}
+
+  >
+
+    Edit Profile
+
+  </button>
+
+  <button
+
+    onClick={() =>
+      setShowExportPopup(true)
+    }
+
+    style={{
+
+      background:
+        'linear-gradient(135deg,#0f766e,#115e59)',
+
+      color: 'white',
+
+      border: 'none',
+
+      padding: '12px 22px',
+
+      borderRadius: 14,
+
+      cursor: 'pointer',
+
+      fontWeight: 'bold',
+
+      fontSize: 15,
+
+      boxShadow:
+        '0 8px 18px rgba(13,148,136,0.25)'
+
+    }}
+
+  >
+
+    📤 Export
+
+  </button>
+
+  <button
+
+  onClick={() => {
+
+    localStorage.removeItem(
+      'token'
+    );
+
+    localStorage.removeItem(
+      'user'
+    );
+
+    navigate('/login');
+
   }}
+
+  style={{
+
+    background:
+      'linear-gradient(135deg,#dc2626,#991b1b)',
+
+    color: 'white',
+
+    border: 'none',
+
+    padding: '12px 22px',
+
+    borderRadius: 14,
+
+    cursor: 'pointer',
+
+    fontWeight: 'bold',
+
+    fontSize: 15,
+
+    boxShadow:
+      '0 8px 18px rgba(220,38,38,0.25)'
+
+  }}
+
 >
-  📤 Export
+
+  🚪 Logout
+
 </button>
 
-    </div>
-
-    {/* PAGE TITLE */}
-
-    <div style={{
-      marginBottom: 30
-    }}>
-
-      <h1 style={{
-        fontSize: 52,
-        margin: 0,
-        fontWeight: '900',
-        color: '#0f172a'
-      }}>
-        👤 My Profile
-      </h1>
-
-      <p style={{
-        color: '#64748b',
-        fontSize: 18,
-        marginTop: 10
-      }}>
-        Advanced finance analytics, loan tracking and system overview
-      </p>
+</div>
 
     </div>
+    
 
     {/* HERO CARD */}
 
@@ -733,21 +932,80 @@ maxWidth: '100vw',
           }}>
 
             <div style={{
-              width: 85,
-              height: 85,
-              borderRadius: '50%',
-              background:
-                'linear-gradient(135deg,#7c3aed,#4f46e5)',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              fontSize: 34,
-              fontWeight: 'bold',
-              boxShadow:
-                '0 10px 25px rgba(124,58,237,0.4)'
-            }}>
-              L
-            </div>
+  width: 85,
+  height: 85,
+  borderRadius: '50%',
+  overflow: 'hidden',
+  boxShadow:
+    '0 10px 25px rgba(124,58,237,0.4)',
+  border:
+    '3px solid rgba(255,255,255,0.2)'
+}}>
+
+  {
+
+    user?.profile_image
+
+    ? (
+
+      <img
+
+        src={`http://localhost:5000/uploads/${user.profile_image}`}
+
+        alt="profile"
+
+        style={{
+
+          width: '100%',
+
+          height: '100%',
+
+          objectFit: 'cover'
+
+        }}
+
+      />
+
+    )
+
+    : (
+
+      <div style={{
+
+        width: '100%',
+
+        height: '100%',
+
+        borderRadius: '50%',
+
+        background:
+          'linear-gradient(135deg,#7c3aed,#4f46e5)',
+
+        display: 'flex',
+
+        justifyContent: 'center',
+
+        alignItems: 'center',
+
+        fontSize: 34,
+
+        fontWeight: 'bold',
+
+        color: 'white'
+
+      }}>
+
+        {user?.name
+          ?.charAt(0)
+          ?.toUpperCase()}
+
+      </div>
+
+    )
+
+  }
+
+</div>
 
             <div>
 
@@ -756,7 +1014,7 @@ maxWidth: '100vw',
                 fontSize: 40,
                 fontWeight: '900'
               }}>
-                Likith Ram Naik
+                {user?.name}
               </h1>
 
               <p style={{
@@ -764,7 +1022,7 @@ maxWidth: '100vw',
                 color: '#cbd5e1',
                 fontSize: 18
               }}>
-                Money Management System Owner
+                {user?.email}
               </p>
 
             </div>
@@ -2250,11 +2508,38 @@ maxWidth: '100vw',
         <button
           onClick={() => {
 
-            exportPDF();
+  exportProfilePDF({
 
-            setShowExportPopup(false);
+  users: stats.users,
 
-          }}
+  transactions: allTransactions,
+
+  incoming: stats.incoming,
+
+  outgoing: stats.outgoing,
+
+  netIncoming: stats.paidIncoming,
+
+  netOutgoing: stats.paidOutgoing,
+
+  overdue: stats.overdue,
+
+  totalLoans: stats.totalLoans,
+
+  pendingLoans: stats.pendingLoans,
+
+  completedLoans: stats.completedLoans,
+
+  loans:
+    allTransactions.filter(
+      tx => tx.transaction_type === 'loan'
+    )
+
+});
+
+  setShowExportPopup(false);
+
+}}
           style={{
             width: '100%',
             padding: 14,
@@ -2272,7 +2557,7 @@ maxWidth: '100vw',
         <button
           onClick={() => {
 
-            exportCSV();
+            exportProfileCSV(stats);
 
             setShowExportPopup(false);
 
@@ -2306,6 +2591,537 @@ maxWidth: '100vw',
           }}
         >
           Close
+        </button>
+        
+
+      </div>
+      
+
+    </div>
+    
+
+  </div>
+  
+
+)}
+
+{showEditProfile && (
+
+  <div style={{
+
+    position: 'fixed',
+
+    inset: 0,
+
+    background:
+      'rgba(15,23,42,0.65)',
+
+    backdropFilter:
+      'blur(10px)',
+
+    display: 'flex',
+
+    justifyContent: 'center',
+
+    alignItems: 'center',
+
+    zIndex: 9999
+
+  }}>
+
+    <div style={{
+
+      width: 500,
+
+      background:
+        'linear-gradient(145deg,#ffffff,#f8fafc)',
+
+      borderRadius: 35,
+
+      padding: '38px 34px',
+
+      boxShadow:
+        '0 25px 60px rgba(0,0,0,0.18)',
+
+      position: 'relative',
+
+      overflow: 'hidden'
+
+    }}>
+
+      <div style={{
+
+        position: 'absolute',
+
+        top: -90,
+        right: -90,
+
+        width: 220,
+        height: 220,
+
+        borderRadius: '50%',
+
+        background:
+          'linear-gradient(135deg,#7c3aed,#4f46e5)',
+
+        opacity: 0.08
+
+      }}/>
+
+      <h1 style={{
+
+        marginTop: 0,
+
+        marginBottom: 8,
+
+        fontSize: 40,
+
+        fontWeight: '900',
+
+        color: '#0f172a',
+        textAlign: 'center'
+
+      }}>
+
+        Edit Profile
+
+      </h1>
+
+      <p style={{
+
+        color: '#64748b',
+
+        marginBottom: 28,
+        textAlign: 'center',
+         
+
+      }}>
+
+        Update your profile securely
+      </p>
+
+      <div style={{
+
+        display: 'flex',
+
+        justifyContent: 'center',
+
+        marginBottom: 28
+
+      }}>
+
+        <img
+
+          src={
+
+            profileImage
+
+              ? URL.createObjectURL(
+                  profileImage
+                )
+
+              : user?.profile_image
+
+                ? `http://localhost:5000/uploads/${user.profile_image}`
+
+                : 'https://ui-avatars.com/api/?name=User'
+
+          }
+
+          alt="profile"
+
+          style={{
+
+            width: 115,
+
+            height: 115,
+
+            borderRadius: '50%',
+
+            objectFit: 'cover',
+
+            border:
+              '4px solid #7c3aed',
+
+            boxShadow:
+              '0 15px 35px rgba(124,58,237,0.3)'
+
+          }}
+
+        />
+
+      </div>
+
+      <input
+
+        type="text"
+
+        value={profileForm.name}
+
+        onChange={(e) =>
+          setProfileForm({
+
+            ...profileForm,
+
+            name: e.target.value
+
+          })
+        }
+
+        placeholder="Full Name"
+
+        style={premiumInput}
+
+      />
+
+      <input
+
+        type="email"
+
+        value={profileForm.email}
+
+        onChange={(e) =>
+          setProfileForm({
+
+            ...profileForm,
+
+            email: e.target.value
+
+          })
+        }
+
+        placeholder="Email"
+
+        style={premiumInput}
+
+      />
+
+      <input
+
+        type="text"
+
+        value={profileForm.phone}
+
+        onChange={(e) =>
+          setProfileForm({
+
+            ...profileForm,
+
+            phone: e.target.value
+
+          })
+        }
+
+        placeholder="Phone"
+
+        style={premiumInput}
+
+      />
+
+      <div style={{
+
+        marginTop: 18,
+
+        background: '#f8fafc',
+
+        borderRadius: 18,
+
+        padding: 16,
+
+        border:
+          '2px dashed #cbd5e1'
+
+      }}>
+
+        <input
+
+          type="file"
+
+          onChange={(e) =>
+            setProfileImage(
+              e.target.files[0]
+            )
+          }
+
+        />
+
+      </div>
+
+      <div style={{
+
+        display: 'flex',
+
+        gap: 16,
+
+        marginTop: 32
+
+      }}>
+
+        <button
+
+          onClick={
+            handleProfileUpdate
+          }
+
+          style={{
+
+            flex: 1,
+
+            padding: 17,
+
+            border: 'none',
+
+            borderRadius: 18,
+
+            background:
+              'linear-gradient(135deg,#22c55e,#16a34a)',
+
+            color: 'white',
+
+            fontWeight: '800',
+
+            fontSize: 16,
+
+            cursor: 'pointer',
+
+            boxShadow:
+              '0 12px 25px rgba(34,197,94,0.25)'
+
+          }}
+
+        >
+
+          Save Changes
+
+        </button>
+
+        <button
+
+          onClick={() =>
+            setShowEditProfile(false)
+          }
+
+          style={{
+
+            flex: 1,
+
+            padding: 17,
+
+            border: 'none',
+
+            borderRadius: 18,
+
+            background:
+              'linear-gradient(135deg,#ef4444,#dc2626)',
+
+            color: 'white',
+
+            fontWeight: '800',
+
+            fontSize: 16,
+
+            cursor: 'pointer',
+
+            boxShadow:
+              '0 12px 25px rgba(239,68,68,0.25)'
+
+          }}
+
+        >
+
+          Cancel
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+)}
+
+{showOtpPopup && (
+
+  <div style={{
+
+    position: 'fixed',
+
+    inset: 0,
+
+    background:
+      'rgba(0,0,0,0.45)',
+
+    backdropFilter:
+      'blur(8px)',
+
+    display: 'flex',
+
+    justifyContent: 'center',
+
+    alignItems: 'center',
+
+    zIndex: 99999
+
+  }}>
+
+    <div style={{
+
+      width: 420,
+
+      background: 'white',
+
+      borderRadius: 28,
+
+      padding: 35,
+
+      boxShadow:
+        '0 25px 60px rgba(0,0,0,0.25)'
+
+    }}>
+
+      <h2 style={{
+
+        marginTop: 0,
+
+        fontSize: 30,
+
+        fontWeight: '800'
+
+      }}>
+
+        Verify OTP
+
+      </h2>
+
+      <p style={{
+
+        color: '#64748b',
+
+        marginBottom: 25
+
+      }}>
+
+        Enter OTP sent to your email
+
+      </p>
+
+      <input
+
+        type="text"
+
+        placeholder="Enter OTP"
+
+        value={otp}
+
+        onChange={(e) =>
+          setOtp(e.target.value)
+        }
+
+        style={{
+
+          width: '100%',
+
+          padding: 18,
+
+          borderRadius: 16,
+
+          border:
+            '1px solid #cbd5e1',
+
+          fontSize: 22,
+
+          letterSpacing: 8,
+
+          textAlign: 'center',
+
+          boxSizing: 'border-box'
+
+        }}
+
+      />
+
+      <div style={{
+
+        display: 'flex',
+
+        gap: 14,
+
+        marginTop: 25
+
+      }}>
+
+        <button
+
+          onClick={
+            handleVerifyOtp
+          }
+
+          style={{
+
+            flex: 1,
+
+            padding: 16,
+
+            border: 'none',
+
+            borderRadius: 16,
+
+            background:
+              'linear-gradient(135deg,#2563eb,#4f46e5)',
+
+            color: 'white',
+
+            fontWeight: 'bold',
+
+            cursor: 'pointer'
+
+          }}
+
+        >
+
+          {
+
+            loading
+
+              ? 'Verifying...'
+
+              : 'Verify OTP'
+
+          }
+
+        </button>
+
+        <button
+
+          onClick={() =>
+            setShowOtpPopup(false)
+          }
+
+          style={{
+
+            flex: 1,
+
+            padding: 16,
+
+            border: 'none',
+
+            borderRadius: 16,
+
+            background: '#ef4444',
+
+            color: 'white',
+
+            fontWeight: 'bold',
+
+            cursor: 'pointer'
+
+          }}
+
+        >
+
+          Cancel
+
         </button>
 
       </div>
@@ -2470,6 +3286,79 @@ const insightCard = () => ({
 
 });
 
+const premiumInput = {
 
+  width: '100%',
 
+  padding: 18,
+
+  marginTop: 16,
+
+  borderRadius: 18,
+
+  border: '1px solid #dbeafe',
+
+  background: '#f8fafc',
+
+  fontSize: 15,
+
+  outline: 'none',
+
+  boxSizing: 'border-box'
+
+};
+
+const inputStyle = {
+
+  width: '100%',
+
+  padding: 14,
+
+  marginTop: 14,
+
+  borderRadius: 10,
+
+  border: '1px solid #cbd5e1'
+
+};
+
+const saveBtn = {
+
+  flex: 1,
+
+  padding: 14,
+
+  border: 'none',
+
+  borderRadius: 12,
+
+  background: '#16a34a',
+
+  color: 'white',
+
+  fontWeight: 'bold',
+
+  cursor: 'pointer'
+
+};
+
+const cancelBtn = {
+
+  flex: 1,
+
+  padding: 14,
+
+  border: 'none',
+
+  borderRadius: 12,
+
+  background: '#ef4444',
+
+  color: 'white',
+
+  fontWeight: 'bold',
+
+  cursor: 'pointer'
+
+};
 export default MyProfile;
