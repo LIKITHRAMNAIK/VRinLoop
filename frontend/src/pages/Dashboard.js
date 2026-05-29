@@ -26,6 +26,11 @@ const card = (bg) => ({
 
 function Dashboard() {
   const [data, setData] = useState(null);
+  const [calendarTxs, setCalendarTxs] =
+  useState([]);
+  const user = JSON.parse(
+  localStorage.getItem('user')
+);
   const [openForm, setOpenForm] = useState(false);
   const [reload, setReload] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -33,11 +38,33 @@ function Dashboard() {
   const [showExportPopup, setShowExportPopup] =
   useState(false);
 
-  const fetchData = () => {
-    API.get('/dashboard')
-      .then(res => setData(res.data))
-      .catch(err => console.log(err));
-  };
+  const fetchData = async () => {
+
+  try {
+
+    const dashboardRes =
+      await API.get(
+        '/dashboard'
+      );
+
+    setData(
+      dashboardRes.data
+    );
+
+    const txRes =
+      await API.get('/');
+
+    setCalendarTxs(
+      txRes.data
+    );
+
+  } catch (err) {
+
+    console.log(err);
+
+  }
+
+};
 
   useEffect(() => {
     fetchData();
@@ -111,6 +138,127 @@ const incomingPercent =
 const outgoingPercent =
   total === 0 ? 0 : (data.outgoing / total) * 100;
 
+  const today =
+  new Date();
+
+const day =
+  today.toLocaleDateString(
+    'en-US',
+    {
+      weekday: 'long'
+    }
+  );
+
+const date =
+  today.getDate();
+
+const month =
+  today.toLocaleDateString(
+    'en-US',
+    {
+      month: 'long'
+    }
+  );
+
+const year =
+  today.getFullYear();
+
+  const firstDay =
+  new Date(
+    year,
+    today.getMonth(),
+    1
+  ).getDay();
+
+const daysInMonth =
+  new Date(
+    year,
+    today.getMonth() + 1,
+    0
+  ).getDate();
+
+const calendarDays = [];
+
+for (
+  let i = 0;
+  i < firstDay;
+  i++
+) {
+  calendarDays.push(null);
+}
+
+for (
+  let i = 1;
+  i <= daysInMonth;
+  i++
+) {
+  calendarDays.push(i);
+}
+
+const todayEvents =
+  calendarTxs.filter(tx => {
+
+    const due =
+      new Date(tx.due_date);
+
+    return (
+
+      due.getDate() ===
+        today.getDate()
+
+      &&
+
+      due.getMonth() ===
+        today.getMonth()
+
+      &&
+
+      due.getFullYear() ===
+        today.getFullYear()
+
+      &&
+
+      tx.status !== 'paid'
+
+    );
+
+  });
+
+  const hasDueOnDate =
+  (dayNumber) => {
+
+    return calendarTxs.some(tx => {
+
+      const due =
+        new Date(
+          tx.due_date
+        );
+
+      return (
+
+        due.getDate() ===
+          dayNumber
+
+        &&
+
+        due.getMonth() ===
+          today.getMonth()
+
+        &&
+
+        due.getFullYear() ===
+          today.getFullYear()
+
+        &&
+
+        tx.status !== 'paid'
+
+      );
+
+    });
+
+};
+
   return (
   <div style={{
     padding: '30px',
@@ -145,36 +293,31 @@ const outgoingPercent =
     }}>
       {/* Title Section */}
       <div>
-        <h1 style={{ margin: 0, fontSize: 32 }}>
-          💰 Money Dashboard
-        </h1>
-        <p style={{ marginTop: 8, opacity: 0.75, fontSize: 15 }}>
-          Manage payments, profiles and analytics
-        </p>
-      </div>
+        <h1 style={{
 
-      {/* Right Actions Section (Bundles Date and Button Together) */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: '20px', 
-        flexWrap: 'wrap' 
-      }}>
-        {/* Date Card */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.06)',
-          padding: '14px 18px',
-          borderRadius: 16,
-          textAlign: 'center',
-          minWidth: 180
-        }}>
-          <p style={{ margin: 0, opacity: 0.7, fontSize: 14 }}>
-            Today
-          </p>
-          <h3 style={{ margin: '8px 0 0' }}>
-            {new Date().toDateString()}
-          </h3>
-        </div>
+  margin: 0,
+
+  fontSize: 32,
+
+  fontWeight: '800',
+
+  color: 'white'
+
+}}>
+  Welcome Back, {user?.name || 'User'} 👋
+</h1>
+
+<p style={{
+
+  marginTop: 8,
+
+  opacity: 0.75,
+
+  fontSize: 15
+
+}}>
+  Manage payments, profiles and analytics
+</p>
 
         {/* NEW TRANSACTION BUTTON (Moved inside the layout flow) */}
         <button
@@ -193,6 +336,319 @@ const outgoingPercent =
         >
           + New Transaction
         </button>
+      </div>
+
+      {/* Right Actions Section (Bundles Date and Button Together) */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '20px', 
+        flexWrap: 'wrap' 
+      }}>
+        {/* Date Card */}
+        
+
+      <div style={{
+
+  width: 470,
+
+  minHeight: 230,
+
+  borderRadius: 24,
+
+  background:
+    'rgba(255,255,255,0.08)',
+
+  backdropFilter:
+    'blur(12px)',
+
+  border:
+    '1px solid rgba(255,255,255,0.08)',
+
+  padding: 14,
+
+  display: 'flex',
+
+  justifyContent:
+    'space-between',
+
+  gap: 14
+
+}}>
+
+  {/* LEFT */}
+
+  <div style={{
+
+    width: 150
+
+  }}>
+
+    <div style={{
+
+      color: '#cbd5e1',
+
+      fontSize: 12,
+
+      fontWeight: 'bold',
+
+      letterSpacing: 2
+
+    }}>
+
+      {day.toUpperCase()}
+
+    </div>
+
+    <div style={{
+
+      fontSize: 58,
+
+      fontWeight: '900',
+
+      color: 'white',
+
+      lineHeight: 1
+
+    }}>
+
+      {date}
+
+    </div>
+
+    <div style={{
+
+      marginTop: 18,
+
+      color: '#fff',
+
+      fontWeight: 'bold',
+
+      marginBottom: 10
+
+    }}>
+
+      Today's Events
+
+    </div>
+
+    <div style={{
+
+      display: 'flex',
+
+      flexDirection: 'column',
+
+      gap: 8
+
+    }}>
+
+      {todayEvents.length === 0 ? (
+
+        <span style={{
+
+          fontSize: 12,
+
+          color: '#94a3b8'
+
+        }}>
+
+          No events today
+
+        </span>
+
+      ) : (
+
+        todayEvents
+          .slice(0,3)
+          .map(tx => (
+
+          <div
+            key={tx._id}
+            style={{
+
+              fontSize: 12,
+
+              color: '#fff'
+
+            }}
+          >
+
+            🔴 {tx.person_name}
+
+          </div>
+
+        ))
+
+      )}
+
+    </div>
+
+  </div>
+
+  {/* RIGHT */}
+
+  <div style={{
+    flex: 1
+  }}>
+
+    <div style={{
+
+      textAlign: 'center',
+
+      color: '#fff',
+
+      fontWeight: 'bold',
+
+      marginBottom: 14
+
+    }}>
+
+      {month.toUpperCase()}
+      {' '}
+      {year}
+
+    </div>
+
+    <div style={{
+
+      display: 'grid',
+
+      gridTemplateColumns:
+        'repeat(7,1fr)',
+
+      gap: 5,
+
+      fontSize: 12,
+
+      textAlign: 'center'
+
+    }}>
+
+      {[
+        'S',
+        'M',
+        'T',
+        'W',
+        'T',
+        'F',
+        'S'
+      ].map(dayName => (
+
+        <div
+          key={dayName}
+          style={{
+
+            color: '#94a3b8',
+
+            fontWeight: 'bold'
+
+          }}
+        >
+
+          {dayName}
+
+        </div>
+
+      ))}
+
+      {calendarDays.map(
+        (dayNum,index) => {
+
+        if (!dayNum) {
+
+          return (
+            <div
+              key={index}
+            />
+          );
+
+        }
+
+        const isToday =
+          dayNum === date;
+
+        const hasDue =
+          hasDueOnDate(
+            dayNum
+          );
+
+        return (
+
+          <div
+            key={index}
+            style={{
+
+              width: 28,
+
+              height: 28,
+
+              borderRadius:
+                '50%',
+
+              display: 'flex',
+
+              justifyContent:
+                'center',
+
+              alignItems:
+                'center',
+
+              margin: '0 auto',
+
+              fontSize: 12,
+
+              fontWeight: 'bold',
+
+              color:
+
+  isToday || hasDue
+
+    ? 'white'
+
+    : '#e2e8f0',
+
+              background:
+
+  isToday && hasDue
+
+    ? '#7c3aed'
+
+    : hasDue
+
+    ? '#ef4444'
+
+    : isToday
+
+    ? '#2563eb'
+
+    : 'transparent',
+
+    boxShadow:
+
+  isToday || hasDue
+
+    ? '0 0 12px rgba(255,255,255,0.15)'
+
+    : 'none',
+
+            }}
+          >
+
+            {dayNum}
+
+          </div>
+
+        );
+
+      })}
+
+    </div>
+
+  </div>
+
+</div>
+
+        
 
       </div>
     </div>

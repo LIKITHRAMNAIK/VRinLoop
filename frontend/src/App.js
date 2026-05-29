@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ForgotPassword from "./pages/ForgotPassword";
+import FloatingCalculator from './components/FloatingCalculator';
 
 import VerifyOtp from "./pages/VerifyOtp";
 
@@ -18,7 +19,10 @@ import ResetPassword from "./pages/ResetPassword";
 function App() {
   return (
     <Router>
-      <Routes>
+
+  <FloatingCalculator />
+
+  <Routes>
         <Route
           path="/"
           element={
