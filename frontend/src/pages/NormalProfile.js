@@ -248,13 +248,18 @@ fontSize: '13px',
 
       {/* PAID DATE */}
       {tx.installments &&
- tx.installments.length > 0 && (
+ tx.installments.length > 0 &&
+ tx.paid_amount < tx.principal_amount && (
 
   <div style={{
     marginTop: 14
   }}>
 
-    {tx.installments.map((inst, i) => (
+    {tx.installments
+  .filter(inst =>
+    inst.amount > 0
+  )
+  .map((inst, i) => (
 
       <div
         key={i}
@@ -364,7 +369,15 @@ fontSize: '13px',
       <>
         {/* PAYMENT STATUS */}
 
-        <div style={{
+        {!(
+
+  tx.status === 'paid' &&
+
+  paid >= tx.principal_amount
+
+) && (
+
+<div style={{
 
   padding: 14,
 
@@ -487,6 +500,7 @@ fontSize: '13px',
           )}
 
         </div>
+        )}
 
         {/* PROGRESS */}
 

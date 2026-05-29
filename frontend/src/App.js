@@ -15,6 +15,8 @@ import FloatingCalculator from './components/FloatingCalculator';
 import VerifyOtp from "./pages/VerifyOtp";
 
 import ResetPassword from "./pages/ResetPassword";
+import Feedback
+from './pages/Feedback';
 
 function App() {
   return (
@@ -71,6 +73,22 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+        <Route
+
+  path="/feedback"
+
+  element={
+
+    <ProtectedRoute>
+
+      <Feedback />
+
+    </ProtectedRoute>
+
+  }
+
+/>
         <Route path="/login" element={<Login />} />
 
         <Route path="/signup" element={<Signup />} />

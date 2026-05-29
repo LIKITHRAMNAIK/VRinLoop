@@ -362,8 +362,13 @@ data.forEach(tx => {
 
   if (
   tx.status === 'paid' &&
-  tx.paid_date
-) {
+  tx.paid_date &&
+  !(
+    tx.transaction_type === 'normal' &&
+    tx.installments?.length > 0
+  )
+)
+{
 
   const paidDate =
     new Date(tx.paid_date);
@@ -778,12 +783,25 @@ if (
 
     tx.installments.forEach(inst => {
 
-      activities.push({
+  if (
+    !inst.amount ||
+    Number(inst.amount) <= 0
+  ) {
+    return;
+  }
+
+  activities.push({
 
         type: 'normal_payment',
 
         title:
-          `Normal Installment Paid`,
+
+  Number(inst.amount) >=
+  Number(tx.principal_amount)
+
+    ? 'Normal Fully Paid'
+
+    : `Installment Paid (Total: ₹${tx.principal_amount.toLocaleString('en-IN')})`,
 
         amount: inst.amount,
 

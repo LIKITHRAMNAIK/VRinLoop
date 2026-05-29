@@ -5,7 +5,8 @@ const sendMail = async (
 
   to,
   subject,
-  html
+  html,
+  file = null
 
 ) => {
 
@@ -30,16 +31,36 @@ const sendMail = async (
 
     await transporter.sendMail({
 
-      from:
-        process.env.EMAIL_USER,
+  from:
+    process.env.EMAIL_USER,
 
-      to,
+  to,
 
-      subject,
+  subject,
 
-      html
+  html,
 
-    });
+  attachments:
+
+    file
+
+      ? [
+
+          {
+
+            filename:
+              file.originalname,
+
+            path:
+              file.path
+
+          }
+
+        ]
+
+      : []
+
+});
 
     console.log(
       'Email Sent Successfully'

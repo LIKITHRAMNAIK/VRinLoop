@@ -10,6 +10,10 @@ const authRoutes =
 const app = express();
 const cors = require('cors');
 const path = require('path');
+const feedbackRoutes =
+  require(
+    './routes/feedbackRoutes'
+  );
 
 require('dotenv').config();
 
@@ -24,6 +28,11 @@ app.use(
   express.static(
     path.join(__dirname, 'uploads')
   )
+);
+
+app.use(
+  '/api/feedback',
+  feedbackRoutes
 );
 
 connectDB();

@@ -459,25 +459,126 @@ const todayEvents =
       ) : (
 
         todayEvents
-          .slice(0,3)
-          .map(tx => (
+  .slice(0,3)
+  .map(tx => {
 
-          <div
-            key={tx._id}
-            style={{
+    let amount = 0;
 
-              fontSize: 12,
+    // NORMAL
+    if (
+      tx.transaction_type === 'normal'
+    ) {
 
-              color: '#fff'
+      amount =
+        Number(
+          tx.principal_amount || 0
+        ) -
+        Number(
+          tx.paid_amount || 0
+        );
 
-            }}
-          >
+    }
 
-            🔴 {tx.person_name}
+    // ROTATION
+    else if (
+      tx.transaction_type === 'rotation'
+    ) {
 
-          </div>
+      let totalInterest =
+        Number(
+          tx.base_interest || 0
+        );
 
-        ))
+      tx.extensions?.forEach(ext => {
+
+        if (ext.interest_paid) {
+
+          totalInterest =
+            Number(
+              ext.extra_interest || 0
+            );
+
+        } else {
+
+          totalInterest +=
+            Number(
+              ext.extra_interest || 0
+            );
+
+        }
+
+      });
+
+      amount =
+        Number(
+          tx.principal_amount || 0
+        ) +
+        totalInterest;
+
+    }
+
+    // LOAN
+    else if (
+      tx.transaction_type === 'loan'
+    ) {
+
+      amount =
+        Number(
+          tx.emi_amount || 0
+        );
+
+    }
+
+    return (
+
+      <div
+        key={tx._id}
+        style={{
+          fontSize: 11,
+          color: '#fff',
+          marginBottom: 8
+        }}
+      >
+
+        <div>
+
+          🔴 {tx.person_name}
+
+          {' | '}
+
+          {tx.type === 'incoming'
+            ? 'In'
+            : 'Out'}
+
+          {' | '}
+
+          {tx.transaction_type === 'normal'
+            ? 'N'
+            : tx.transaction_type === 'rotation'
+            ? 'R'
+            : 'L'}
+
+        </div>
+
+        <div style={{
+
+          color: '#22c55e',
+
+          fontWeight: 'bold',
+
+          marginTop: 2
+
+        }}>
+
+          ₹{amount.toLocaleString('en-IN')}
+
+        </div>
+
+      </div>
+
+    );
+
+})
 
       )}
 
@@ -619,7 +720,7 @@ const todayEvents =
 
     : isToday
 
-    ? '#2563eb'
+    ? '#22c55e'
 
     : 'transparent',
 

@@ -170,7 +170,7 @@ function Sidebar({
     link.href = url;
 
     link.download =
-      'MoMaS-Advanced-Report.csv';
+      'VRinLoop-Advanced-Report.csv';
 
     link.click();
 
@@ -195,7 +195,7 @@ const exportPDF = async () => {
     doc.setFontSize(22);
 
     doc.text(
-      'MoMaS Financial Transactions',
+      'VRinLoop Financial Transactions',
       14,
       20
     );
@@ -361,7 +361,7 @@ const exportPDF = async () => {
     });
 
     doc.save(
-      'MoMaS-Advanced-Report.pdf'
+      'VRinLoop-Advanced-Report.pdf'
     );
 
   } catch (err) {
@@ -394,7 +394,12 @@ const exportPDF = async () => {
       path: '/my-profile'
     },
     {
-  icon: '🚪',
+  icon: '💡',
+  label: 'Feedback',
+  path: '/feedback'
+},
+    {
+  icon: '🔚',
   label: 'Logout',
   action: 'logout'
 }
@@ -438,7 +443,7 @@ const exportPDF = async () => {
         left: 0,
         width: open ? 240 : 70,
         height: '100vh',
-        background: '#270d64dc',
+        background: '#f3f1f700',
         color: 'white',
         transition: '0.3s',
         zIndex: 1000,
@@ -463,7 +468,7 @@ const exportPDF = async () => {
               margin: 0,
               fontSize: 20
             }}>
-              MoMaS
+              VRinLoop
             </h2>
           )}
 
@@ -638,7 +643,7 @@ if (item.action === 'logout') {
                 padding: '14px 12px',
                 borderRadius: 12,
                 cursor: 'pointer',
-                background: '#147ca5',
+                background: '#fb675300',
                 transition: '0.2s'
               }}
             >

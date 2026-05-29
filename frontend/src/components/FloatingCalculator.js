@@ -865,9 +865,9 @@ overflowY: 'auto',
 
           right: 25,
 
-          width: 65,
+          width: 40,
 
-          height: 65,
+          height: 40,
 
           borderRadius: '50%',
 
@@ -878,12 +878,13 @@ overflowY: 'auto',
           fontSize: 28,
 
           background:
-            'linear-gradient(135deg,#7c3aed,#4f46e5)',
+            // 'linear-gradient(135deg,#7c3aed,#4f46e5)',
+            '#3fa4e7',
 
           color: 'white',
 
           boxShadow:
-            '0 10px 25px rgba(124,58,237,0.35)',
+            '0 10px 25px rgba(110, 44, 217, 0.35)',
 
           zIndex: 99999
 
@@ -891,7 +892,7 @@ overflowY: 'auto',
 
       >
 
-        🧮
+        +/
 
       </button>
 
