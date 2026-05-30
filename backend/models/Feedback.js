@@ -1,86 +1,59 @@
-const mongoose =
-  require('mongoose');
+const mongoose = require("mongoose");
 
-const feedbackSchema =
-  new mongoose.Schema({
-
+const feedbackSchema = new mongoose.Schema(
+  {
     user: {
+      type: mongoose.Schema.Types.ObjectId,
 
-      type:
-        mongoose.Schema.Types.ObjectId,
-
-      ref: 'User'
-
+      ref: "User",
     },
 
     name: {
-
       type: String,
 
-      required: true
-
+      required: true,
     },
 
     email: {
-
       type: String,
 
-      required: true
-
+      required: true,
     },
 
     subject: {
-
       type: String,
 
-      required: true
-
+      required: true,
     },
 
     type: {
-
       type: String,
 
-      required: true
-
+      required: true,
     },
 
     message: {
-
       type: String,
 
-      required: true
-
+      required: true,
     },
 
     rating: {
-
       type: Number,
 
-      default: 5
-
+      default: 5,
     },
 
     image: {
-
       type: String,
 
-      default: ''
-
-    }
-
+      default: "",
+    },
   },
 
   {
-
-    timestamps: true
-
-  }
-
+    timestamps: true,
+  },
 );
 
-module.exports =
-  mongoose.model(
-    'Feedback',
-    feedbackSchema
-  );
+module.exports = mongoose.model("Feedback", feedbackSchema);

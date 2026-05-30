@@ -1,13 +1,13 @@
 {
   "short_name": "VRinLoop",
-"name": "VRinLoop - Track • Manage • Grow",
+  "name": "VRinLoop - Track • Manage • Grow",
   "icons": [
-  {
-      "src": "/favicon.jpg",
-      "type": "image/jpeg",
-      "sizes": "512x512"
+    {
+      "src": "/favicon.ico",
+      "sizes": "512x512",
+      "type": "image/x-icon"
     }
-],
+  ],
   "start_url": ".",
   "display": "standalone",
   "theme_color": "#000000",

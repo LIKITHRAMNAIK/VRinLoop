@@ -1,61 +1,33 @@
-import axios from 'axios';
+import axios from "axios";
 
 const API = axios.create({
-
-  baseURL:
-    'http://localhost:5000/api/transactions'
-
+  baseURL: "http://localhost:5000/api/transactions",
 });
 
-API.interceptors.request.use(
+API.interceptors.request.use((req) => {
+  const token = localStorage.getItem("token");
 
-  (req) => {
-
-    const token =
-      localStorage.getItem(
-        'token'
-      );
-
-    if (token) {
-
-      req.headers.Authorization =
-        `Bearer ${token}`;
-
-    }
-
-    return req;
-
+  if (token) {
+    req.headers.Authorization = `Bearer ${token}`;
   }
 
-);
+  return req;
+});
 
 API.interceptors.response.use(
+  (res) => res,
 
-  res => res,
+  (err) => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem("token");
 
-  err => {
+      localStorage.removeItem("user");
 
-    if (
-      err.response?.status === 401
-    ) {
-
-      localStorage.removeItem(
-        'token'
-      );
-
-      localStorage.removeItem(
-        'user'
-      );
-
-      window.location.href =
-        '/login';
-
+      window.location.href = "/login";
     }
 
     return Promise.reject(err);
-
-  }
-
+  },
 );
 
 export default API;

@@ -1995,16 +1995,16 @@ function TransactionList({ refresh }) {
               }}
             >
               <div
-  onClick={(e) => e.stopPropagation()}
-  style={{
-    background: '#ffffff',
-    padding: 28,
-    borderRadius: 24,
-    width: 380,
-    boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
-    border: '1px solid #e2e8f0'
-  }}
->
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: "#ffffff",
+                  padding: 28,
+                  borderRadius: 24,
+                  width: 380,
+                  boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+                  border: "1px solid #e2e8f0",
+                }}
+              >
                 <h3>{getConfirmMessage()}</h3>
 
                 <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
@@ -2092,234 +2092,223 @@ function TransactionList({ refresh }) {
             }}
           >
             {!payType && (
-  <div
-    style={{
-      textAlign: 'center',
-      marginBottom: 25
-    }}
-  >
-    <div
-      style={{
-        fontSize: 42,
-        marginBottom: 10
-      }}
-    >
-      💰
-    </div>
+              <div
+                style={{
+                  textAlign: "center",
+                  marginBottom: 25,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 42,
+                    marginBottom: 10,
+                  }}
+                >
+                  💰
+                </div>
 
-    <h2
-      style={{
-        margin: 0,
-        color: '#0f172a'
-      }}
-    >
-      Payment Options
-    </h2>
+                <h2
+                  style={{
+                    margin: 0,
+                    color: "#0f172a",
+                  }}
+                >
+                  Payment Options
+                </h2>
 
-    <p
-      style={{
-        color: '#64748b',
-        marginTop: 8,
-        marginBottom: 0
-      }}
-    >
-      Select how you want to pay
-    </p>
-  </div>
-)}
-
+                <p
+                  style={{
+                    color: "#64748b",
+                    marginTop: 8,
+                    marginBottom: 0,
+                  }}
+                >
+                  Select how you want to pay
+                </p>
+              </div>
+            )}
 
             {!payType && (
               <>
                 <button
-  onClick={() => setPayType("installment")}
-  style={{
-    width: '100%',
-    padding: '9px',
-    border: 'none',
-    borderRadius: 18,
-    background:
-      'linear-gradient(135deg,#f59e0b,#fb923c)',
-    color: 'white',
-    cursor: 'pointer',
-    marginBottom: 14,
-    textAlign: 'left'
-  }}
->
-  <div
-    style={{
-      fontWeight: 'bold',
-      fontSize: 18,
-      textAlign: 'center'
-    }}
-  >
-    💵 Installment Payment
-  </div>
+                  onClick={() => setPayType("installment")}
+                  style={{
+                    width: "100%",
+                    padding: "9px",
+                    border: "none",
+                    borderRadius: 18,
+                    background: "linear-gradient(135deg,#f59e0b,#fb923c)",
+                    color: "white",
+                    cursor: "pointer",
+                    marginBottom: 14,
+                    textAlign: "left",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: "bold",
+                      fontSize: 18,
+                      textAlign: "center",
+                    }}
+                  >
+                    Installment Payment
+                  </div>
 
-  <div
-    style={{
-      fontSize: 13,
-      opacity: 0.9,
-      marginTop: 4,
-      textAlign: 'center'
-    }}
-  >
-    Pay a custom amount
-  </div>
-</button>
-
+                  <div
+                    style={{
+                      fontSize: 13,
+                      opacity: 0.9,
+                      marginTop: 4,
+                      textAlign: "center",
+                    }}
+                  >
+                    Pay a custom amount
+                  </div>
+                </button>
 
                 <button
-  onClick={() => setPayType("full")}
-  style={{
-    width: '100%',
-    padding: '9px',
-    border: 'none',
-    borderRadius: 18,
-    background:
-      'linear-gradient(135deg,#ef4444,#dc2626)',
-    color: 'white',
-    cursor: 'pointer',
-    textAlign: 'left'
-  }}
->
-  <div
-    style={{
-      fontWeight: 'bold',
-      fontSize: 18,
-      textAlign: 'center'
-    }}
-  >
-    ✅ Full Payment
-  </div>
+                  onClick={() => setPayType("full")}
+                  style={{
+                    width: "100%",
+                    padding: "9px",
+                    border: "none",
+                    borderRadius: 18,
+                    background: "linear-gradient(135deg,#ef4444,#dc2626)",
+                    color: "white",
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: "bold",
+                      fontSize: 18,
+                      textAlign: "center",
+                    }}
+                  >
+                    ✅ Full Payment
+                  </div>
 
-  <div
-    style={{
-      fontSize: 13,
-      opacity: 0.9,
-      marginTop: 4,
-      textAlign: 'center'
-    }}
-  >
-    Close the transaction completely
-  </div>
-</button>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      opacity: 0.9,
+                      marginTop: 4,
+                      textAlign: "center",
+                    }}
+                  >
+                    Close the transaction completely
+                  </div>
+                </button>
               </>
-              
             )}
 
             {payType === "installment" && (
-  <>
-    <div
-      style={{
-        textAlign: "center",
-        marginBottom: 20
-      }}
-    >
-      <div style={{ fontSize: 40 }}>
-        💵
-      </div>
+              <>
+                <div
+                  style={{
+                    textAlign: "center",
+                    marginBottom: 20,
+                  }}
+                >
+                  <div style={{ fontSize: 40 }}>💵</div>
 
-      <h2
-        style={{
-          margin: "10px 0 0"
-        }}
-      >
-        Installment Payment
-      </h2>
+                  <h2
+                    style={{
+                      margin: "10px 0 0",
+                    }}
+                  >
+                    Installment Payment
+                  </h2>
 
-      <p
-        style={{
-          color: "#64748b"
-        }}
-      >
-        Enter the amount to pay
-      </p>
-    </div>
+                  <p
+                    style={{
+                      color: "#64748b",
+                    }}
+                  >
+                    Enter the amount to pay
+                  </p>
+                </div>
 
-    <input
-      type="number"
-      placeholder="Enter installment amount"
-      value={payAmount || ""}
-      onChange={(e) => setPayAmount(e.target.value)}
-      style={{
-        width: "95%",
-        padding: "8px",
-        borderRadius: 12,
-        border: "1px solid #cbd5e1",
-        marginBottom: 15,
-        fontSize: 16,
-        outline: "none",
-      }}
-    />
+                <input
+                  type="number"
+                  placeholder="Enter installment amount"
+                  value={payAmount || ""}
+                  onChange={(e) => setPayAmount(e.target.value)}
+                  style={{
+                    width: "95%",
+                    padding: "8px",
+                    borderRadius: 12,
+                    border: "1px solid #cbd5e1",
+                    marginBottom: 15,
+                    fontSize: 16,
+                    outline: "none",
+                  }}
+                />
 
-    <button
-      onClick={handleInstallment}
-      style={{
-        width: "100%",
-        padding: "14px",
-        border: "none",
-        borderRadius: 12,
-        background:
-          "linear-gradient(135deg,#2563eb,#1d4ed8)",
-        color: "white",
-        fontWeight: "bold",
-        cursor: "pointer"
-      }}
-    >
-      Confirm Installment
-    </button>
-  </>
-)}
+                <button
+                  onClick={handleInstallment}
+                  style={{
+                    width: "100%",
+                    padding: "14px",
+                    border: "none",
+                    borderRadius: 12,
+                    background: "linear-gradient(135deg,#2563eb,#1d4ed8)",
+                    color: "white",
+                    fontWeight: "bold",
+                    cursor: "pointer",
+                  }}
+                >
+                  Confirm Installment
+                </button>
+              </>
+            )}
 
             {payType === "full" && (
-  <>
-    <div
-      style={{
-        textAlign: "center",
-        marginBottom: 20
-      }}
-    >
-      <div style={{ fontSize: 40 }}>
-        ✅
-      </div>
+              <>
+                <div
+                  style={{
+                    textAlign: "center",
+                    marginBottom: 20,
+                  }}
+                >
+                  <div style={{ fontSize: 40 }}>✅</div>
 
-      <h2
-        style={{
-          margin: "10px 0 0"
-        }}
-      >
-        Full Payment
-      </h2>
+                  <h2
+                    style={{
+                      margin: "10px 0 0",
+                    }}
+                  >
+                    Full Payment
+                  </h2>
 
-      <p
-        style={{
-          color: "#64748b"
-        }}
-      >
-        Close this transaction completely
-      </p>
-    </div>
+                  <p
+                    style={{
+                      color: "#64748b",
+                    }}
+                  >
+                    Close this transaction completely
+                  </p>
+                </div>
 
-    <button
-      onClick={handleFullPayment}
-      style={{
-        width: "100%",
-        padding: "16px",
-        border: "none",
-        borderRadius: 14,
-        background:
-          "linear-gradient(135deg,#16a34a,#22c55e)",
-        color: "white",
-        fontWeight: "bold",
-        fontSize: 16,
-        cursor: "pointer"
-      }}
-    >
-      Confirm Full Payment
-    </button>
-  </>
-)}
+                <button
+                  onClick={handleFullPayment}
+                  style={{
+                    width: "100%",
+                    padding: "16px",
+                    border: "none",
+                    borderRadius: 14,
+                    background: "linear-gradient(135deg,#16a34a,#22c55e)",
+                    color: "white",
+                    fontWeight: "bold",
+                    fontSize: 16,
+                    cursor: "pointer",
+                  }}
+                >
+                  Confirm Full Payment
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

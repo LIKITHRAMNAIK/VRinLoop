@@ -1,80 +1,41 @@
-const nodemailer =
-  require('nodemailer');
+const nodemailer = require("nodemailer");
 
-const sendMail = async (
-
-  to,
-  subject,
-  html,
-  file = null
-
-) => {
-
+const sendMail = async (to, subject, html, file = null) => {
   try {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
 
-    const transporter =
-      nodemailer.createTransport({
+      auth: {
+        user: process.env.EMAIL_USER,
 
-        service: 'gmail',
-
-        auth: {
-
-          user:
-            process.env.EMAIL_USER,
-
-          pass:
-            process.env.EMAIL_PASS
-
-        }
-
-      });
+        pass: process.env.EMAIL_PASS,
+      },
+    });
 
     await transporter.sendMail({
+      from: process.env.EMAIL_USER,
 
-  from:
-    process.env.EMAIL_USER,
+      to,
 
-  to,
+      subject,
 
-  subject,
+      html,
 
-  html,
+      attachments: file
+        ? [
+            {
+              filename: file.originalname,
 
-  attachments:
+              path: file.path,
+            },
+          ]
+        : [],
+    });
 
-    file
-
-      ? [
-
-          {
-
-            filename:
-              file.originalname,
-
-            path:
-              file.path
-
-          }
-
-        ]
-
-      : []
-
-});
-
-    console.log(
-      'Email Sent Successfully'
-    );
-
+    console.log("Email Sent Successfully");
   } catch (error) {
-
-    console.log(
-      'Mail Error:',
-      error.message
-    );
-
+    console.log("Mail Error:", error.message);
   }
-
 };
 
 module.exports = sendMail;

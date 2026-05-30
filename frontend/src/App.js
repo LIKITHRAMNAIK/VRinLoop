@@ -1,4 +1,9 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import TransactionList from "./components/TransactionList";
@@ -10,21 +15,38 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ForgotPassword from "./pages/ForgotPassword";
-import FloatingCalculator from './components/FloatingCalculator';
+import FloatingCalculator from "./components/FloatingCalculator";
 
 import VerifyOtp from "./pages/VerifyOtp";
 
 import ResetPassword from "./pages/ResetPassword";
-import Feedback
-from './pages/Feedback';
+import Feedback from "./pages/Feedback";
+import AboutVRinLoop from "./pages/AboutVRinLoop";
 
-function App() {
+function AppContent() {
+  const location = useLocation();
+
+  const hideCalculator = [
+    "/login",
+
+    "/signup",
+
+    "/forgot-password",
+
+    "/verify-otp",
+
+    "/reset-password",
+
+    "/about",
+
+    "/feedback",
+  ].includes(location.pathname);
+
   return (
-    <Router>
+    <>
+      {!hideCalculator && <FloatingCalculator />}
 
-  <FloatingCalculator />
-
-  <Routes>
+      <Routes>
         <Route
           path="/"
           element={
@@ -33,6 +55,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/profile/:name"
           element={
@@ -41,6 +64,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/users"
           element={
@@ -49,6 +73,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/my-profile"
           element={
@@ -57,6 +82,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/loan-analytics/:name"
           element={
@@ -65,6 +91,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/loan-users"
           element={
@@ -75,20 +102,23 @@ function App() {
         />
 
         <Route
+          path="/about"
+          element={
+            <ProtectedRoute>
+              <AboutVRinLoop />
+            </ProtectedRoute>
+          }
+        />
 
-  path="/feedback"
+        <Route
+          path="/feedback"
+          element={
+            <ProtectedRoute>
+              <Feedback />
+            </ProtectedRoute>
+          }
+        />
 
-  element={
-
-    <ProtectedRoute>
-
-      <Feedback />
-
-    </ProtectedRoute>
-
-  }
-
-/>
         <Route path="/login" element={<Login />} />
 
         <Route path="/signup" element={<Signup />} />
@@ -99,6 +129,13 @@ function App() {
 
         <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
+    </>
+  );
+}
+function App() {
+  return (
+    <Router>
+      <AppContent />
     </Router>
   );
 }

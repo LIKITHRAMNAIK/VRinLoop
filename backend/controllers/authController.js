@@ -1,239 +1,147 @@
-const User = require('../models/User');
+const User = require("../models/User");
 
-const bcrypt =
-  require('bcryptjs');
+const bcrypt = require("bcryptjs");
 
-const jwt =
-  require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
 
-const sendMail =
-  require('../utils/sendMail');
+const sendMail = require("../utils/sendMail");
 
-exports.signup = async (
-
-  req,
-  res
-
-) => {
-
+exports.signup = async (req, res) => {
   try {
+    const { name, email, phone } = req.body;
 
-    const {
-  name,
-  email,
-  phone
-} = req.body;
-
-    const existingUser =
-      await User.findOne({
-        email
-      });
+    const existingUser = await User.findOne({
+      email,
+    });
 
     if (existingUser) {
-
       return res.status(400).json({
-        message:
-          'Email already exists'
+        message: "Email already exists",
       });
-
     }
 
-    const hashedPassword =
-      await bcrypt.hash(
-        password,
-        10
-      );
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    const profile_image =
-      req.file
-        ? req.file.filename
-        : '';
+    const profile_image = req.file ? req.file.filename : "";
 
-    const user =
-      await User.create({
-
-        name,
-
-        email,
-
-        phone,
-
-        password:
-          hashedPassword,
-
-        profile_image
-
-      });
-
-    res.status(201).json({
-
-      success: true,
-
-      message:
-        'Signup successful',
-
-      user
-
-    });
-
-  } catch (error) {
-
-    res.status(500).json({
-
-      success: false,
-
-      message:
-        error.message
-
-    });
-
-  }
-
-};
-
-exports.login = async (
-
-  req,
-  res
-
-) => {
-
-  try {
-
-    const {
+    const user = await User.create({
+      name,
 
       email,
-      password
 
-    } = req.body;
+      phone,
 
-    const user =
-  await User.findOne({
-    email
-  }).select('+password');
+      password: hashedPassword,
 
-    if (!user) {
-
-      return res.status(404).json({
-        message:
-          'User not found'
-      });
-
-    }
-
-    const isMatch =
-      await bcrypt.compare(
-        password,
-        user.password
-      );
-
-    if (!isMatch) {
-
-      return res.status(400).json({
-        message:
-          'Invalid password'
-      });
-
-    }
-
-    const token =
-      jwt.sign(
-
-        {
-          id: user._id
-        },
-
-        process.env.JWT_SECRET,
-
-        {
-          expiresIn: '7d'
-        }
-
-      );
-
-    const safeUser = {
-
-  _id: user._id,
-
-  name: user.name,
-
-  email: user.email,
-
-  phone: user.phone,
-
-  profile_image:
-    user.profile_image
-
-};
-
-    res.json({
-
-  success: true,
-
-  token,
-
-  user: safeUser
-
-});
-
-  } catch (error) {
-
-    res.status(500).json({
-
-      success: false,
-
-      message:
-        error.message
-
+      profile_image,
     });
 
-  }
+    res.status(201).json({
+      success: true,
 
+      message: "Signup successful",
+
+      user,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+
+      message: error.message,
+    });
+  }
 };
 
-exports.forgotPassword =
-  async (req, res) => {
+exports.login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-    try {
+    const user = await User.findOne({
+      email,
+    }).select("+password");
 
-      const { email } =
-        req.body;
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
 
-      const user =
-        await User.findOne({
-          email
-        });
+    const isMatch = await bcrypt.compare(password, user.password);
 
-      if (!user) {
+    if (!isMatch) {
+      return res.status(400).json({
+        message: "Invalid password",
+      });
+    }
 
-        return res.status(404).json({
-          message:
-            'User not found'
-        });
+    const token = jwt.sign(
+      {
+        id: user._id,
+      },
 
-      }
+      process.env.JWT_SECRET,
 
-      const otp =
-        Math.floor(
-          100000 +
-          Math.random() * 900000
-        ).toString();
+      {
+        expiresIn: "7d",
+      },
+    );
 
-      user.otp = otp;
+    const safeUser = {
+      _id: user._id,
 
-      user.otp_expiry =
-        Date.now() +
-        10 * 60 * 1000;
+      name: user.name,
 
-      await user.save();
+      email: user.email,
 
-      await sendMail(
+      phone: user.phone,
 
-        email,
+      profile_image: user.profile_image,
+    };
 
-        'MoMaS Password Reset OTP',
+    res.json({
+      success: true,
 
-        `
+      token,
+
+      user: safeUser,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+
+      message: error.message,
+    });
+  }
+};
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({
+      email,
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    user.otp = otp;
+
+    user.otp_expiry = Date.now() + 10 * 60 * 1000;
+
+    await user.save();
+
+    await sendMail(
+      email,
+
+      "VRinLoop Password Reset OTP",
+
+      `
         <h2>Your OTP Code</h2>
 
         <h1>${otp}</h1>
@@ -241,217 +149,123 @@ exports.forgotPassword =
         <p>
           Valid for 10 minutes
         </p>
-        `
+        `,
+    );
 
-      );
+    res.json({
+      success: true,
 
-      res.json({
+      message: "OTP sent successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
 
-        success: true,
-
-        message:
-          'OTP sent successfully'
-
-      });
-
-    } catch (error) {
-
-      res.status(500).json({
-
-        success: false,
-
-        message:
-          error.message
-
-      });
-
-    }
-
+      message: error.message,
+    });
+  }
 };
 
-exports.verifyOtp =
-  async (req, res) => {
+exports.verifyOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
 
-    try {
+    const user = await User.findOne({
+      email,
+    });
 
-      const {
-
-        email,
-        otp
-
-      } = req.body;
-
-      const user =
-        await User.findOne({
-          email
-        });
-
-      if (!user) {
-
-        return res.status(404).json({
-          message:
-            'User not found'
-        });
-
-      }
-
-      if (
-        user.otp !== otp
-      ) {
-
-        return res.status(400).json({
-          message:
-            'Invalid OTP'
-        });
-
-      }
-
-      if (
-        user.otp_expiry <
-        Date.now()
-      ) {
-
-        return res.status(400).json({
-          message:
-            'OTP expired'
-        });
-
-      }
-
-      res.json({
-
-        success: true,
-
-        message:
-          'OTP verified'
-
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
       });
-
-    } catch (error) {
-
-      res.status(500).json({
-
-        success: false,
-
-        message:
-          error.message
-
-      });
-
     }
 
-};
-
-exports.resetPassword =
-  async (req, res) => {
-
-    try {
-
-      const {
-
-        email,
-        password
-
-      } = req.body;
-
-      const user =
-        await User.findOne({
-          email
-        });
-
-      if (!user) {
-
-        return res.status(404).json({
-          message:
-            'User not found'
-        });
-
-      }
-
-      const hashedPassword =
-        await bcrypt.hash(
-          password,
-          10
-        );
-
-      user.password =
-        hashedPassword;
-
-      user.otp = '';
-
-      await user.save();
-
-      res.json({
-
-        success: true,
-
-        message:
-          'Password updated'
+    if (user.otp !== otp) {
+      return res.status(400).json({
+        message: "Invalid OTP",
       });
-
-    } catch (error) {
-
-      res.status(500).json({
-
-        success: false,
-
-        message:
-          error.message
-
-      });
-
     }
 
+    if (user.otp_expiry < Date.now()) {
+      return res.status(400).json({
+        message: "OTP expired",
+      });
+    }
+
+    res.json({
+      success: true,
+
+      message: "OTP verified",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+
+      message: error.message,
+    });
+  }
 };
 
-exports.sendProfileUpdateOtp =
-  async (req, res) => {
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-    try {
+    const user = await User.findOne({
+      email,
+    });
 
-      const user =
-        await User.findById(
-          req.user.id
-        );
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
 
-      if (!user) {
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-        return res.status(404).json({
+    user.password = hashedPassword;
 
-          message:
-            'User not found'
+    user.otp = "";
 
-        });
+    await user.save();
 
-      }
+    res.json({
+      success: true,
 
-      const otp =
-        Math.floor(
+      message: "Password updated",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
 
-          100000 +
+      message: error.message,
+    });
+  }
+};
 
-          Math.random() * 900000
+exports.sendProfileUpdateOtp = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
 
-        ).toString();
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
 
-      user.profile_update_otp =
-        otp;
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-      user.profile_update_otp_expiry =
+    user.profile_update_otp = otp;
 
-        Date.now() +
+    user.profile_update_otp_expiry = Date.now() + 10 * 60 * 1000;
 
-        10 * 60 * 1000;
+    await user.save();
 
-      await user.save();
+    await sendMail(
+      user.email,
 
-      await sendMail(
+      "VRinLoop Profile Update OTP",
 
-        user.email,
-
-        'MoMaS Profile Update OTP',
-
-        `
+      `
 
         <div style="font-family:sans-serif">
 
@@ -474,226 +288,127 @@ exports.sendProfileUpdateOtp =
 
         </div>
 
-        `
+        `,
+    );
 
-      );
+    res.json({
+      success: true,
 
-      res.json({
+      message: "OTP sent successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
 
-        success: true,
-
-        message:
-          'OTP sent successfully'
-
-      });
-
-    } catch (error) {
-
-      res.status(500).json({
-
-        success: false,
-
-        message:
-          error.message
-
-      });
-
-    }
-
+      message: error.message,
+    });
+  }
 };
 
-exports.verifyProfileUpdateOtp =
-  async (req, res) => {
+exports.verifyProfileUpdateOtp = async (req, res) => {
+  try {
+    const { otp, name, email, phone } = req.body;
 
-    try {
+    const user = await User.findById(req.user.id);
 
-      const {
-
-        otp,
-        name,
-        email,
-        phone
-
-      } = req.body;
-
-      const user =
-        await User.findById(
-          req.user.id
-        );
-
-      if (!user) {
-
-        return res.status(404).json({
-
-          message:
-            'User not found'
-
-        });
-
-      }
-
-      if (
-
-        user.profile_update_otp !== otp
-
-      ) {
-
-        return res.status(400).json({
-
-          message:
-            'Invalid OTP'
-
-        });
-
-      }
-
-      if (
-
-        user.profile_update_otp_expiry <
-        Date.now()
-
-      ) {
-
-        return res.status(400).json({
-
-          message:
-            'OTP expired'
-
-        });
-
-      }
-
-      user.name =
-        name || user.name;
-
-      user.email =
-        email || user.email;
-
-      user.phone =
-        phone || user.phone;
-
-      if (req.file) {
-
-        user.profile_image =
-          req.file.filename;
-
-      }
-
-      user.profile_update_otp = '';
-
-      await user.save();
-
-      const safeUser = {
-
-        _id: user._id,
-
-        name: user.name,
-
-        email: user.email,
-
-        phone: user.phone,
-
-        profile_image:
-          user.profile_image
-
-      };
-
-      res.json({
-
-        success: true,
-
-        message:
-          'Profile updated successfully',
-
-        user: safeUser
-
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
       });
-
-    } catch (error) {
-
-      res.status(500).json({
-
-        success: false,
-
-        message:
-          error.message
-
-      });
-
     }
 
+    if (user.profile_update_otp !== otp) {
+      return res.status(400).json({
+        message: "Invalid OTP",
+      });
+    }
+
+    if (user.profile_update_otp_expiry < Date.now()) {
+      return res.status(400).json({
+        message: "OTP expired",
+      });
+    }
+
+    user.name = name || user.name;
+
+    user.email = email || user.email;
+
+    user.phone = phone || user.phone;
+
+    if (req.file) {
+      user.profile_image = req.file.filename;
+    }
+
+    user.profile_update_otp = "";
+
+    await user.save();
+
+    const safeUser = {
+      _id: user._id,
+
+      name: user.name,
+
+      email: user.email,
+
+      phone: user.phone,
+
+      profile_image: user.profile_image,
+    };
+
+    res.json({
+      success: true,
+
+      message: "Profile updated successfully",
+
+      user: safeUser,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+
+      message: error.message,
+    });
+  }
 };
 
-exports.updateProfile =
-  async (req, res) => {
+exports.updateProfile = async (req, res) => {
+  try {
+    const { userId, name, email, phone } = req.body;
 
-    try {
+    const user = await User.findById(req.user.id);
 
-      const {
-
-        userId,
-        name,
-        email,
-        phone
-
-      } = req.body;
-
-      const user =
-  await User.findById(req.user.id);
-
-      if (!user) {
-
-        return res.status(404).json({
-
-          message:
-            'User not found'
-
-        });
-
-      }
-
-      user.name =
-        name || user.name;
-
-      user.email =
-        email || user.email;
-
-      user.phone =
-        phone || user.phone;
-
-      if (req.file) {
-
-        user.profile_image =
-          req.file.filename;
-
-      }
-
-      await user.save();
-
-      res.json({
-
-        success: true,
-
-        message:
-          'Profile updated',
-
-        user
-
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
       });
-
-    } catch (error) {
-
-      res.status(500).json({
-
-        success: false,
-
-        message:
-          error.message
-
-      });
-
     }
 
+    user.name = name || user.name;
+
+    user.email = email || user.email;
+
+    user.phone = phone || user.phone;
+
+    if (req.file) {
+      user.profile_image = req.file.filename;
+    }
+
+    await user.save();
+
+    res.json({
+      success: true,
+
+      message: "Profile updated",
+
+      user,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+
+      message: error.message,
+    });
+  }
 };
 
 module.exports = exports;

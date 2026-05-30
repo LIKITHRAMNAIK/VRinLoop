@@ -1,37 +1,21 @@
-const express =
-  require('express');
+const express = require("express");
 
-const router =
-  express.Router();
+const router = express.Router();
 
-const authMiddleware =
-  require(
-    '../middleware/authMiddleware'
-  );
+const authMiddleware = require("../middleware/authMiddleware");
 
-const upload =
-  require(
-    '../middleware/uploadMiddleware'
-  );
+const upload = require("../middleware/uploadMiddleware");
 
-const feedbackController =
-  require(
-    '../controllers/feedbackController'
-  );
+const feedbackController = require("../controllers/feedbackController");
 
 router.post(
-
-  '/submit',
+  "/submit",
 
   authMiddleware,
 
-  upload.single(
-    'image'
-  ),
+  upload.single("image"),
 
-  feedbackController.submitFeedback
-
+  feedbackController.submitFeedback,
 );
 
-module.exports =
-  router;
+module.exports = router;

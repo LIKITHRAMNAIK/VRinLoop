@@ -1,181 +1,187 @@
-import {
-  useState
-} from 'react';
+import { useState } from "react";
 
-import authAPI
-from '../services/authApi';
+import authAPI from "../services/authApi";
 
-import {
-  useNavigate,
-  useLocation
-} from 'react-router-dom';
-
+import { useNavigate, useLocation } from "react-router-dom";
 export default function VerifyOtp() {
+  const navigate = useNavigate();
 
-  const navigate =
-    useNavigate();
+  const location = useLocation();
 
-  const location =
-    useLocation();
+  const email = location.state?.email;
 
-  const email =
-    location.state?.email;
+  const [successModal, setSuccessModal] = useState(false);
 
-  const [otp, setOtp] =
-    useState('');
+  const [otp, setOtp] = useState("");
 
-  const handleSubmit =
-    async e => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-      e.preventDefault();
+    try {
+      await authAPI.post(
+        "/verify-otp",
 
-      try {
+        {
+          email,
+          otp,
+        },
+      );
 
-        await authAPI.post(
-
-          '/verify-otp',
-
-          {
-            email,
-            otp
-          }
-
-        );
-
-        alert(
-          'OTP verified'
-        );
-
-        navigate(
-          '/reset-password',
-          {
-            state: { email }
-          }
-        );
-
-      } catch (error) {
-
-        alert(
-
-          error.response?.data?.message ||
-
-          'Invalid OTP'
-
-        );
-
-      }
-
-    };
+      setSuccessModal(true);
+    } catch (error) {
+      alert(error.response?.data?.message || "Invalid OTP");
+    }
+  };
 
   return (
-
     <div style={containerStyle}>
+      <form onSubmit={handleSubmit} style={formStyle}>
+        <div
+          style={{
+            textAlign: "center",
+            marginBottom: 25,
+          }}
+        >
+          <h1
+            style={{
+              color: "#4f46e5",
+            }}
+          >
+            OTP Verification
+          </h1>
 
-      <form
-        onSubmit={handleSubmit}
-        style={formStyle}
-      >
-
-        <h1>
-          Verify OTP
-        </h1>
+          <p
+            style={{
+              color: "#64748b",
+            }}
+          >
+            Enter the OTP sent to your email.
+          </p>
+        </div>
 
         <input
-
           type="text"
-
           placeholder="Enter OTP"
-
           value={otp}
-
-          onChange={e =>
-            setOtp(
-              e.target.value
-            )
-          }
-
+          onChange={(e) => setOtp(e.target.value)}
           required
-
           style={inputStyle}
-
         />
 
-        <button
-          type="submit"
-          style={buttonStyle}
-        >
+        <button type="submit" style={buttonStyle}>
           Verify OTP
         </button>
-
       </form>
 
+      {successModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 9999,
+          }}
+        >
+          <div
+            style={{
+              background: "white",
+              padding: 35,
+              borderRadius: 24,
+              width: 420,
+              textAlign: "center",
+            }}
+          >
+            <h2>✅ OTP Verified</h2>
+
+            <p>Verification successful.</p>
+
+            <button
+              onClick={() =>
+                navigate("/reset-password", {
+                  state: { email },
+                })
+              }
+              style={buttonStyle}
+            >
+              Continue →
+            </button>
+          </div>
+        </div>
+      )}
     </div>
-
   );
-
 }
 
 const containerStyle = {
+  minHeight: "100vh",
 
-  minHeight: '100vh',
+  overflow: "hidden",
 
-  display: 'flex',
+  display: "flex",
 
-  justifyContent: 'center',
+  justifyContent: "center",
 
-  alignItems: 'center',
+  alignItems: "center",
 
-  background: '#f1f5f9'
-
+  background: "linear-gradient(135deg,#eef2ff,#ede9fe,#f8fafc)",
 };
 
 const formStyle = {
+  background: "rgba(255,255,255,0.8)",
 
-  background: 'white',
+  backdropFilter: "blur(16px)",
+
+  border: "1px solid rgba(255,255,255,0.5)",
 
   padding: 40,
 
   borderRadius: 20,
 
-  width: 400,
+  width: 450,
 
-  boxShadow:
-    '0 10px 30px rgba(0,0,0,0.1)'
+  zIndex: 2,
 
+  boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
 };
 
 const inputStyle = {
+  width: "100%",
 
-  width: '100%',
+  padding: 16,
 
-  padding: 14,
+  marginTop: 15,
 
-  marginTop: 20,
+  borderRadius: 14,
 
-  borderRadius: 10,
+  border: "1px solid #d8b4fe",
 
-  border: '1px solid #cbd5e1'
+  outline: "none",
 
+  fontSize: 15,
 };
 
 const buttonStyle = {
+  width: "100%",
 
-  width: '100%',
-
-  padding: 14,
+  padding: 16,
 
   marginTop: 20,
 
-  border: 'none',
+  border: "none",
 
-  borderRadius: 12,
+  borderRadius: 14,
 
-  background: '#16a34a',
+  background: "linear-gradient(135deg,#7c3aed,#a855f7)",
 
-  color: 'white',
+  color: "white",
 
-  fontWeight: 'bold',
+  fontWeight: "bold",
 
-  cursor: 'pointer'
+  fontSize: 16,
 
+  cursor: "pointer",
 };

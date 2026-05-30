@@ -1,156 +1,97 @@
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
-export const exportLoanCSV = (
-  loans
-) => {
-
+export const exportLoanCSV = (loans) => {
   let csv =
-  'Name,EMI Info,Stage,Type,Amount,Penalty,Balance,Due Date,Paid Date\n';
+    "Name,EMI Info,Stage,Type,Amount,Penalty,Balance,Due Date,Paid Date\n";
 
   loans.forEach((loan) => {
-
     const paidAmount =
-      Number(
-        loan.completed_emi || 0
-      ) *
-      Number(
-        loan.emi_amount || 0
-      );
+      Number(loan.completed_emi || 0) * Number(loan.emi_amount || 0);
 
     const remainingAmount =
-      Number(
-        loan.remaining_emi || 0
-      ) *
-      Number(
-        loan.emi_amount || 0
-      );
+      Number(loan.remaining_emi || 0) * Number(loan.emi_amount || 0);
 
     csv += `${loan.person_name},${loan.emi_amount},${loan.completed_emi},${loan.remaining_emi},${loan.loan_amount || loan.principal_amount},${paidAmount},${remainingAmount},${loan.status}\n
 
 `;
 
     let runningBalance =
-  Number(
-    loan.emi_amount || 0
-  ) *
+      Number(loan.emi_amount || 0) *
+      (Number(loan.completed_emi || 0) + Number(loan.remaining_emi || 0));
 
-  (
-    Number(loan.completed_emi || 0) +
-    Number(loan.remaining_emi || 0)
-  );
+    (loan.loan_history || loan.emi_history || loan.emiHistory || []).forEach(
+      (history, i) => {
+        const emiAmount = Number(history.amount || loan.emi_amount || 0);
 
-(
-  loan.loan_history ||
-  loan.emi_history ||
-  loan.emiHistory ||
-  []
-).forEach((history, i) => {
+        runningBalance = runningBalance - emiAmount;
 
-  const emiAmount =
-    Number(
-      history.amount ||
-      loan.emi_amount ||
-      0
+        if (runningBalance < 0) {
+          runningBalance = 0;
+        }
+
+        const emiDueDate = new Date(loan.start_date);
+
+        emiDueDate.setMonth(emiDueDate.getMonth() + i);
+
+        csv += `${
+          i === 0
+            ? `${loan.person_name}-${loan.principal_amount}`
+            : loan.person_name
+        },₹${loan.emi_amount} x ${String(
+          Number(loan.completed_emi || 0) + Number(loan.remaining_emi || 0) - i,
+        ).padStart(2, "0")} ${
+          Number(loan.completed_emi || 0) +
+            Number(loan.remaining_emi || 0) -
+            i ===
+          1
+            ? "Month"
+            : "Months"
+        },EMI #${i + 1},${
+          history.date &&
+          loan.due_date &&
+          new Date(history.date) < new Date(loan.due_date)
+            ? "ADVANCE PAYMENT"
+            : history.is_late
+              ? "LATE PAYMENT"
+              : history.payment_type || "PAID"
+        },${emiAmount},${history.penalty || 0},${runningBalance},${emiDueDate.toLocaleDateString(
+          "en-GB",
+        )},${
+          history.date || history.paid_date || history.payment_date
+            ? new Date(
+                history.date || history.paid_date || history.payment_date,
+              ).toLocaleDateString("en-GB")
+            : "-"
+        }\n`;
+      },
     );
+    csv += "\n";
+  });
 
-  runningBalance =
-    runningBalance - emiAmount;
+  const blob = new Blob([csv], {
+    type: "text/csv;charset=utf-8;",
+  });
 
-  if (runningBalance < 0) {
-    runningBalance = 0;
-  }
+  const url = window.URL.createObjectURL(blob);
 
-  const emiDueDate = new Date(
-    loan.start_date
-  );
-
-  emiDueDate.setMonth(
-    emiDueDate.getMonth() + i
-  );
-
-  csv += `${
-    i === 0
-      ? `${loan.person_name}-${loan.principal_amount}`
-      : loan.person_name
-  },₹${loan.emi_amount} x ${String(
-    (
-      Number(loan.completed_emi || 0) +
-      Number(loan.remaining_emi || 0)
-    ) - i
-  ).padStart(2, '0')} ${
-    (
-      (
-        Number(loan.completed_emi || 0) +
-        Number(loan.remaining_emi || 0)
-      ) - i
-    ) === 1
-      ? 'Month'
-      : 'Months'
-  },EMI #${i + 1},${
-    history.date &&
-    loan.due_date &&
-    new Date(history.date) <
-      new Date(loan.due_date)
-      ? 'ADVANCE PAYMENT'
-      : history.is_late
-      ? 'LATE PAYMENT'
-      : history.payment_type || 'PAID'
-  },${emiAmount},${history.penalty || 0},${runningBalance},${emiDueDate.toLocaleDateString(
-    'en-GB'
-  )},${
-    history.date ||
-    history.paid_date ||
-    history.payment_date
-      ? new Date(
-          history.date ||
-          history.paid_date ||
-          history.payment_date
-        ).toLocaleDateString(
-          'en-GB'
-        )
-      : '-'
-  }\n`;
-
-});
-csv += '\n';
-
-});
-
-  const blob = new Blob(
-    [csv],
-    {
-      type: 'text/csv;charset=utf-8;'
-    }
-  );
-
-  const url =
-    window.URL.createObjectURL(blob);
-
-  const link =
-    document.createElement('a');
+  const link = document.createElement("a");
 
   link.href = url;
 
-  link.download =
-    'loan-statements.csv';
+  link.download = "loan-statements.csv";
 
   link.click();
-
 };
 
 export const exportLoanPDF = (loans) => {
-  const doc = new jsPDF('landscape');
+  const doc = new jsPDF("landscape");
 
   doc.setFontSize(18);
-  doc.text('Loan Statement Report', 14, 15);
+  doc.text("Loan Statement Report", 14, 15);
 
   doc.setFontSize(10);
-  doc.text(
-    `Generated On: ${new Date().toLocaleDateString('en-GB')}`,
-    14,
-    22
-  );
+  doc.text(`Generated On: ${new Date().toLocaleDateString("en-GB")}`, 14, 22);
 
   let startY = 30;
 
@@ -158,876 +99,619 @@ export const exportLoanPDF = (loans) => {
   const rows = [];
 
   loans.forEach((loan) => {
-    const paidAmount = Number(loan.completed_emi || 0) * Number(loan.emi_amount || 0);
-    const remainingAmount = Number(loan.remaining_emi || 0) * Number(loan.emi_amount || 0);
+    const paidAmount =
+      Number(loan.completed_emi || 0) * Number(loan.emi_amount || 0);
+    const remainingAmount =
+      Number(loan.remaining_emi || 0) * Number(loan.emi_amount || 0);
 
-    let runningBalance = Number(loan.emi_amount || 0) * (Number(loan.completed_emi || 0) + Number(loan.remaining_emi || 0));
+    let runningBalance =
+      Number(loan.emi_amount || 0) *
+      (Number(loan.completed_emi || 0) + Number(loan.remaining_emi || 0));
 
     // Append the Loan Summary row
     rows.push([
       `${loan.person_name}-${loan.loan_amount || loan.principal_amount}`,
       `₹${loan.emi_amount} x ${Number(loan.completed_emi || 0) + Number(loan.remaining_emi || 0)} Months`,
-      'LOAN SUMMARY',
-      loan.status?.toUpperCase() || 'ACTIVE',
+      "LOAN SUMMARY",
+      loan.status?.toUpperCase() || "ACTIVE",
       `₹${Number(loan.emi_amount || 0) * (Number(loan.completed_emi || 0) + Number(loan.remaining_emi || 0))}`,
-      '0',
+      "0",
       `₹${Number(loan.emi_amount || 0) * (Number(loan.completed_emi || 0) + Number(loan.remaining_emi || 0))}`,
-      loan.due_date ? new Date(loan.due_date).toLocaleDateString('en-GB') : '-',
-      '-'
+      loan.due_date ? new Date(loan.due_date).toLocaleDateString("en-GB") : "-",
+      "-",
     ]);
 
     // Space separator row
-    rows.push(['', '', '', '', '', '', '', '', '']);
+    rows.push(["", "", "", "", "", "", "", "", ""]);
 
     // Loop through individual EMI history elements
-    (loan.loan_history || loan.emi_history || loan.emiHistory || []).forEach((history, i) => {
-      const emiAmount = Number(history.amount || loan.emi_amount || 0);
-      runningBalance = runningBalance - emiAmount;
+    (loan.loan_history || loan.emi_history || loan.emiHistory || []).forEach(
+      (history, i) => {
+        const emiAmount = Number(history.amount || loan.emi_amount || 0);
+        runningBalance = runningBalance - emiAmount;
 
-      if (runningBalance < 0) {
-        runningBalance = 0;
-      }
+        if (runningBalance < 0) {
+          runningBalance = 0;
+        }
 
-      rows.push([
-        i === 0 ? `${loan.person_name}-${loan.loan_amount || loan.principal_amount}` : loan.person_name,
-        `₹${loan.emi_amount} x ${String((Number(loan.completed_emi || 0) + Number(loan.remaining_emi || 0)) - i).padStart(2, '0')} Months`,
-        `EMI #${i + 1}`,
-        history.payment_type || (history.is_advance ? 'ADVANCE' : history.is_late ? 'LATE' : 'PAID'),
-        emiAmount,
-        history.penalty || 0,
-        `₹${runningBalance}`,
-        (() => {
-          const emiDueDate = new Date(loan.start_date);
-          emiDueDate.setMonth(emiDueDate.getMonth() + i);
-          return emiDueDate.toLocaleDateString('en-GB');
-        })(),
-        history.date || history.paid_date || history.payment_date
-          ? new Date(history.date || history.paid_date || history.payment_date).toLocaleDateString('en-GB')
-          : '-'
-      ]);
-    });
+        rows.push([
+          i === 0
+            ? `${loan.person_name}-${loan.loan_amount || loan.principal_amount}`
+            : loan.person_name,
+          `₹${loan.emi_amount} x ${String(Number(loan.completed_emi || 0) + Number(loan.remaining_emi || 0) - i).padStart(2, "0")} Months`,
+          `EMI #${i + 1}`,
+          history.payment_type ||
+            (history.is_advance
+              ? "ADVANCE"
+              : history.is_late
+                ? "LATE"
+                : "PAID"),
+          emiAmount,
+          history.penalty || 0,
+          `₹${runningBalance}`,
+          (() => {
+            const emiDueDate = new Date(loan.start_date);
+            emiDueDate.setMonth(emiDueDate.getMonth() + i);
+            return emiDueDate.toLocaleDateString("en-GB");
+          })(),
+          history.date || history.paid_date || history.payment_date
+            ? new Date(
+                history.date || history.paid_date || history.payment_date,
+              ).toLocaleDateString("en-GB")
+            : "-",
+        ]);
+      },
+    );
 
     // Final spacer for this specific loan profile loop context
-    rows.push(['', '', '', '', '', '', '', '', '']);
-    
+    rows.push(["", "", "", "", "", "", "", "", ""]);
+
     // Optional: If you want specific loan header context metadata printed on page directly
     doc.setFontSize(14);
     doc.setTextColor(15, 23, 42);
     doc.text(`Loan Holder: ${loan.person_name}`, 14, startY);
 
     doc.setFontSize(10);
-    doc.text(`Principal Amount: ₹${loan.loan_amount || loan.principal_amount}`, 14, startY + 7);
-    doc.text(`EMI Plan: ₹${loan.emi_amount} x ${Number(loan.completed_emi || 0) + Number(loan.remaining_emi || 0)} Months`, 90, startY + 7);
-    doc.text(`Loan Status: ${loan.status?.toUpperCase() || 'ACTIVE'}`, 200, startY + 7);
-    
+    doc.text(
+      `Principal Amount: ₹${loan.loan_amount || loan.principal_amount}`,
+      14,
+      startY + 7,
+    );
+    doc.text(
+      `EMI Plan: ₹${loan.emi_amount} x ${Number(loan.completed_emi || 0) + Number(loan.remaining_emi || 0)} Months`,
+      90,
+      startY + 7,
+    );
+    doc.text(
+      `Loan Status: ${loan.status?.toUpperCase() || "ACTIVE"}`,
+      200,
+      startY + 7,
+    );
+
     startY += 14; // Push table start position down below header texts dynamically
   });
 
   // Now draw the autotable containing your compiled row datasets cleanly outside loops
   autoTable(doc, {
-
-  startY,
-    theme: 'grid',
-    head: [[
-      'Name',
-      'EMI Info',
-      'Stage',
-      'Type',
-      'Amount',
-      'Penalty',
-      'Balance',
-      'Due Date',
-      'Paid Date'
-    ]],
+    startY,
+    theme: "grid",
+    head: [
+      [
+        "Name",
+        "EMI Info",
+        "Stage",
+        "Type",
+        "Amount",
+        "Penalty",
+        "Balance",
+        "Due Date",
+        "Paid Date",
+      ],
+    ],
     body: rows,
     styles: {
       fontSize: 8,
-      cellPadding: 2
+      cellPadding: 2,
     },
     didParseCell: function (data) {
-      if (data.row.raw && data.row.raw[2] === 'LOAN SUMMARY') {
+      if (data.row.raw && data.row.raw[2] === "LOAN SUMMARY") {
         data.cell.styles.fillColor = [219, 234, 254];
         data.cell.styles.textColor = [30, 41, 59];
-        data.cell.styles.fontStyle = 'bold';
+        data.cell.styles.fontStyle = "bold";
       }
-      data.cell.styles.valign = 'middle';
-    }
+      data.cell.styles.valign = "middle";
+    },
   });
 
-  doc.save('loan-statements.pdf');
+  doc.save("loan-statements.pdf");
 };
-export const exportTransactionsCSV = (
-  transactions,
-  type = 'all'
-) => {
-
+export const exportTransactionsCSV = (transactions, type = "all") => {
   let csv =
-    'Name,Type,Stage,Principal,Start,Due,Interest,Total,Paid,Balance,Paid Date,Installments,Status\n';
-const normalTransactions =
-  transactions.filter(
-    tx => tx.transaction_type === 'normal'
+    "Name,Type,Stage,Principal,Start,Due,Interest,Total,Paid,Balance,Paid Date,Installments,Status\n";
+  const normalTransactions = transactions.filter(
+    (tx) => tx.transaction_type === "normal",
   );
 
-const rotationTransactions =
-  transactions.filter(
-    tx => tx.transaction_type === 'rotation'
+  const rotationTransactions = transactions.filter(
+    (tx) => tx.transaction_type === "rotation",
   );
+  csv += "\n================ NORMAL PAYMENTS ================\n\n";
+
   csv +=
-'\n================ NORMAL PAYMENTS ================\n\n';
+    "Name,Type,Stage,Principal,Start,Due,Interest,Total,Paid,Balance,Paid Date,Installments,Status\n";
 
-csv +=
-'Name,Type,Stage,Principal,Start,Due,Interest,Total,Paid,Balance,Paid Date,Installments,Status\n';
+  normalTransactions.forEach((tx) => {
+    let totalInterest = 0;
 
-normalTransactions.forEach((tx) => {
+    const totalAmount = Number(tx.principal_amount || 0);
 
-  let totalInterest = 0;
+    const paidAmount =
+      tx.status === "paid" ? totalAmount : Number(tx.paid_amount || 0);
 
-  const totalAmount =
-    Number(tx.principal_amount || 0);
+    const balanceAmount = Math.max(totalAmount - paidAmount, 0);
 
-  const paidAmount =
+    const dueDate = new Date(tx.due_date);
 
-    tx.status === 'paid'
+    dueDate.setHours(0, 0, 0, 0);
 
-      ? totalAmount
+    const today = new Date();
 
-      : Number(tx.paid_amount || 0);
+    today.setHours(0, 0, 0, 0);
 
-  const balanceAmount =
-    Math.max(
-      totalAmount - paidAmount,
-      0
-    );
+    const exportStatus =
+      tx.status !== "paid" && dueDate < today
+        ? "OVERDUE"
+        : (tx.status || "PENDING").toUpperCase();
 
-  const dueDate =
-    new Date(tx.due_date);
+    csv += `${tx.person_name} - Normal,`;
 
-  dueDate.setHours(0,0,0,0);
+    csv += `${tx.type},`;
 
-  const today = new Date();
+    csv += `Original,`;
 
-  today.setHours(0,0,0,0);
-
-  const exportStatus =
-
-    tx.status !== 'paid' &&
-    dueDate < today
-
-      ? 'OVERDUE'
-
-      : (
-          tx.status || 'PENDING'
-        ).toUpperCase();
-
-  csv += `${tx.person_name} - Normal,`;
-
-  csv += `${tx.type},`;
-
-  csv += `Original,`;
-
-  csv += `${tx.principal_amount || 0},`;
-
-  csv += `${
-    tx.start_date
-      ? new Date(
-          tx.start_date
-        ).toLocaleDateString('en-GB')
-      : '-'
-  },`;
-
-  csv += `${
-    tx.due_date
-      ? new Date(
-          tx.due_date
-        ).toLocaleDateString('en-GB')
-      : '-'
-  },`;
-
-  csv += `0,`;
-
-  csv += `${totalAmount},`;
-
-  csv += `${paidAmount},`;
-
-  csv += `${balanceAmount},`;
-
-  csv += `${
-    tx.paid_date
-      ? new Date(
-          tx.paid_date
-        ).toLocaleDateString('en-GB')
-      : '-'
-  },`;
-
-  csv += `${
-    tx.installments?.filter(
-      inst => Number(inst.amount) > 0
-    ).length || 0
-  },`;
-
-  csv += `${exportStatus}\n`;
-
-  let runningPaid = 0;
-
-  tx.installments
-?.filter(inst => Number(inst.amount) > 0)
-.forEach((inst, i) => {
-
-    runningPaid +=
-      Number(inst.amount);
-
-    csv += `,,Payment ${i + 1},,,,,,`;
-
-    csv += `${inst.amount},`;
+    csv += `${tx.principal_amount || 0},`;
 
     csv += `${
-      Math.max(
-        totalAmount - runningPaid,
-        0
-      )
+      tx.start_date ? new Date(tx.start_date).toLocaleDateString("en-GB") : "-"
     },`;
 
     csv += `${
-      inst.date
-        ? new Date(
-            inst.date
-          ).toLocaleDateString('en-GB')
-        : '-'
+      tx.due_date ? new Date(tx.due_date).toLocaleDateString("en-GB") : "-"
     },`;
 
-    csv += `₹${inst.amount},`;
+    csv += `0,`;
+
+    csv += `${totalAmount},`;
+
+    csv += `${paidAmount},`;
+
+    csv += `${balanceAmount},`;
 
     csv += `${
-      runningPaid >= totalAmount
-        ? 'PAID'
-        : 'PARTIAL'
-    }\n`;
+      tx.paid_date ? new Date(tx.paid_date).toLocaleDateString("en-GB") : "-"
+    },`;
 
+    csv += `${
+      tx.installments?.filter((inst) => Number(inst.amount) > 0).length || 0
+    },`;
+
+    csv += `${exportStatus}\n`;
+
+    let runningPaid = 0;
+
+    tx.installments
+      ?.filter((inst) => Number(inst.amount) > 0)
+      .forEach((inst, i) => {
+        runningPaid += Number(inst.amount);
+
+        csv += `,,Payment ${i + 1},,,,,,`;
+
+        csv += `${inst.amount},`;
+
+        csv += `${Math.max(totalAmount - runningPaid, 0)},`;
+
+        csv += `${
+          inst.date ? new Date(inst.date).toLocaleDateString("en-GB") : "-"
+        },`;
+
+        csv += `₹${inst.amount},`;
+
+        csv += `${runningPaid >= totalAmount ? "PAID" : "PARTIAL"}\n`;
+      });
+
+    csv += "\n";
   });
 
-  csv += '\n';
+  csv += "\n=============== ROTATION PAYMENTS ===============\n\n";
 
-});
+  csv +=
+    "Name,Type,Stage,Principal,Start,Due,Extended Date,Interest,Total,Paid,Balance,Paid Date,Status\n";
 
-csv +=
-'\n=============== ROTATION PAYMENTS ===============\n\n';
+  rotationTransactions.forEach((tx) => {
+    let totalInterest = Number(tx.base_interest || 0);
 
-csv +=
-'Name,Type,Stage,Principal,Start,Due,Extended Date,Interest,Total,Paid,Balance,Paid Date,Status\n';
+    tx.extensions?.forEach((ext) => {
+      if (ext.interest_paid) {
+        totalInterest = Number(ext.extra_interest || 0);
+      } else {
+        totalInterest += Number(ext.extra_interest || 0);
+      }
+    });
 
-rotationTransactions.forEach((tx) => {
+    const totalAmount = Number(tx.principal_amount || 0) + totalInterest;
 
-  let totalInterest =
-    Number(tx.base_interest || 0);
+    const paidAmount =
+      tx.status === "paid" ? totalAmount : Number(tx.paid_amount || 0);
 
-  tx.extensions?.forEach(ext => {
+    const balanceAmount = Math.max(totalAmount - paidAmount, 0);
 
-  if (ext.interest_paid) {
+    const latestExtension =
+      tx.extensions?.length > 0
+        ? tx.extensions[tx.extensions.length - 1]
+        : null;
 
-    totalInterest =
-      Number(ext.extra_interest || 0);
+    const extendedDate = latestExtension?.new_due_date
+      ? new Date(latestExtension.new_due_date).toLocaleDateString("en-GB")
+      : "-";
 
-  } else {
+    const dueDate = new Date(tx.due_date);
 
-    totalInterest +=
-      Number(ext.extra_interest || 0);
+    dueDate.setHours(0, 0, 0, 0);
 
-  }
+    const today = new Date();
 
-});
+    today.setHours(0, 0, 0, 0);
 
-  const totalAmount =
-    Number(tx.principal_amount || 0) +
-    totalInterest;
+    const exportStatus =
+      tx.status !== "paid" && tx.status !== "extended" && dueDate < today
+        ? "OVERDUE"
+        : (tx.status || "PENDING").toUpperCase();
 
-  const paidAmount =
+    csv += `${tx.person_name} - Rotation,`;
 
-    tx.status === 'paid'
+    csv += `${tx.type},`;
 
-      ? totalAmount
+    csv += `Original,`;
 
-      : Number(tx.paid_amount || 0);
-
-  const balanceAmount =
-    Math.max(
-      totalAmount - paidAmount,
-      0
-    );
-
-  const latestExtension =
-
-    tx.extensions?.length > 0
-
-      ? tx.extensions[
-          tx.extensions.length - 1
-        ]
-
-      : null;
-
-  const extendedDate =
-
-    latestExtension?.new_due_date
-
-      ? new Date(
-          latestExtension.new_due_date
-        ).toLocaleDateString('en-GB')
-
-      : '-';
-
-  const dueDate =
-    new Date(tx.due_date);
-
-  dueDate.setHours(0,0,0,0);
-
-  const today = new Date();
-
-  today.setHours(0,0,0,0);
-
-  const exportStatus =
-
-    tx.status !== 'paid' &&
-tx.status !== 'extended' &&
-dueDate < today
-
-      ? 'OVERDUE'
-
-      : (
-          tx.status || 'PENDING'
-        ).toUpperCase();
-
-  csv += `${tx.person_name} - Rotation,`;
-
-  csv += `${tx.type},`;
-
-  csv += `Original,`;
-
-  csv += `${tx.principal_amount || 0},`;
-
-  csv += `${
-    tx.start_date
-      ? new Date(
-          tx.start_date
-        ).toLocaleDateString('en-GB')
-      : '-'
-  },`;
-
-  csv += `${
-    tx.due_date
-      ? new Date(
-          tx.due_date
-        ).toLocaleDateString('en-GB')
-      : '-'
-  },`;
-
-  csv += `${extendedDate},`;
-
-  csv += `${totalInterest},`;
-
-  csv += `${totalAmount},`;
-
-  csv += `${paidAmount},`;
-
-  csv += `${balanceAmount},`;
-
-  csv += `${
-    tx.paid_date
-      ? new Date(
-          tx.paid_date
-        ).toLocaleDateString('en-GB')
-      : '-'
-  },`;
-
-  csv += `${exportStatus}\n`;
-
-  tx.extensions?.forEach((ext, i) => {
-
-    csv += `,,Extension ${i + 1},,,,,`;
+    csv += `${tx.principal_amount || 0},`;
 
     csv += `${
-      ext.new_due_date
-        ? new Date(
-            ext.new_due_date
-          ).toLocaleDateString('en-GB')
-        : '-'
+      tx.start_date ? new Date(tx.start_date).toLocaleDateString("en-GB") : "-"
     },`;
 
-    csv += `${ext.extra_interest || 0},`;
+    csv += `${
+      tx.due_date ? new Date(tx.due_date).toLocaleDateString("en-GB") : "-"
+    },`;
+
+    csv += `${extendedDate},`;
+
+    csv += `${totalInterest},`;
+
+    csv += `${totalAmount},`;
+
+    csv += `${paidAmount},`;
+
+    csv += `${balanceAmount},`;
 
     csv += `${
-      Number(tx.principal_amount || 0) +
-      Number(tx.base_interest || 0) +
-      tx.extensions
-        .slice(0, i + 1)
-        .reduce(
-          (sum, ex) =>
-            sum +
-            Number(ex.extra_interest || 0),
-          0
-        )
-    },,,,`;
+      tx.paid_date ? new Date(tx.paid_date).toLocaleDateString("en-GB") : "-"
+    },`;
 
-    csv += `${
-      ext.interest_paid
-        ? 'INTEREST PAID'
-        : 'INTEREST PENDING'
-    }\n`;
+    csv += `${exportStatus}\n`;
 
+    tx.extensions?.forEach((ext, i) => {
+      csv += `,,Extension ${i + 1},,,,,`;
+
+      csv += `${
+        ext.new_due_date
+          ? new Date(ext.new_due_date).toLocaleDateString("en-GB")
+          : "-"
+      },`;
+
+      csv += `${ext.extra_interest || 0},`;
+
+      csv += `${
+        Number(tx.principal_amount || 0) +
+        Number(tx.base_interest || 0) +
+        tx.extensions
+          .slice(0, i + 1)
+          .reduce((sum, ex) => sum + Number(ex.extra_interest || 0), 0)
+      },,,,`;
+
+      csv += `${ext.interest_paid ? "INTEREST PAID" : "INTEREST PENDING"}\n`;
+    });
+
+    csv += "\n";
   });
 
-  csv += '\n';
+  const blob = new Blob([csv], {
+    type: "text/csv;charset=utf-8;",
+  });
 
-});
-  
+  const url = window.URL.createObjectURL(blob);
 
-  const blob = new Blob(
-    [csv],
-    {
-      type: 'text/csv;charset=utf-8;'
-    }
-  );
-
-  const url =
-    window.URL.createObjectURL(blob);
-
-  const link =
-    document.createElement('a');
+  const link = document.createElement("a");
 
   link.href = url;
 
-  link.download =
-    `${type}-transactions.csv`;
+  link.download = `${type}-transactions.csv`;
 
   link.click();
-
 };
 
-export const exportTransactionsPDF = (
-  transactions,
-  type = 'all'
-) => {
+export const exportTransactionsPDF = (transactions, type = "all") => {
+  const doc = new jsPDF("landscape");
 
-  const doc = new jsPDF(
-    'landscape'
+  const normalTransactions = transactions.filter(
+    (tx) => tx.transaction_type === "normal",
   );
 
-  const normalTransactions =
-  transactions.filter(
-    tx => tx.transaction_type === 'normal'
-  );
-
-const rotationTransactions =
-  transactions.filter(
-    tx => tx.transaction_type === 'rotation'
+  const rotationTransactions = transactions.filter(
+    (tx) => tx.transaction_type === "rotation",
   );
 
   const rows = [];
 
-rows.push([
-  'NORMAL PAYMENTS',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  ''
-]);
-
-rows.push([
-  'Name',
-  'Type',
-  'Stage',
-  'Principal',
-  'Start',
-  'Due',
-  'Interest',
-  'Total',
-  'Paid',
-  'Balance',
-  'Paid Date',
-  'Installments',
-  'Status'
-]);
-
-normalTransactions.forEach((tx) => {
-
-  const totalAmount =
-    Number(tx.principal_amount || 0);
-
-  const paidAmount =
-
-    tx.status === 'paid'
-
-      ? totalAmount
-
-      : Number(tx.paid_amount || 0);
-
-  const balanceAmount =
-    Math.max(
-      totalAmount - paidAmount,
-      0
-    );
-
-  const dueDate =
-    new Date(tx.due_date);
-
-  dueDate.setHours(0,0,0,0);
-
-  const today = new Date();
-
-  today.setHours(0,0,0,0);
-
-  const exportStatus =
-
-    tx.status !== 'paid' &&
-    dueDate < today
-
-      ? 'OVERDUE'
-
-      : (
-          tx.status || 'PENDING'
-        ).toUpperCase();
-
   rows.push([
-
-    `${tx.person_name} (${tx.type?.toUpperCase()})`,
-
-    tx.type,
-
-    'Original',
-
-    tx.principal_amount || 0,
-
-    tx.start_date
-      ? new Date(
-          tx.start_date
-        ).toLocaleDateString('en-GB')
-      : '-',
-
-    tx.due_date
-      ? new Date(
-          tx.due_date
-        ).toLocaleDateString('en-GB')
-      : '-',
-
-    0,
-
-    totalAmount,
-
-    paidAmount,
-
-    balanceAmount,
-
-    tx.paid_date
-      ? new Date(
-          tx.paid_date
-        ).toLocaleDateString('en-GB')
-      : '-',
-
-    tx.installments?.filter(
-      inst => Number(inst.amount) > 0
-    ).length || 0,
-
-    exportStatus
-
+    "NORMAL PAYMENTS",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
   ]);
 
-  let runningPaid = 0;
+  rows.push([
+    "Name",
+    "Type",
+    "Stage",
+    "Principal",
+    "Start",
+    "Due",
+    "Interest",
+    "Total",
+    "Paid",
+    "Balance",
+    "Paid Date",
+    "Installments",
+    "Status",
+  ]);
 
-  tx.installments
-?.filter(inst => Number(inst.amount) > 0)
-.forEach((inst, i) => {
+  normalTransactions.forEach((tx) => {
+    const totalAmount = Number(tx.principal_amount || 0);
 
-    runningPaid +=
-      Number(inst.amount);
+    const paidAmount =
+      tx.status === "paid" ? totalAmount : Number(tx.paid_amount || 0);
+
+    const balanceAmount = Math.max(totalAmount - paidAmount, 0);
+
+    const dueDate = new Date(tx.due_date);
+
+    dueDate.setHours(0, 0, 0, 0);
+
+    const today = new Date();
+
+    today.setHours(0, 0, 0, 0);
+
+    const exportStatus =
+      tx.status !== "paid" && dueDate < today
+        ? "OVERDUE"
+        : (tx.status || "PENDING").toUpperCase();
 
     rows.push([
+      `${tx.person_name} (${tx.type?.toUpperCase()})`,
 
-      '',
+      tx.type,
 
-      '',
+      "Original",
 
-      `Payment ${i + 1}`,
+      tx.principal_amount || 0,
 
-      '',
+      tx.start_date ? new Date(tx.start_date).toLocaleDateString("en-GB") : "-",
 
-      '',
+      tx.due_date ? new Date(tx.due_date).toLocaleDateString("en-GB") : "-",
 
-      '',
+      0,
 
-      '',
+      totalAmount,
 
-      '',
+      paidAmount,
 
-      inst.amount,
+      balanceAmount,
 
-      Math.max(
-        totalAmount - runningPaid,
-        0
-      ),
+      tx.paid_date ? new Date(tx.paid_date).toLocaleDateString("en-GB") : "-",
 
-      inst.date
-        ? new Date(
-            inst.date
-          ).toLocaleDateString('en-GB')
-        : '-',
+      tx.installments?.filter((inst) => Number(inst.amount) > 0).length || 0,
 
-      `₹${inst.amount}`,
-
-      runningPaid >= totalAmount
-        ? 'PAID'
-        : 'PARTIAL'
-
+      exportStatus,
     ]);
 
+    let runningPaid = 0;
+
+    tx.installments
+      ?.filter((inst) => Number(inst.amount) > 0)
+      .forEach((inst, i) => {
+        runningPaid += Number(inst.amount);
+
+        rows.push([
+          "",
+
+          "",
+
+          `Payment ${i + 1}`,
+
+          "",
+
+          "",
+
+          "",
+
+          "",
+
+          "",
+
+          inst.amount,
+
+          Math.max(totalAmount - runningPaid, 0),
+
+          inst.date ? new Date(inst.date).toLocaleDateString("en-GB") : "-",
+
+          `₹${inst.amount}`,
+
+          runningPaid >= totalAmount ? "PAID" : "PARTIAL",
+        ]);
+      });
+
+    rows.push(["", "", "", "", "", "", "", "", "", "", "", "", ""]);
   });
 
   rows.push([
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    ''
+    "ROTATION PAYMENTS",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
   ]);
-
-});
-
-rows.push([
-  'ROTATION PAYMENTS',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  '',
-  ''
-]);
-
-rows.push([
-  'Name',
-  'Type',
-  'Stage',
-  'Principal',
-  'Start',
-  'Due',
-  'Extended Date',
-  'Interest',
-  'Total',
-  'Paid',
-  'Balance',
-  'Paid Date',
-  'Status'
-]);
-
-rotationTransactions.forEach((tx) => {
-
-  let totalInterest =
-    Number(tx.base_interest || 0);
-
-  tx.extensions?.forEach(ext => {
-
-  if (ext.interest_paid) {
-
-    totalInterest =
-      Number(ext.extra_interest || 0);
-
-  } else {
-
-    totalInterest +=
-      Number(ext.extra_interest || 0);
-
-  }
-
-});
-
-  const totalAmount =
-    Number(tx.principal_amount || 0) +
-    totalInterest;
-
-  const paidAmount =
-
-    tx.status === 'paid'
-
-      ? totalAmount
-
-      : Number(tx.paid_amount || 0);
-
-  const balanceAmount =
-    Math.max(
-      totalAmount - paidAmount,
-      0
-    );
-
-  const latestExtension =
-
-    tx.extensions?.length > 0
-
-      ? tx.extensions[
-          tx.extensions.length - 1
-        ]
-
-      : null;
-
-  const extendedDate =
-
-    latestExtension?.new_due_date
-
-      ? new Date(
-          latestExtension.new_due_date
-        ).toLocaleDateString('en-GB')
-
-      : '-';
-
-  const dueDate =
-    new Date(tx.due_date);
-
-  dueDate.setHours(0,0,0,0);
-
-  const today = new Date();
-
-  today.setHours(0,0,0,0);
-
-  const exportStatus =
-
-    tx.status !== 'paid' &&
-tx.status !== 'extended' &&
-dueDate < today
-
-      ? 'OVERDUE'
-
-      : (
-          tx.status || 'PENDING'
-        ).toUpperCase();
 
   rows.push([
-
-    `${tx.person_name} (${tx.type?.toUpperCase()})`,
-
-    tx.type,
-
-    'Original',
-
-    tx.principal_amount || 0,
-
-    tx.start_date
-      ? new Date(
-          tx.start_date
-        ).toLocaleDateString('en-GB')
-      : '-',
-
-    tx.due_date
-      ? new Date(
-          tx.due_date
-        ).toLocaleDateString('en-GB')
-      : '-',
-
-    extendedDate,
-
-    totalInterest,
-
-    totalAmount,
-
-    paidAmount,
-
-    balanceAmount,
-
-    tx.paid_date
-      ? new Date(
-          tx.paid_date
-        ).toLocaleDateString('en-GB')
-      : '-',
-
-    exportStatus
-
+    "Name",
+    "Type",
+    "Stage",
+    "Principal",
+    "Start",
+    "Due",
+    "Extended Date",
+    "Interest",
+    "Total",
+    "Paid",
+    "Balance",
+    "Paid Date",
+    "Status",
   ]);
 
-  tx.extensions?.forEach((ext, i) => {
+  rotationTransactions.forEach((tx) => {
+    let totalInterest = Number(tx.base_interest || 0);
+
+    tx.extensions?.forEach((ext) => {
+      if (ext.interest_paid) {
+        totalInterest = Number(ext.extra_interest || 0);
+      } else {
+        totalInterest += Number(ext.extra_interest || 0);
+      }
+    });
+
+    const totalAmount = Number(tx.principal_amount || 0) + totalInterest;
+
+    const paidAmount =
+      tx.status === "paid" ? totalAmount : Number(tx.paid_amount || 0);
+
+    const balanceAmount = Math.max(totalAmount - paidAmount, 0);
+
+    const latestExtension =
+      tx.extensions?.length > 0
+        ? tx.extensions[tx.extensions.length - 1]
+        : null;
+
+    const extendedDate = latestExtension?.new_due_date
+      ? new Date(latestExtension.new_due_date).toLocaleDateString("en-GB")
+      : "-";
+
+    const dueDate = new Date(tx.due_date);
+
+    dueDate.setHours(0, 0, 0, 0);
+
+    const today = new Date();
+
+    today.setHours(0, 0, 0, 0);
+
+    const exportStatus =
+      tx.status !== "paid" && tx.status !== "extended" && dueDate < today
+        ? "OVERDUE"
+        : (tx.status || "PENDING").toUpperCase();
 
     rows.push([
+      `${tx.person_name} (${tx.type?.toUpperCase()})`,
 
-  '',
+      tx.type,
 
-  '',
+      "Original",
 
-  `Extension ${i + 1}`,
+      tx.principal_amount || 0,
 
-  '',
+      tx.start_date ? new Date(tx.start_date).toLocaleDateString("en-GB") : "-",
 
-  '',
+      tx.due_date ? new Date(tx.due_date).toLocaleDateString("en-GB") : "-",
 
-  '',
+      extendedDate,
 
-  ext.new_due_date
-    ? new Date(
+      totalInterest,
+
+      totalAmount,
+
+      paidAmount,
+
+      balanceAmount,
+
+      tx.paid_date ? new Date(tx.paid_date).toLocaleDateString("en-GB") : "-",
+
+      exportStatus,
+    ]);
+
+    tx.extensions?.forEach((ext, i) => {
+      rows.push([
+        "",
+
+        "",
+
+        `Extension ${i + 1}`,
+
+        "",
+
+        "",
+
+        "",
+
         ext.new_due_date
-      ).toLocaleDateString('en-GB')
-    : '-',
+          ? new Date(ext.new_due_date).toLocaleDateString("en-GB")
+          : "-",
 
-  ext.extra_interest || 0,
+        ext.extra_interest || 0,
 
-  Number(tx.principal_amount || 0) +
-  Number(tx.base_interest || 0) +
-  tx.extensions
-    .slice(0, i + 1)
-    .reduce(
-      (sum, ex) =>
-        sum +
-        Number(ex.extra_interest || 0),
-      0
-    ),
+        Number(tx.principal_amount || 0) +
+          Number(tx.base_interest || 0) +
+          tx.extensions
+            .slice(0, i + 1)
+            .reduce((sum, ex) => sum + Number(ex.extra_interest || 0), 0),
 
-  '',
+        "",
 
-  '',
+        "",
 
-  '',
+        "",
 
-  ext.interest_paid
-    ? 'INTEREST PAID'
-    : 'INTEREST PENDING'
+        ext.interest_paid ? "INTEREST PAID" : "INTEREST PENDING",
+      ]);
+    });
 
-]);
-
+    rows.push(["", "", "", "", "", "", "", "", "", "", "", "", ""]);
   });
 
-  rows.push([
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    ''
-  ]);
-
-});
-
-autoTable(doc, {
-
+  autoTable(doc, {
     startY: 20,
 
     head: [],
@@ -1037,7 +721,7 @@ autoTable(doc, {
     styles: {
       fontSize: 8,
       cellPadding: 2,
-      overflow: 'linebreak'
+      overflow: "linebreak",
     },
 
     columnStyles: {
@@ -1053,203 +737,102 @@ autoTable(doc, {
       9: { cellWidth: 20 },
       10: { cellWidth: 25 },
       11: { cellWidth: 25 },
-      12: { cellWidth: 20 }
+      12: { cellWidth: 20 },
     },
 
     didParseCell: function (data) {
-
       if (
-  data.row.raw &&
-  (
-    data.row.raw[0] === 'NORMAL PAYMENTS' ||
-    data.row.raw[0] === 'ROTATION PAYMENTS'
-  )
-) {
+        data.row.raw &&
+        (data.row.raw[0] === "NORMAL PAYMENTS" ||
+          data.row.raw[0] === "ROTATION PAYMENTS")
+      ) {
+        data.cell.styles.fillColor = [15, 23, 42];
 
-  data.cell.styles.fillColor =
-    [15, 23, 42];
+        data.cell.styles.textColor = [255, 255, 255];
 
-  data.cell.styles.textColor =
-    [255,255,255];
+        data.cell.styles.fontStyle = "bold";
+      }
 
-  data.cell.styles.fontStyle =
-    'bold';
+      if (data.row.raw && data.row.raw[2] === "LOAN SUMMARY") {
+        data.cell.styles.fillColor = [219, 234, 254];
 
-}
+        data.cell.styles.textColor = [30, 41, 59];
 
-        if (
-  data.row.raw &&
-  data.row.raw[2] === 'LOAN SUMMARY'
-) {
+        data.cell.styles.fontStyle = "bold";
+      }
 
-  data.cell.styles.fillColor =
-    [219, 234, 254];
+      data.cell.styles.valign = "middle";
 
-  data.cell.styles.textColor =
-    [30, 41, 59];
+      if (data.column.index === 3 && data.cell.raw) {
+        const value = String(data.cell.raw).toUpperCase();
 
-  data.cell.styles.fontStyle =
-    'bold';
+        if (value.includes("PAID")) {
+          data.cell.styles.textColor = [22, 163, 74];
+        }
 
-}
+        if (value.includes("ADVANCE")) {
+          data.cell.styles.textColor = [37, 99, 235];
+        }
 
-  data.cell.styles.valign =
-    'middle';
-
-  if (
-    data.column.index === 3 &&
-    data.cell.raw
-  ) {
-
-    const value =
-      String(
-        data.cell.raw
-      ).toUpperCase();
-
-    if (value.includes('PAID')) {
-
-      data.cell.styles.textColor =
-        [22, 163, 74];
-
-    }
-
-    if (
-      value.includes('ADVANCE')
-    ) {
-
-      data.cell.styles.textColor =
-        [37, 99, 235];
-
-    }
-
-    if (
-      value.includes('LATE')
-    ) {
-
-      data.cell.styles.textColor =
-        [220, 38, 38];
-
-    }
-
-  }
-
-}
-
+        if (value.includes("LATE")) {
+          data.cell.styles.textColor = [220, 38, 38];
+        }
+      }
+    },
   });
 
-  doc.save(
-    `${type}-transactions.pdf`
-  );
-
+  doc.save(`${type}-transactions.pdf`);
 };
-export const exportProfileCSV = (
-  stats
-) => {
-
+export const exportProfileCSV = (stats) => {
   const rows = [
-
-    ['MMS FINANCIAL REPORT'],
+    ["MMS FINANCIAL REPORT"],
 
     [],
 
-    [
-      'Metric',
-      'Value'
-    ],
+    ["Metric", "Value"],
 
-    [
-      'Total Users',
-      stats.users
-    ],
+    ["Total Users", stats.users],
 
-    [
-      'Transactions',
-      stats.transactions
-    ],
+    ["Transactions", stats.transactions],
 
-    [
-      'Active Incoming',
-      stats.incoming
-    ],
+    ["Active Incoming", stats.incoming],
 
-    [
-      'Active Outgoing',
-      stats.outgoing
-    ],
+    ["Active Outgoing", stats.outgoing],
 
-    [
-      'Paid Incoming',
-      stats.paidIncoming
-    ],
+    ["Paid Incoming", stats.paidIncoming],
 
-    [
-      'Paid Outgoing',
-      stats.paidOutgoing
-    ],
+    ["Paid Outgoing", stats.paidOutgoing],
 
-    [
-      'Net Profit',
-      stats.totalProfit
-    ],
+    ["Net Profit", stats.totalProfit],
 
-    [
-      'Overdue Cases',
-      stats.overdue
-    ],
+    ["Overdue Cases", stats.overdue],
 
-    [
-      'Total Loans',
-      stats.totalLoans
-    ],
+    ["Total Loans", stats.totalLoans],
 
-    [
-      'Pending Loans',
-      stats.pendingLoans
-    ],
+    ["Pending Loans", stats.pendingLoans],
 
-    [
-      'Completed Loans',
-      stats.completedLoans
-    ],
+    ["Completed Loans", stats.completedLoans],
 
-    [
-      'Recovery Rate',
-      `${stats.recoveryRate}%`
-    ],
+    ["Recovery Rate", `${stats.recoveryRate}%`],
 
-    [
-      'Loan Success Rate',
-      `${stats.loanSuccessRate}%`
-    ]
-
+    ["Loan Success Rate", `${stats.loanSuccessRate}%`],
   ];
 
-  const csvContent =
-    rows
-      .map(row => row.join(','))
-      .join('\n');
+  const csvContent = rows.map((row) => row.join(",")).join("\n");
 
-  const blob = new Blob(
-    [csvContent],
-    {
-      type:
-        'text/csv;charset=utf-8;'
-    }
-  );
+  const blob = new Blob([csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
 
-  const url =
-    window.URL.createObjectURL(blob);
+  const url = window.URL.createObjectURL(blob);
 
-  const link =
-    document.createElement('a');
+  const link = document.createElement("a");
 
   link.href = url;
 
-  link.download =
-    'MMS-Financial-Analytics.csv';
+  link.download = "MMS-Financial-Analytics.csv";
 
   link.click();
-
 };
 
 export const exportProfilePDF = ({
@@ -1260,236 +843,161 @@ export const exportProfilePDF = ({
   netIncoming = 0,
   netOutgoing = 0,
   overdue = 0,
-  loans = []
+  loans = [],
 }) => {
+  const doc = new jsPDF("landscape");
 
-  const doc = new jsPDF('landscape');
-
-  const today =
-    new Date().toLocaleDateString('en-GB');
+  const today = new Date().toLocaleDateString("en-GB");
 
   // ================= PAGE 1 =================
 
   doc.setFillColor(37, 99, 235);
 
-  doc.roundedRect(
-    12,
-    10,
-    270,
-    26,
-    6,
-    6,
-    'F'
-  );
+  doc.roundedRect(12, 10, 270, 26, 6, 6, "F");
 
-  doc.setTextColor(255,255,255);
+  doc.setTextColor(255, 255, 255);
 
   doc.setFontSize(22);
 
-  doc.text(
-    'MoMaS Financial Analytics Report',
-    18,
-    26
-  );
+  doc.text("MoMaS Financial Analytics Report", 18, 26);
 
   doc.setFontSize(10);
 
-  doc.text(
-    `Generated: ${today}`,
-    230,
-    27
-  );
+  doc.text(`Generated: ${today}`, 230, 27);
 
-  const totalLoans =
-    loans.length;
+  const totalLoans = loans.length;
 
-  const completedLoans =
-    loans.filter(
-      loan => loan.status === 'paid'
-    ).length;
+  const completedLoans = loans.filter((loan) => loan.status === "paid").length;
 
-  const pendingLoans =
-    loans.filter(
-      loan => loan.status !== 'paid'
-    ).length;
+  const pendingLoans = loans.filter((loan) => loan.status !== "paid").length;
 
-const stats = [
+  const stats = [
+    ["Total Users", users],
+    ["Transactions", transactions.length],
+    ["Active Incoming", `₹${Number(incoming).toLocaleString("en-IN")}`],
+    ["Active Outgoing", `₹${Number(outgoing).toLocaleString("en-IN")}`],
 
-  ['Total Users', users],
-  ['Transactions', transactions.length],
-  ['Active Incoming', `₹${Number(incoming).toLocaleString('en-IN')}`],
-  ['Active Outgoing', `₹${Number(outgoing).toLocaleString('en-IN')}`],
+    ["Paid Incoming", `₹${Number(netIncoming).toLocaleString("en-IN")}`],
+    ["Paid Outgoing", `₹${Number(netOutgoing).toLocaleString("en-IN")}`],
 
-  ['Paid Incoming', `₹${Number(netIncoming).toLocaleString('en-IN')}`],
-  ['Paid Outgoing', `₹${Number(netOutgoing).toLocaleString('en-IN')}`],
+    ["Overdue Cases", overdue],
+    [
+      "Net Profit",
+      `₹${Number(netIncoming - netOutgoing).toLocaleString("en-IN")}`,
+    ],
 
-  ['Overdue Cases', overdue],
-  ['Net Profit', `₹${Number(netIncoming - netOutgoing).toLocaleString('en-IN')}`],
+    ["Total Loans", totalLoans],
 
-  ['Total Loans', totalLoans],
-
-  [
-    'Loan Status',
-    `Pending: ${pendingLoans}\nCompleted: ${completedLoans}`
-  ]
-
-];
+    ["Loan Status", `Pending: ${pendingLoans}\nCompleted: ${completedLoans}`],
+  ];
 
   let x = 14;
   let y = 50;
 
   stats.forEach((item, index) => {
-
     const colors = [
-
-      [59,130,246],
-      [124,58,237],
-      [34,197,94],
-      [239,68,68],
-      [16,185,129],
-      [245,158,11],
-      [220,38,38],
-      [14,165,233],
-      [99,102,241],
-      [15,23,42]
-
+      [59, 130, 246],
+      [124, 58, 237],
+      [34, 197, 94],
+      [239, 68, 68],
+      [16, 185, 129],
+      [245, 158, 11],
+      [220, 38, 38],
+      [14, 165, 233],
+      [99, 102, 241],
+      [15, 23, 42],
     ];
 
-    const color =
-      colors[index % colors.length];
+    const color = colors[index % colors.length];
 
-    doc.setFillColor(
-      color[0],
-      color[1],
-      color[2]
-    );
+    doc.setFillColor(color[0], color[1], color[2]);
 
-    doc.roundedRect(
-      x,
-      y,
-      48,
-      32,
-      4,
-      4,
-      'F'
-    );
+    doc.roundedRect(x, y, 48, 32, 4, 4, "F");
 
-    doc.setTextColor(255,255,255);
+    doc.setTextColor(255, 255, 255);
 
     doc.setFontSize(9);
 
-    doc.text(
-      item[0],
-      x + 4,
-      y + 9
-    );
+    doc.text(item[0], x + 4, y + 9);
 
     doc.setFontSize(14);
 
-    const valueLines =
-      String(item[1]).split('\n');
+    const valueLines = String(item[1]).split("\n");
 
     valueLines.forEach((line, i) => {
-
-      doc.text(
-        line,
-        x + 4,
-        y + 22 + (i * 7)
-      );
-
+      doc.text(line, x + 4, y + 22 + i * 7);
     });
 
     x += 54;
 
     if (x > 230) {
-
       x = 14;
       y += 42;
-
     }
-
   });
 
   // ================= PAGE 2 =================
 
   doc.addPage();
 
-  const normalTransactions =
-    transactions.filter(
-      tx => tx.transaction_type === 'normal'
-    );
+  const normalTransactions = transactions.filter(
+    (tx) => tx.transaction_type === "normal",
+  );
 
   const normalRows = [];
 
   normalRows.push([
-    'NORMAL PAYMENTS',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    ''
+    "NORMAL PAYMENTS",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
   ]);
 
   normalRows.push([
-    'Name',
-    'Type',
-    'Stage',
-    'Principal',
-    'Start',
-    'Due',
-    'Interest',
-    'Total',
-    'Paid',
-    'Balance',
-    'Paid Date',
-    'Installments',
-    'Status'
+    "Name",
+    "Type",
+    "Stage",
+    "Principal",
+    "Start",
+    "Due",
+    "Interest",
+    "Total",
+    "Paid",
+    "Balance",
+    "Paid Date",
+    "Installments",
+    "Status",
   ]);
 
   normalTransactions.forEach((tx) => {
-
-    const totalAmount =
-      Number(tx.principal_amount || 0);
+    const totalAmount = Number(tx.principal_amount || 0);
 
     const paidAmount =
-      tx.status === 'paid'
-        ? totalAmount
-        : Number(tx.paid_amount || 0);
+      tx.status === "paid" ? totalAmount : Number(tx.paid_amount || 0);
 
-    const balanceAmount =
-      Math.max(
-        totalAmount - paidAmount,
-        0
-      );
+    const balanceAmount = Math.max(totalAmount - paidAmount, 0);
 
     normalRows.push([
-
       `${tx.person_name} (${tx.type?.toUpperCase()})`,
 
       tx.type,
 
-      'Original',
+      "Original",
 
       tx.principal_amount || 0,
 
-      tx.start_date
-        ? new Date(
-            tx.start_date
-          ).toLocaleDateString('en-GB')
-        : '-',
+      tx.start_date ? new Date(tx.start_date).toLocaleDateString("en-GB") : "-",
 
-      tx.due_date
-        ? new Date(
-            tx.due_date
-          ).toLocaleDateString('en-GB')
-        : '-',
+      tx.due_date ? new Date(tx.due_date).toLocaleDateString("en-GB") : "-",
 
       0,
 
@@ -1499,214 +1007,142 @@ const stats = [
 
       balanceAmount,
 
-      tx.paid_date
-        ? new Date(
-            tx.paid_date
-          ).toLocaleDateString('en-GB')
-        : '-',
+      tx.paid_date ? new Date(tx.paid_date).toLocaleDateString("en-GB") : "-",
 
       tx.installments?.length || 0,
 
-      tx.status?.toUpperCase()
-
+      tx.status?.toUpperCase(),
     ]);
 
     let runningPaid = 0;
 
     tx.installments
-?.filter(inst => Number(inst.amount) > 0)
-.forEach((inst, i) => {
+      ?.filter((inst) => Number(inst.amount) > 0)
+      .forEach((inst, i) => {
+        runningPaid += Number(inst.amount);
 
-      runningPaid +=
-        Number(inst.amount);
+        normalRows.push([
+          "",
+          "",
+          `Payment ${i + 1}`,
+          "",
+          "",
+          "",
+          "",
+          "",
+          inst.amount,
 
-      normalRows.push([
+          Math.max(totalAmount - runningPaid, 0),
 
-        '',
-        '',
-        `Payment ${i + 1}`,
-        '',
-        '',
-        '',
-        '',
-        '',
-        inst.amount,
+          inst.date ? new Date(inst.date).toLocaleDateString("en-GB") : "-",
 
-        Math.max(
-          totalAmount - runningPaid,
-          0
-        ),
+          `₹${Number(inst.amount).toLocaleString("en-IN")}`,
 
-        inst.date
-          ? new Date(
-              inst.date
-            ).toLocaleDateString('en-GB')
-          : '-',
+          runningPaid >= totalAmount ? "PAID" : "PARTIAL",
+        ]);
+      });
 
-        `₹${Number(inst.amount).toLocaleString('en-IN')}`,
-
-        runningPaid >= totalAmount
-          ? 'PAID'
-          : 'PARTIAL'
-
-      ]);
-
-    });
-
-    normalRows.push([
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      ''
-    ]);
-
+    normalRows.push(["", "", "", "", "", "", "", "", "", "", "", "", ""]);
   });
 
   doc.setFillColor(15, 23, 42);
 
-doc.roundedRect(
-  10,
-  10,
-  277,
-  12,
-  2,
-  2,
-  'F'
-);
+  doc.roundedRect(10, 10, 277, 12, 2, 2, "F");
 
-doc.setTextColor(255,255,255);
+  doc.setTextColor(255, 255, 255);
 
-doc.setFontSize(16);
+  doc.setFontSize(16);
 
-doc.text(
-  'NORMAL PAYMENTS',
-  16,
-  18
-);
+  doc.text("NORMAL PAYMENTS", 16, 18);
 
-autoTable(doc, {
+  autoTable(doc, {
+    startY: 28,
 
-  startY: 28,
+    body: normalRows,
 
-  body: normalRows,
+    styles: {
+      fontSize: 8,
+    },
 
-  styles: {
-    fontSize: 8
-  },
-
-  headStyles: {
-    fillColor: [37, 99, 235],
-    textColor: [255,255,255],
-    fontStyle: 'bold'
-  }
-
-});
+    headStyles: {
+      fillColor: [37, 99, 235],
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+    },
+  });
 
   // ================= PAGE 3 =================
 
   doc.addPage();
 
-  const rotationTransactions =
-    transactions.filter(
-      tx => tx.transaction_type === 'rotation'
-    );
+  const rotationTransactions = transactions.filter(
+    (tx) => tx.transaction_type === "rotation",
+  );
 
   const rotationRows = [];
 
   rotationRows.push([
-    'ROTATION PAYMENTS',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    ''
+    "ROTATION PAYMENTS",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
   ]);
 
   rotationRows.push([
-    'Name',
-    'Type',
-    'Stage',
-    'Principal',
-    'Start',
-    'Due',
-    'Extended Date',
-    'Interest',
-    'Total',
-    'Paid',
-    'Balance',
-    'Paid Date',
-    'Status'
+    "Name",
+    "Type",
+    "Stage",
+    "Principal",
+    "Start",
+    "Due",
+    "Extended Date",
+    "Interest",
+    "Total",
+    "Paid",
+    "Balance",
+    "Paid Date",
+    "Status",
   ]);
 
   rotationTransactions.forEach((tx) => {
+    let totalInterest = Number(tx.base_interest || 0);
 
-    let totalInterest =
-      Number(tx.base_interest || 0);
-
-    tx.extensions?.forEach(ext => {
-
-      totalInterest +=
-        Number(ext.extra_interest || 0);
-
+    tx.extensions?.forEach((ext) => {
+      totalInterest += Number(ext.extra_interest || 0);
     });
 
-    const totalAmount =
-      Number(tx.principal_amount || 0) +
-      totalInterest;
+    const totalAmount = Number(tx.principal_amount || 0) + totalInterest;
 
     const latestExtension =
-
       tx.extensions?.length > 0
-
-        ? tx.extensions[
-            tx.extensions.length - 1
-          ]
-
+        ? tx.extensions[tx.extensions.length - 1]
         : null;
 
     rotationRows.push([
-
       `${tx.person_name} (${tx.type?.toUpperCase()})`,
 
       tx.type,
 
-      'Original',
+      "Original",
 
       tx.principal_amount || 0,
 
-      tx.start_date
-        ? new Date(
-            tx.start_date
-          ).toLocaleDateString('en-GB')
-        : '-',
+      tx.start_date ? new Date(tx.start_date).toLocaleDateString("en-GB") : "-",
 
-      tx.due_date
-        ? new Date(
-            tx.due_date
-          ).toLocaleDateString('en-GB')
-        : '-',
+      tx.due_date ? new Date(tx.due_date).toLocaleDateString("en-GB") : "-",
 
       latestExtension?.new_due_date
-        ? new Date(
-            latestExtension.new_due_date
-          ).toLocaleDateString('en-GB')
-        : '-',
+        ? new Date(latestExtension.new_due_date).toLocaleDateString("en-GB")
+        : "-",
 
       totalInterest,
 
@@ -1714,354 +1150,214 @@ autoTable(doc, {
 
       tx.paid_amount || 0,
 
-      totalAmount -
-      Number(tx.paid_amount || 0),
+      totalAmount - Number(tx.paid_amount || 0),
 
-      tx.paid_date
-        ? new Date(
-            tx.paid_date
-          ).toLocaleDateString('en-GB')
-        : '-',
+      tx.paid_date ? new Date(tx.paid_date).toLocaleDateString("en-GB") : "-",
 
-      tx.status?.toUpperCase()
-
+      tx.status?.toUpperCase(),
     ]);
 
     tx.extensions?.forEach((ext, i) => {
-
       rotationRows.push([
-
-        '',
-        '',
+        "",
+        "",
         `Extension ${i + 1}`,
-        '',
-        '',
-        '',
+        "",
+        "",
+        "",
 
         ext.new_due_date
-          ? new Date(
-              ext.new_due_date
-            ).toLocaleDateString('en-GB')
-          : '-',
+          ? new Date(ext.new_due_date).toLocaleDateString("en-GB")
+          : "-",
 
         ext.extra_interest || 0,
 
-        '',
-        '',
-        '',
-        '',
+        "",
+        "",
+        "",
+        "",
 
-        ext.interest_paid
-          ? 'INTEREST PAID'
-          : 'INTEREST PENDING'
-
+        ext.interest_paid ? "INTEREST PAID" : "INTEREST PENDING",
       ]);
-
     });
 
-    rotationRows.push([
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      ''
-    ]);
-
+    rotationRows.push(["", "", "", "", "", "", "", "", "", "", "", "", ""]);
   });
 
   doc.setFillColor(124, 58, 237);
 
-doc.roundedRect(
-  10,
-  10,
-  277,
-  12,
-  2,
-  2,
-  'F'
-);
+  doc.roundedRect(10, 10, 277, 12, 2, 2, "F");
 
-doc.setTextColor(255,255,255);
+  doc.setTextColor(255, 255, 255);
 
-doc.setFontSize(16);
+  doc.setFontSize(16);
 
-doc.text(
-  'ROTATION PAYMENTS',
-  16,
-  18
-);
+  doc.text("ROTATION PAYMENTS", 16, 18);
 
-autoTable(doc, {
+  autoTable(doc, {
+    startY: 28,
 
-  startY: 28,
+    body: rotationRows,
 
-  body: rotationRows,
+    styles: {
+      fontSize: 8,
+    },
 
-  styles: {
-    fontSize: 8
-  },
-
-  headStyles: {
-    fillColor: [124, 58, 237],
-    textColor: [255,255,255],
-    fontStyle: 'bold'
-  }
-
-});
+    headStyles: {
+      fillColor: [124, 58, 237],
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+    },
+  });
 
   // ================= PAGE 4 =================
 
   doc.addPage();
 
-  exportLoanPDFToDocument(
-    doc,
-    loans
-  );
+  exportLoanPDFToDocument(doc, loans);
 
-  doc.save(
-    'MoMaS-Full-Financial-Report.pdf'
-  );
-
+  doc.save("MoMaS-Full-Financial-Report.pdf");
 };
 
-const exportLoanPDFToDocument = (
-  doc,
-  loans
-) => {
-
+const exportLoanPDFToDocument = (doc, loans) => {
   doc.setFillColor(20, 184, 166);
 
-doc.roundedRect(
-  10,
-  10,
-  277,
-  12,
-  2,
-  2,
-  'F'
-);
+  doc.roundedRect(10, 10, 277, 12, 2, 2, "F");
 
-doc.setTextColor(255,255,255);
+  doc.setTextColor(255, 255, 255);
 
-doc.setFontSize(16);
+  doc.setFontSize(16);
 
-doc.text(
-  'LOAN STATEMENTS',
-  16,
-  18
-);
+  doc.text("LOAN STATEMENTS", 16, 18);
 
-doc.setTextColor(0,0,0);
+  doc.setTextColor(0, 0, 0);
 
   doc.setFontSize(10);
 
-  doc.text(
-    `Generated On: ${new Date().toLocaleDateString('en-GB')}`,
-    14,
-    22
-  );
+  doc.text(`Generated On: ${new Date().toLocaleDateString("en-GB")}`, 14, 22);
 
   let startY = 40;
 
   const rows = [];
 
   loans.forEach((loan) => {
-
     doc.setFontSize(14);
 
-doc.setTextColor(15,23,42);
+    doc.setTextColor(15, 23, 42);
 
-doc.text(
-  `Loan Holder: ${loan.person_name}`,
-  14,
-  startY
-);
+    doc.text(`Loan Holder: ${loan.person_name}`, 14, startY);
 
-doc.setFontSize(10);
+    doc.setFontSize(10);
 
-doc.text(
-  `Principal Amount: ₹${loan.loan_amount || loan.principal_amount}`,
-  14,
-  startY + 7
-);
+    doc.text(
+      `Principal Amount: ₹${loan.loan_amount || loan.principal_amount}`,
+      14,
+      startY + 7,
+    );
 
-doc.text(
-  `EMI Plan: ₹${loan.emi_amount} x ${
-    Number(loan.completed_emi || 0) +
-    Number(loan.remaining_emi || 0)
-  } Months`,
-  90,
-  startY + 7
-);
+    doc.text(
+      `EMI Plan: ₹${loan.emi_amount} x ${
+        Number(loan.completed_emi || 0) + Number(loan.remaining_emi || 0)
+      } Months`,
+      90,
+      startY + 7,
+    );
 
-doc.text(
-  `Loan Status: ${
-    loan.status?.toUpperCase()
-  }`,
-  200,
-  startY + 7
-);
+    doc.text(`Loan Status: ${loan.status?.toUpperCase()}`, 200, startY + 7);
 
-startY += 14;
+    startY += 14;
 
     let runningBalance =
-
-      Number(
-        loan.emi_amount || 0
-      ) *
-
-      (
-        Number(
-          loan.completed_emi || 0
-        ) +
-
-        Number(
-          loan.remaining_emi || 0
-        )
-      );
+      Number(loan.emi_amount || 0) *
+      (Number(loan.completed_emi || 0) + Number(loan.remaining_emi || 0));
 
     rows.push([
-
       `${loan.person_name}-${loan.loan_amount || loan.principal_amount}`,
 
       `₹${loan.emi_amount} x ${Number(loan.completed_emi || 0) + Number(loan.remaining_emi || 0)} Months`,
 
-      'LOAN SUMMARY',
+      "LOAN SUMMARY",
 
       loan.status?.toUpperCase(),
 
       `₹${runningBalance}`,
 
-      '0',
+      "0",
 
       `₹${runningBalance}`,
 
-      loan.due_date
-        ? new Date(
-            loan.due_date
-          ).toLocaleDateString('en-GB')
-        : '-',
+      loan.due_date ? new Date(loan.due_date).toLocaleDateString("en-GB") : "-",
 
-      '-'
-
+      "-",
     ]);
 
-    rows.push([
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      ''
-    ]);
+    rows.push(["", "", "", "", "", "", "", "", ""]);
 
-    (
-      loan.loan_history ||
-      loan.emi_history ||
-      []
-    ).forEach((history, i) => {
-
-      const emiAmount =
-        Number(
-          history.amount ||
-          loan.emi_amount ||
-          0
-        );
+    (loan.loan_history || loan.emi_history || []).forEach((history, i) => {
+      const emiAmount = Number(history.amount || loan.emi_amount || 0);
 
       runningBalance -= emiAmount;
 
       rows.push([
+        loan.person_name,
 
-  loan.person_name,
+        `₹${loan.emi_amount} x ${String(
+          Number(loan.completed_emi || 0) + Number(loan.remaining_emi || 0) - i,
+        ).padStart(2, "0")} Months`,
 
-  `₹${loan.emi_amount} x ${String(
-    (
-      Number(loan.completed_emi || 0) +
-      Number(loan.remaining_emi || 0)
-    ) - i
-  ).padStart(2,'0')} Months`,
+        `EMI #${i + 1}`,
 
-  `EMI #${i + 1}`,
+        history.payment_type || "PAID",
 
-  history.payment_type || 'PAID',
+        emiAmount,
 
-  emiAmount,
+        history.penalty || 0,
 
-  history.penalty || 0,
+        `₹${runningBalance}`,
 
-  `₹${runningBalance}`,
+        (() => {
+          const emiDueDate = new Date(loan.start_date);
 
-  (() => {
+          emiDueDate.setMonth(emiDueDate.getMonth() + i);
 
-    const emiDueDate =
-      new Date(loan.start_date);
+          return emiDueDate.toLocaleDateString("en-GB");
+        })(),
 
-    emiDueDate.setMonth(
-      emiDueDate.getMonth() + i
-    );
-
-    return emiDueDate.toLocaleDateString(
-      'en-GB'
-    );
-
-  })(),
-
-  history.date ||
-  history.paid_date ||
-  history.payment_date
-
-    ? new Date(
-        history.date ||
-        history.paid_date ||
-        history.payment_date
-      ).toLocaleDateString('en-GB')
-
-    : '-'
-
-]);
-
+        history.date || history.paid_date || history.payment_date
+          ? new Date(
+              history.date || history.paid_date || history.payment_date,
+            ).toLocaleDateString("en-GB")
+          : "-",
+      ]);
     });
-
   });
 
   autoTable(doc, {
-
     startY,
 
-    head: [[
-      'Name',
-      'EMI Info',
-      'Stage',
-      'Type',
-      'Amount',
-      'Penalty',
-      'Balance',
-      'Due Date',
-      'Paid Date'
-    ]],
+    head: [
+      [
+        "Name",
+        "EMI Info",
+        "Stage",
+        "Type",
+        "Amount",
+        "Penalty",
+        "Balance",
+        "Due Date",
+        "Paid Date",
+      ],
+    ],
 
     body: rows,
 
     styles: {
-      fontSize: 8
+      fontSize: 8,
     },
     headStyles: {
-  fillColor: [20, 184, 166],
-  textColor: [255,255,255],
-  fontStyle: 'bold'
-},
-
+      fillColor: [20, 184, 166],
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+    },
   });
-
 };
