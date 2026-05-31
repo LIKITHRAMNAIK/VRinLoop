@@ -1,5 +1,15 @@
 const Transaction = require("../models/Transaction");
+const User = require("../models/User");
 
+const {
+  sendInstallmentPaymentEmail,
+  sendRotationCompletedEmail,
+  sendRotationExtendedEmail,
+  sendLoanEmiPaymentEmail,
+  sendLoanCompletedEmail,
+} = require(
+  "../services/notificationService"
+);
 exports.extendTransaction = async (req, res) => {
   try {
     const { id } = req.params;
@@ -41,7 +51,55 @@ exports.extendTransaction = async (req, res) => {
 
     await transaction.save();
 
-    res.json(transaction);
+const user =
+  await User.findById(
+    req.user.id
+  );
+
+let totalInterest =
+  Number(
+    transaction.base_interest || 0
+  );
+
+transaction.extensions.forEach(
+  (ext) => {
+
+    if (ext.interest_paid) {
+
+      totalInterest =
+        Number(
+          ext.extra_interest || 0
+        );
+
+    } else {
+
+      totalInterest +=
+        Number(
+          ext.extra_interest || 0
+        );
+    }
+  }
+);
+
+const finalTotal =
+  Number(
+    transaction.principal_amount
+  ) + totalInterest;
+
+const latestExtension =
+  transaction.extensions[
+    transaction.extensions.length - 1
+  ];
+
+await sendRotationExtendedEmail(
+  user,
+  transaction,
+  latestExtension,
+  totalInterest,
+  finalTotal
+);
+
+res.json(transaction);
   } catch (error) {
     console.log("EXTEND ERROR:", error); // 👈 THIS WILL SHOW REAL ERROR
     res.status(500).json({ message: error.message });
@@ -354,7 +412,35 @@ exports.payLoanEmi = async (req, res) => {
 
     await tx.save();
 
-    res.json(tx);
+const user =
+  await User.findById(
+    req.user.id
+  );
+
+const paidAmount =
+  safeCount *
+  Number(tx.emi_amount || 0);
+
+if (
+  tx.status === "paid"
+) {
+
+  await sendLoanCompletedEmail(
+    user,
+    tx
+  );
+
+} else {
+
+  await sendLoanEmiPaymentEmail(
+    user,
+    tx,
+    safeCount,
+    paidAmount
+  );
+}
+
+res.json(tx);
   } catch (error) {
     console.log(error);
 
@@ -392,6 +478,11 @@ exports.markAsPaid = async (req, res) => {
 
       tx.last_payment_date = new Date();
 
+      const user =
+  await User.findById(
+    req.user.id
+  );
+
       if (tx.paid_amount >= tx.principal_amount) {
         tx.status = "paid";
 
@@ -400,7 +491,23 @@ exports.markAsPaid = async (req, res) => {
 
       await tx.save();
 
-      return res.json(tx);
+if (
+  tx.status !== "paid"
+) {
+
+  console.log("INSTALLMENT MAIL");
+console.log(user.email);
+console.log(amount);
+console.log(tx.paid_amount);
+console.log(tx.status);
+  await sendInstallmentPaymentEmail(
+    user,
+    tx,
+    amount
+  );
+}
+
+return res.json(tx);
     }
 
     // ================= ROTATION / LOAN =================
@@ -451,7 +558,25 @@ exports.markAsPaid = async (req, res) => {
 
     await tx.save();
 
-    res.json(tx);
+const user =
+  await User.findById(
+    req.user.id
+  );
+
+if (
+  tx.transaction_type ===
+  "rotation"
+) {
+
+  await sendRotationCompletedEmail(
+    user,
+    tx,
+    totalInterest,
+    finalTotal
+  );
+}
+
+res.json(tx);
   } catch (err) {
     console.log(err);
 

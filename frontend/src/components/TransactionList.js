@@ -3882,7 +3882,13 @@ fetchData();
               gap: 16,
             }}
           >
-            <LoanProfile data={filteredLoanData} refresh={fetchData} />
+            {filteredLoanData.map((loan) => (
+  <LoanProfile
+    key={loan._id}
+    data={loan}
+    refresh={fetchData}
+  />
+))}
           </div>
         </div>
         {/* CARDS */}

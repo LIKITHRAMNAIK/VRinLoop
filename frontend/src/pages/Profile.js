@@ -339,13 +339,19 @@ function Profile() {
 
     // ================= ROTATION =================
 
-    let totalInterest = tx.base_interest;
+    let totalInterest = Number(tx.base_interest || 0);
 
-    tx.extensions?.forEach((ext) => {
-      totalInterest += ext.extra_interest;
-    });
+tx.extensions?.forEach((ext) => {
+  if (ext.interest_paid) {
+    totalInterest = Number(ext.extra_interest || 0);
+  } else {
+    totalInterest += Number(ext.extra_interest || 0);
+  }
+});
 
-    const total = tx.principal_amount + totalInterest;
+const total =
+  Number(tx.principal_amount || 0) +
+  Number(totalInterest || 0);
 
     // ACTIVE
     if (tx.status !== "paid") {

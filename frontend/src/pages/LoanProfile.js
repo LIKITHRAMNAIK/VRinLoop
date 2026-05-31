@@ -2,7 +2,13 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 import { formatCurrency } from "../utils/format";
-
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+} from "@mui/material";
 function LoanProfile({ data, refresh }) {
   const navigate = useNavigate();
 
@@ -18,24 +24,33 @@ function LoanProfile({ data, refresh }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const filteredData = data;
+  const tx = data;
+  const [emiSuccessOpen, setEmiSuccessOpen] = useState(false);
+
+  const [selectedLoan, setSelectedLoan] = useState(null);
 
   const payLoanEmi = async (id) => {
     try {
-      await API.put(
-        `/loan-emi/${id}`,
+      const response =
+  await API.put(
+    `/loan-emi/${id}`,
+    {
+      emiCount: Number(
+        emiCounts[id] || 1
+      ),
+      penaltyAmount: Number(
+        emiPenalties[id] || 0
+      ),
+    }
+  );
 
-        {
-          emiCount: Number(emiCounts[id] || 1),
+setSelectedLoan(
+  response.data
+);
 
-          penaltyAmount: Number(emiPenalties[id] || 0),
-        },
-      );
-      window.location.reload();
+setEmiSuccessOpen(true);
 
-      alert("EMI Paid Successfully ✅");
-
-      refresh();
+refresh();
     } catch (err) {
       console.log(err);
 
@@ -435,17 +450,9 @@ function LoanProfile({ data, refresh }) {
 
   return (
     <div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(250px,1fr))",
-
-          gap: 15,
-          marginTop: 20,
-        }}
-      >
-        {filteredData.map(renderCard)}
-      </div>
+      <div>
+  {renderCard(tx)}
+</div>
       {editHistory && (
         <div
           onClick={() => setEditHistory(null)}
@@ -1409,6 +1416,81 @@ function LoanProfile({ data, refresh }) {
           </div>
         </div>
       )}
+      <Dialog open={emiSuccessOpen} onClose={() => setEmiSuccessOpen(false)}>
+        <DialogTitle
+          style={{
+            textAlign: "center",
+            color: "#4CAF50",
+            fontWeight: "bold",
+          }}
+        >
+          ✅ EMI Paid Successfully
+        </DialogTitle>
+
+        <DialogContent
+          style={{
+            textAlign: "center",
+            lineHeight: 1.8,
+          }}
+        >
+          {selectedLoan?.remaining_emi ===
+0 ? (
+  <>
+    🎉 Congratulations!
+    <br />
+    You have successfully
+    completed all
+    {" "}
+    <b>
+      {
+        selectedLoan?.loan_duration
+      }
+    </b>
+    {" "}
+    EMIs.
+    <br />
+    Loan Closed Successfully
+    ✅
+  </>
+) : (
+    <>
+    Paid EMI : 
+    <b>
+      {
+        selectedLoan?.completed_emi
+      }
+    </b>
+    {" "}
+    out of
+    {" "}
+    <b>
+      {
+        selectedLoan?.loan_duration
+      }
+    </b>
+    <br />
+    Remaining EMI:
+    {" "}
+    <b>
+      {
+        selectedLoan?.remaining_emi
+      }
+    </b>
+  </>
+)}
+        </DialogContent>
+
+        <DialogActions
+          style={{
+            justifyContent: "center",
+            paddingBottom: 20,
+          }}
+        >
+          <Button variant="contained" onClick={() => setEmiSuccessOpen(false)}>
+            OK
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }

@@ -43,8 +43,35 @@ const userSchema = new mongoose.Schema(
     },
 
     profile_update_otp_expiry: {
-      type: Date,
-    },
+  type: Date,
+},
+
+notifications: {
+  dueTomorrow: {
+    type: Boolean,
+    default: true,
+  },
+
+  dueToday: {
+    type: Boolean,
+    default: true,
+  },
+
+  weeklyUpcoming: {
+    type: Boolean,
+    default: true,
+  },
+
+  overdueReminder: {
+    type: Boolean,
+    default: true,
+  },
+
+  monthlyStatement: {
+    type: Boolean,
+    default: true,
+  },
+},
   },
   {
     timestamps: true,
