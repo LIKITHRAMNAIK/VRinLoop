@@ -215,6 +215,12 @@ function Profile() {
 
   data.forEach((tx) => {
     // ================= PAID LATE =================
+    const timelineAmount =
+  tx.transaction_type === "loan"
+    ? tx.emi_amount
+    : tx.transaction_type === "rotation"
+      ? Number(tx.final_total || 0)
+      : tx.principal_amount;
 
     if (
       tx.status === "paid" &&
@@ -245,10 +251,7 @@ function Profile() {
 
           title: `${tx.transaction_type.toUpperCase()} Paid Late`,
 
-          amount:
-            tx.transaction_type === "loan"
-              ? tx.emi_amount
-              : tx.principal_amount,
+          amount: timelineAmount,
 
           date: tx.paid_date,
 
@@ -265,10 +268,7 @@ function Profile() {
 
           title: `${tx.transaction_type.toUpperCase()} Paid`,
 
-          amount:
-            tx.transaction_type === "loan"
-              ? tx.emi_amount
-              : tx.principal_amount,
+          amount: timelineAmount,
 
           date: tx.paid_date,
 

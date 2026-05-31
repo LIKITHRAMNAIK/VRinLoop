@@ -68,7 +68,7 @@ function TransactionList({ refresh }) {
   const [earlyInterest, setEarlyInterest] = useState("");
 
   const [normalPayPopup, setNormalPayPopup] = useState(null);
-
+  const [successMessage, setSuccessMessage] = useState("");
   // ✅ EDIT STATE
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState({
@@ -211,6 +211,13 @@ function TransactionList({ refresh }) {
         tx.final_total > 0
           ? Number(tx.final_total)
           : Number(tx.principal_amount || 0) + Number(finalInterest || 0);
+
+      const paidAmount = Number(tx.paid_amount || 0);
+
+      const balanceAmount = Math.max(
+        0,
+        Number(tx.principal_amount || 0) - paidAmount,
+      );
 
       return sum + total;
     }, 0);
@@ -840,19 +847,19 @@ function TransactionList({ refresh }) {
 
     const due = new Date(tx.due_date);
     const overdueDays = Math.floor((today - due) / (1000 * 60 * 60 * 24));
-    const type = (tx.transaction_type || "rotation").toLowerCase();
-    const isNormal = type.includes("normal");
+    // const type = (tx.transaction_type || "rotation").toLowerCase();
+    // const isNormal = type.includes("normal");
 
     return (
       <div
         key={tx._id}
-        style={{
-          background: "#ffe5e5",
-          padding: "8px",
-          borderRadius: "10px",
-          border: "2px solid #f44336",
-          fontSize: "12px",
-        }}
+        // style={{
+        //   background: "#ffe5e5",
+        //   padding: "8px",
+        //   borderRadius: "10px",
+        //   border: "2px solid #f44336",
+        //   fontSize: "12px",
+        // }}
       >
         <div
           key={tx._id}
@@ -1907,19 +1914,20 @@ function TransactionList({ refresh }) {
     }
 
     try {
-      await API.put(`/paid/${payId}`, {
-        amount: Number(payAmount),
-      });
+  await API.put(`/paid/${payId}`, {
+  amount: Number(payAmount),
+});
 
-      alert("Payment successful ✅");
+setPayAmount("");
+setPayId(null);
+setPayType("");
 
-      setPayAmount("");
-      setPayId(null);
-      fetchData();
-    } catch (err) {
-      console.log(err);
-      alert("Error ❌");
-    }
+setSuccessMessage("Installment payment completed successfully.");
+
+fetchData();
+} catch (err) {
+  console.log(err);
+}
   };
 
   const filteredLoanData = loanData.filter((tx) => {
@@ -1955,7 +1963,7 @@ function TransactionList({ refresh }) {
         amount: remaining,
       });
 
-      alert("Full Payment Done ✅");
+      setSuccessMessage("Full payment completed successfully.");
 
       setPayId(null);
       setPayType(null);
@@ -2622,6 +2630,13 @@ function TransactionList({ refresh }) {
                         : Number(tx.principal_amount || 0) +
                           Number(finalInterest || 0);
 
+                    const paidAmount = Number(tx.paid_amount || 0);
+
+                    const balanceAmount = Math.max(
+                      0,
+                      Number(tx.principal_amount || 0) - paidAmount,
+                    );
+
                     const todayDate = new Date();
                     todayDate.setHours(0, 0, 0, 0);
 
@@ -2646,29 +2661,88 @@ function TransactionList({ refresh }) {
                           alignItems: "center",
                         }}
                       >
-                        <div>
-                          <b>{tx.person_name}</b>
-                          <p style={{ margin: 0, fontSize: 12, color: "red" }}>
-                            ⚠ {overdueDays} days
-                          </p>
-                        </div>
-
-                        <div style={{ textAlign: "right" }}>
-                          <p style={{ margin: 0, fontWeight: "bold" }}>
-                            {formatCurrency(total)}
-                          </p>
-                          <span
+                        <div
+                          style={{
+                            width: "100%",
+                          }}
+                        >
+                          {/* TOP ROW */}
+                          <div
                             style={{
-                              background:
-                                tx.type === "incoming" ? "#4CAF50" : "#F44336",
-                              color: "white",
-                              padding: "2px 6px",
-                              borderRadius: 6,
-                              fontSize: 10,
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              marginBottom: 6,
+                            }}
+                          >
+                            <b
+                              style={{
+                                fontSize: 16,
+                              }}
+                            >
+                              {tx.person_name}
+                            </b>
+
+                            <span
+                              style={{
+                                color: "#dc2626",
+                                fontWeight: "bold",
+                                fontSize: 13,
+                              }}
+                            >
+                              ⚠ {overdueDays} days
+                            </span>
+                          </div>
+
+                          {/* SECOND ROW */}
+                          <div
+                            style={{
+                              fontSize: 13,
+                              fontWeight: "bold",
+                              marginBottom: 8,
                             }}
                           >
                             {tx.type === "incoming" ? "IN" : "OUT"}
-                          </span>
+                            {" | "}
+                            {tx.transaction_type === "normal"
+                              ? "N"
+                              : tx.transaction_type === "rotation"
+                                ? "R"
+                                : "L"}
+                            {" | "}
+                            Total {formatCurrency(total)}
+                          </div>
+
+                          {/* THIRD ROW */}
+                          {tx.transaction_type === "normal" && (
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  color: "#16a34a",
+                                  fontWeight: "bold",
+                                  fontSize: 13,
+                                }}
+                              >
+                                🟢 Paid {formatCurrency(paidAmount)}
+                              </span>
+
+                              <span
+                                style={{
+                                  color: "#2563eb",
+                                  fontWeight: "bold",
+                                  fontSize: 13,
+                                }}
+                              >
+                                🔵 Bal {formatCurrency(balanceAmount)}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -2717,6 +2791,13 @@ function TransactionList({ refresh }) {
                         : Number(tx.principal_amount || 0) +
                           Number(finalInterest || 0);
 
+                    const paidAmount = Number(tx.paid_amount || 0);
+
+                    const balanceAmount = Math.max(
+                      0,
+                      Number(tx.principal_amount || 0) - paidAmount,
+                    );
+
                     return (
                       <div
                         key={tx._id}
@@ -2742,10 +2823,46 @@ function TransactionList({ refresh }) {
                           </p>
                         </div>
 
-                        <div style={{ textAlign: "right" }}>
-                          <p style={{ margin: 0, fontWeight: "bold" }}>
-                            {formatCurrency(total)}
+                        <div
+                          style={{
+                            textAlign: "right",
+                          }}
+                        >
+                          <p
+                            style={{
+                              margin: 0,
+                              fontWeight: "bold",
+                            }}
+                          >
+                            Total {formatCurrency(total)}
                           </p>
+
+                          {tx.transaction_type === "normal" && (
+                            <>
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: 12,
+                                  color: "#16a34a",
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                🟢 Paid {formatCurrency(paidAmount)}
+                              </p>
+
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: 12,
+                                  color: "#2563eb",
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                🔵 Bal {formatCurrency(balanceAmount)}
+                              </p>
+                            </>
+                          )}
+
                           <span
                             style={{
                               background:
@@ -2921,29 +3038,113 @@ function TransactionList({ refresh }) {
         </div>
       )}
 
-      {/* 🔴 AUTO DUE SECTION */}
-      {dueTransactions.length > 0 && (
-        <div style={{ marginBottom: 15 }}>
-          <h3
-            style={{
-              color: "#f44336",
-              marginBottom: 8,
-            }}
-          >
-            ⚠ Overdue Payments
-          </h3>
+      {successMessage && (
+  <div
+    style={{
+      position: "fixed",
+      top: "50%",
+      left: "50%",
+      transform: "translate(-50%, -50%)",
+      background: "white",
+      padding: "25px",
+      borderRadius: "15px",
+      boxShadow: "0 5px 20px rgba(0,0,0,0.3)",
+      zIndex: 9999,
+      textAlign: "center",
+      minWidth: "300px",
+    }}
+  >
+    <h3 style={{ color: "#16a34a" }}>
+      ✅ Payment Successful
+    </h3>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(5, 1fr)", // ✅ 5 cards per row
-              gap: "10px",
-            }}
-          >
-            {dueTransactions.map(renderDueCard)}
-          </div>
-        </div>
-      )}
+    <p>{successMessage}</p>
+
+    <button
+      onClick={() => setSuccessMessage("")}
+      style={{
+        marginTop: "10px",
+        background: "#16a34a",
+        color: "white",
+        border: "none",
+        padding: "10px 20px",
+        borderRadius: "8px",
+        cursor: "pointer",
+        fontWeight: "bold",
+      }}
+    >
+      OK
+    </button>
+  </div>
+)}
+
+      {/* 🔴 AUTO DUE SECTION */}
+{dueTransactions.length > 0 && (
+  <div
+    style={{
+      background: "white",
+      borderRadius: 28,
+      padding: 24,
+      marginBottom: 28,
+      boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
+      border: "1px solid #e2e8f0",
+    }}
+  >
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 20,
+      }}
+    >
+      <div>
+        <h2
+          style={{
+            margin: 0,
+            fontSize: 32,
+            fontWeight: "800",
+            color: "#dc2626",
+          }}
+        >
+          ⚠ Overdue Payments
+        </h2>
+
+        <p
+          style={{
+            marginTop: 8,
+            color: "#64748b",
+          }}
+        >
+          Transactions that crossed the due date
+        </p>
+      </div>
+
+      <div
+        style={{
+          background: "#fef2f2",
+          color: "#dc2626",
+          padding: "10px 16px",
+          borderRadius: 14,
+          fontWeight: "bold",
+        }}
+      >
+        Total: {dueTransactions.length}
+      </div>
+    </div>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns:
+          "repeat(auto-fill,minmax(280px,1fr))",
+        gap: 16,
+      }}
+    >
+      {dueTransactions.map(renderDueCard)}
+    </div>
+  </div>
+)}
 
       {/* 🔥 BADGES */}
       {/* ================= PRO FILTER TOOLBAR ================= */}
@@ -3984,9 +4185,11 @@ function TransactionList({ refresh }) {
                   onClick={async () => {
                     await API.put(`/paid/${normalPayPopup._id}`, {});
 
-                    setNormalPayPopup(null);
+setNormalPayPopup(null);
 
-                    fetchData();
+setSuccessMessage("Payment completed successfully.");
+
+fetchData();
                   }}
                 >
                   Confirm

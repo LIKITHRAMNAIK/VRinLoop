@@ -2,9 +2,9 @@ import React, { useEffect, useState } from "react";
 import API from "../services/api";
 import AddTransaction from "../components/AddTransaction";
 import TransactionList from "../components/TransactionList";
-// import Charts from '../components/Charts';
 import { formatCurrency } from "../utils/format";
 import Sidebar from "../components/Sidebar";
+import { useNavigate } from "react-router-dom";
 
 const card = (bg) => ({
   background: bg,
@@ -36,6 +36,9 @@ function Dashboard() {
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
   const [showExportPopup, setShowExportPopup] = useState(false);
+  const [selectedDayEvents, setSelectedDayEvents] = useState([]);
+  const [showCalendarPopup, setShowCalendarPopup] = useState(false);
+  const navigate = useNavigate();
 
   const fetchData = async () => {
     try {
@@ -535,32 +538,42 @@ function Dashboard() {
                     return <div key={index} />;
                   }
 
-                  const isToday = dayNum === date;
+                  const isToday =
+                    dayNum === today.getDate() &&
+                    currentMonth === today.getMonth() &&
+                    currentYear === today.getFullYear();
 
                   const hasDue = hasDueOnDate(dayNum);
 
                   return (
                     <div
                       key={index}
+                      onClick={() => {
+                        const events = calendarTxs.filter((tx) => {
+                          const due = new Date(tx.due_date);
+
+                          return (
+                            due.getDate() === dayNum &&
+                            due.getMonth() === currentMonth &&
+                            due.getFullYear() === currentYear &&
+                            tx.status !== "paid"
+                          );
+                        });
+
+                        setSelectedDayEvents(events);
+                        setShowCalendarPopup(true);
+                      }}
                       style={{
                         width: 28,
-
                         height: 28,
-
                         borderRadius: "50%",
-
                         display: "flex",
-
                         justifyContent: "center",
-
                         alignItems: "center",
-
                         margin: "0 auto",
-
                         fontSize: 12,
-
                         fontWeight: "bold",
-
+                        cursor: "pointer",
                         color: isToday || hasDue ? "white" : "#e2e8f0",
 
                         background:
@@ -1047,6 +1060,176 @@ function Dashboard() {
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+      {showCalendarPopup && (
+        <div
+          onClick={() => setShowCalendarPopup(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 9999,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "white",
+              padding: 25,
+              borderRadius: 20,
+              width: 400,
+              maxHeight: "70vh",
+              overflowY: "auto",
+            }}
+          >
+            <h2>📅 Due Payments</h2>
+
+            {selectedDayEvents.length === 0 ? (
+              <p>No payments due.</p>
+            ) : (
+              selectedDayEvents.map((tx) => {
+                const isOverdue =
+                  new Date(tx.due_date) < new Date() && tx.status !== "paid";
+
+                let amount = 0;
+
+if (tx.transaction_type === "loan") {
+  amount = Number(tx.emi_amount || 0);
+}
+
+else if (tx.transaction_type === "rotation") {
+  let totalInterest = Number(tx.base_interest || 0);
+
+  (tx.extensions || []).forEach((ext) => {
+    if (ext.interest_paid) {
+      totalInterest = Number(ext.extra_interest || 0);
+    } else {
+      totalInterest += Number(ext.extra_interest || 0);
+    }
+  });
+
+  amount =
+    Number(tx.principal_amount || 0) +
+    Number(totalInterest || 0);
+}
+
+else {
+  amount =
+    Number(tx.principal_amount || 0) -
+    Number(tx.paid_amount || 0);
+}
+
+                return (
+                  <div
+                    key={tx._id}
+                    style={{
+                      padding: 12,
+                      borderRadius: 12,
+                      marginBottom: 10,
+
+                      background: isOverdue ? "#fee2e2" : "#f8fafc",
+
+                      border: isOverdue
+                        ? "1px solid #ef4444"
+                        : "1px solid #e2e8f0",
+                    }}
+                  >
+                    {isOverdue && (
+                      <div
+                        style={{
+                          color: "#dc2626",
+                          fontSize: 12,
+                          fontWeight: "bold",
+                          marginBottom: 6,
+                        }}
+                      >
+                        🔴 OVERDUE
+                      </div>
+                    )}
+
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        fontWeight: "bold",
+                        fontSize: 14,
+                      }}
+                    >
+                      <span
+                        onClick={() => {
+                          navigate(`/profile/${tx.person_name}`, {
+                            state: {
+                              type: tx.transaction_type,
+                            },
+                          });
+
+                          setShowCalendarPopup(false);
+                        }}
+                        style={{
+                          color: "#2563eb",
+                          cursor: "pointer",
+                          textDecoration: "underline",
+                        }}
+                      >
+                        {tx.person_name}
+                      </span>
+
+                      <span>
+                        {tx.type === "incoming" ? "IN" : "OUT"}
+                        {" | "}
+                        {tx.transaction_type === "normal"
+                          ? "N"
+                          : tx.transaction_type === "rotation"
+                            ? "R"
+                            : "L"}
+                        {" | "}
+                        Total ₹{amount.toLocaleString("en-IN")}
+                      </span>
+                      {tx.transaction_type === "normal" && (
+                        <div
+                          style={{
+                            marginTop: 8,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            fontSize: 13,
+                            fontWeight: "bold",
+                          }}
+                        >
+                          <span
+                            style={{
+                              color: "#16a34a",
+                            }}
+                          >
+                            🟢 Paid ₹
+                            {Number(tx.paid_amount || 0).toLocaleString(
+                              "en-IN",
+                            )}
+                          </span>
+
+                          <span
+                            style={{
+                              color: "#2563eb",
+                            }}
+                          >
+                            🔵 Bal ₹
+                            {(
+                              Number(tx.principal_amount || 0) -
+                              Number(tx.paid_amount || 0)
+                            ).toLocaleString("en-IN")}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       )}

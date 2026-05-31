@@ -21,12 +21,16 @@ function NormalProfile({ data, refresh }) {
   if (!data.length) return <h2>Loading...</h2>;
 
   const handleInstallment = async () => {
-    await API.put(`/paid/${payId}`, {
-      amount: Number(payAmount),
-    });
-    setPayId(null);
-    refresh();
-  };
+  await API.put(`/paid/${payId}`, {
+    amount: Number(payAmount),
+  });
+
+  setPayId(null);
+  setPayAmount("");
+  setPayType("");
+
+  refresh();
+};
 
   const handleFullPayment = async () => {
     const tx = data.find((t) => t._id === payId);
