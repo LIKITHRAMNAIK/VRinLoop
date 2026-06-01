@@ -216,11 +216,11 @@ function Profile() {
   data.forEach((tx) => {
     // ================= PAID LATE =================
     const timelineAmount =
-  tx.transaction_type === "loan"
-    ? tx.emi_amount
-    : tx.transaction_type === "rotation"
-      ? Number(tx.final_total || 0)
-      : tx.principal_amount;
+      tx.transaction_type === "loan"
+        ? tx.emi_amount
+        : tx.transaction_type === "rotation"
+          ? Number(tx.final_total || 0)
+          : tx.principal_amount;
 
     if (
       tx.status === "paid" &&
@@ -341,17 +341,15 @@ function Profile() {
 
     let totalInterest = Number(tx.base_interest || 0);
 
-tx.extensions?.forEach((ext) => {
-  if (ext.interest_paid) {
-    totalInterest = Number(ext.extra_interest || 0);
-  } else {
-    totalInterest += Number(ext.extra_interest || 0);
-  }
-});
+    tx.extensions?.forEach((ext) => {
+      if (ext.interest_paid) {
+        totalInterest = Number(ext.extra_interest || 0);
+      } else {
+        totalInterest += Number(ext.extra_interest || 0);
+      }
+    });
 
-const total =
-  Number(tx.principal_amount || 0) +
-  Number(totalInterest || 0);
+    const total = Number(tx.principal_amount || 0) + Number(totalInterest || 0);
 
     // ACTIVE
     if (tx.status !== "paid") {

@@ -8,6 +8,10 @@ const formatDate = (date) => {
     })
     .replace(/ /g, "-");
 };
+const getDirection = (tx) => {
+  return tx.type === "incoming" ? "IN" : "OUT";
+};
+
 const sendNotificationEmail = async ({ email, subject, title, content }) => {
   try {
     const html = `
@@ -84,6 +88,7 @@ const buildPaymentContent = async (transactions) => {
     "
   >
     ${tx.person_name}
+    (${getDirection(tx)})
   </b>
 
   ${overdueBadge}
@@ -152,6 +157,7 @@ ${formatDate(tx.due_date)}
     "
   >
     ${tx.person_name}
+(${getDirection(tx)})
   </b>
 
   ${overdueBadge}
@@ -212,6 +218,7 @@ ${formatDate(latestDueDate)}
     "
   >
     ${tx.person_name}
+(${getDirection(tx)})
   </b>
 
   ${overdueBadge}
@@ -337,8 +344,11 @@ const sendInstallmentPaymentEmail = async (user, tx, installmentAmount) => {
 
     content: `
         <p>
-          <b>${tx.person_name}</b>
-        </p>
+  <b>
+    ${tx.person_name}
+    (${getDirection(tx)})
+  </b>
+</p>
 
         <p>
   Payments Recorded:
@@ -368,50 +378,39 @@ const sendInstallmentPaymentEmail = async (user, tx, installmentAmount) => {
   });
 };
 
-const sendRotationCompletedEmail =
-  async (
-    user,
-    tx,
-    totalInterest,
-    finalTotal
-  ) => {
+const sendRotationCompletedEmail = async (
+  user,
+  tx,
+  totalInterest,
+  finalTotal,
+) => {
+  let addedInterest = 0;
 
-    let addedInterest = 0;
+  tx.final_extensions?.forEach((ext) => {
+    addedInterest += Number(ext.extra_interest || 0);
+  });
 
-    tx.final_extensions?.forEach(
-      (ext) => {
-        addedInterest += Number(
-          ext.extra_interest || 0
-        );
-      }
-    );
+  return sendNotificationEmail({
+    email: user.email,
 
-    return sendNotificationEmail({
-      email: user.email,
+    subject: "✅ Rotation Payment Completed",
 
-      subject:
-        "✅ Rotation Payment Completed",
+    title: "Rotation Payment Completed",
 
-      title:
-        "Rotation Payment Completed",
-
-      content: `
-        <p>
-          <b>${tx.person_name}</b>
-        </p>
+    content: `
+        <b>
+  ${tx.person_name}
+  (${getDirection(tx)})
+</b>
 
         <p>
           Principal:
-          ₹${Number(
-            tx.principal_amount
-          ).toLocaleString("en-IN")}
+          ₹${Number(tx.principal_amount).toLocaleString("en-IN")}
         </p>
 
         <p>
           Base Interest:
-          ₹${Number(
-            tx.base_interest
-          ).toLocaleString("en-IN")}
+          ₹${Number(tx.base_interest).toLocaleString("en-IN")}
         </p>
 
         <p>
@@ -421,126 +420,93 @@ const sendRotationCompletedEmail =
 
         <p>
           Added Interest:
-          ₹${addedInterest.toLocaleString(
-            "en-IN"
-          )}
+          ₹${addedInterest.toLocaleString("en-IN")}
         </p>
 
         <p>
           Total Interest:
-          ₹${totalInterest.toLocaleString(
-            "en-IN"
-          )}
+          ₹${totalInterest.toLocaleString("en-IN")}
         </p>
 
         <p>
           Final Total:
-          ₹${finalTotal.toLocaleString(
-            "en-IN"
-          )}
+          ₹${finalTotal.toLocaleString("en-IN")}
         </p>
 
         <p>
           Completed On:
-          ${formatDate(
-            tx.paid_date
-          )}
+          ${formatDate(tx.paid_date)}
         </p>
       `,
-    });
-  };
+  });
+};
 
-  const sendRotationExtendedEmail =
-  async (
-    user,
-    tx,
-    extension,
-    totalInterest,
-    finalTotal
-  ) => {
+const sendRotationExtendedEmail = async (
+  user,
+  tx,
+  extension,
+  totalInterest,
+  finalTotal,
+) => {
+  return sendNotificationEmail({
+    email: user.email,
 
-    return sendNotificationEmail({
-      email: user.email,
+    subject: "🔄 Rotation Payment Extended",
 
-      subject:
-        "🔄 Rotation Payment Extended",
+    title: "Rotation Payment Extended",
 
-      title:
-        "Rotation Payment Extended",
-
-      content: `
-        <p>
-          <b>${tx.person_name}</b>
-        </p>
+    content: `
+        <b>
+  ${tx.person_name}
+  (${getDirection(tx)})
+</b>
 
         <p>
           Old Due Date:
-          ${formatDate(
-            extension.old_due_date
-          )}
+          ${formatDate(extension.old_due_date)}
         </p>
 
         <p>
           New Due Date:
-          ${formatDate(
-            extension.new_due_date
-          )}
+          ${formatDate(extension.new_due_date)}
         </p>
 
         <p>
           Additional Interest:
-          ₹${Number(
-            extension.extra_interest
-          ).toLocaleString("en-IN")}
+          ₹${Number(extension.extra_interest).toLocaleString("en-IN")}
         </p>
 
         <p>
           Last Interest Paid:
-          ${
-            extension.interest_paid
-              ? "Yes"
-              : "No"
-          }
+          ${extension.interest_paid ? "Yes" : "No"}
         </p>
 
         <p>
           Updated Total Interest:
-          ₹${totalInterest.toLocaleString(
-            "en-IN"
-          )}
+          ₹${totalInterest.toLocaleString("en-IN")}
         </p>
 
         <p>
           Updated Total Amount:
-          ₹${finalTotal.toLocaleString(
-            "en-IN"
-          )}
+          ₹${finalTotal.toLocaleString("en-IN")}
         </p>
       `,
-    });
-  };
+  });
+};
 
-  const sendLoanEmiPaymentEmail =
-  async (
-    user,
-    tx,
-    emiCount,
-    paidAmount
-  ) => {
+const sendLoanEmiPaymentEmail = async (user, tx, emiCount, paidAmount) => {
+  return sendNotificationEmail({
+    email: user.email,
 
-    return sendNotificationEmail({
-      email: user.email,
+    subject: "🏦 EMI Payment Recorded",
 
-      subject:
-        "🏦 EMI Payment Recorded",
+    title: "EMI Payment Recorded",
 
-      title:
-        "EMI Payment Recorded",
-
-      content: `
-        <p>
-          <b>${tx.person_name}</b>
-        </p>
+    content: `
+        <b>
+  ${tx.person_name}
+  (${getDirection(tx)})
+</b>
 
         <p>
           EMIs Paid This Time:
@@ -549,16 +515,12 @@ const sendRotationCompletedEmail =
 
         <p>
           EMI Amount:
-          ₹${Number(
-            tx.emi_amount
-          ).toLocaleString("en-IN")}
+          ₹${Number(tx.emi_amount).toLocaleString("en-IN")}
         </p>
 
         <p>
           Paid This Time:
-          ₹${Number(
-            paidAmount
-          ).toLocaleString("en-IN")}
+          ₹${Number(paidAmount).toLocaleString("en-IN")}
         </p>
 
         <p>
@@ -573,60 +535,45 @@ const sendRotationCompletedEmail =
 
         <p>
           Payment Date:
-          ${formatDate(
-            new Date()
-          )}
+          ${formatDate(new Date())}
         </p>
 
         <p>
   Next Due Date:
-  ${formatDate(
-    tx.due_date
-  )}
+  ${formatDate(tx.due_date)}
 </p>
       `,
-    });
-  };
+  });
+};
 
-  const sendLoanCompletedEmail =
-  async (
-    user,
-    tx
-  ) => {
+const sendLoanCompletedEmail = async (user, tx) => {
+  return sendNotificationEmail({
+    email: user.email,
 
-    return sendNotificationEmail({
-      email: user.email,
+    subject: "🎉 Loan Completed",
 
-      subject:
-        "🎉 Loan Completed",
+    title: "Loan Completed",
 
-      title:
-        "Loan Completed",
-
-      content: `
-  <p>
-    <b>${tx.person_name}</b>
-  </p>
+    content: `
+  <b>
+  ${tx.person_name}
+  (${getDirection(tx)})
+</b>
 
   <p>
     Principal Amount:
-    ₹${Number(
-      tx.principal_amount
-    ).toLocaleString("en-IN")}
+    ₹${Number(tx.principal_amount).toLocaleString("en-IN")}
   </p>
 
   <p>
     Total Interest:
-    ₹${Number(
-      tx.base_interest
-    ).toLocaleString("en-IN")}
+    ₹${Number(tx.base_interest).toLocaleString("en-IN")}
   </p>
 
   <p>
     Total Loan Value:
     ₹${(
-      Number(tx.principal_amount || 0) +
-      Number(tx.base_interest || 0)
+      Number(tx.principal_amount || 0) + Number(tx.base_interest || 0)
     ).toLocaleString("en-IN")}
   </p>
 
@@ -639,9 +586,7 @@ const sendRotationCompletedEmail =
 
   <p>
     EMI Amount:
-    ₹${Number(
-      tx.emi_amount
-    ).toLocaleString("en-IN")}
+    ₹${Number(tx.emi_amount).toLocaleString("en-IN")}
   </p>
 
   <p>
@@ -655,13 +600,11 @@ const sendRotationCompletedEmail =
 
   <p>
     Completed On:
-    ${formatDate(
-      tx.paid_date
-    )}
+    ${formatDate(tx.paid_date)}
   </p>
 `,
-    });
-  };
+  });
+};
 
 module.exports = {
   sendNotificationEmail,

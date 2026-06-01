@@ -24,9 +24,8 @@ const sendMail = async (to, subject, html, file = null) => {
       attachments: file
         ? [
             {
-              filename: file.originalname,
-
-              path: file.path,
+              filename: file.originalname || file.filename,
+              path: file.path || file,
             },
           ]
         : [],

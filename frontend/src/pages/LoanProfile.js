@@ -31,26 +31,16 @@ function LoanProfile({ data, refresh }) {
 
   const payLoanEmi = async (id) => {
     try {
-      const response =
-  await API.put(
-    `/loan-emi/${id}`,
-    {
-      emiCount: Number(
-        emiCounts[id] || 1
-      ),
-      penaltyAmount: Number(
-        emiPenalties[id] || 0
-      ),
-    }
-  );
+      const response = await API.put(`/loan-emi/${id}`, {
+        emiCount: Number(emiCounts[id] || 1),
+        penaltyAmount: Number(emiPenalties[id] || 0),
+      });
 
-setSelectedLoan(
-  response.data
-);
+      setSelectedLoan(response.data);
 
-setEmiSuccessOpen(true);
+      setEmiSuccessOpen(true);
 
-refresh();
+      refresh();
     } catch (err) {
       console.log(err);
 
@@ -450,9 +440,7 @@ refresh();
 
   return (
     <div>
-      <div>
-  {renderCard(tx)}
-</div>
+      <div>{renderCard(tx)}</div>
       {editHistory && (
         <div
           onClick={() => setEditHistory(null)}
@@ -1433,51 +1421,23 @@ refresh();
             lineHeight: 1.8,
           }}
         >
-          {selectedLoan?.remaining_emi ===
-0 ? (
-  <>
-    🎉 Congratulations!
-    <br />
-    You have successfully
-    completed all
-    {" "}
-    <b>
-      {
-        selectedLoan?.loan_duration
-      }
-    </b>
-    {" "}
-    EMIs.
-    <br />
-    Loan Closed Successfully
-    ✅
-  </>
-) : (
-    <>
-    Paid EMI : 
-    <b>
-      {
-        selectedLoan?.completed_emi
-      }
-    </b>
-    {" "}
-    out of
-    {" "}
-    <b>
-      {
-        selectedLoan?.loan_duration
-      }
-    </b>
-    <br />
-    Remaining EMI:
-    {" "}
-    <b>
-      {
-        selectedLoan?.remaining_emi
-      }
-    </b>
-  </>
-)}
+          {selectedLoan?.remaining_emi === 0 ? (
+            <>
+              🎉 Congratulations!
+              <br />
+              You have successfully completed all{" "}
+              <b>{selectedLoan?.loan_duration}</b> EMIs.
+              <br />
+              Loan Closed Successfully ✅
+            </>
+          ) : (
+            <>
+              Paid EMI :<b>{selectedLoan?.completed_emi}</b> out of{" "}
+              <b>{selectedLoan?.loan_duration}</b>
+              <br />
+              Remaining EMI: <b>{selectedLoan?.remaining_emi}</b>
+            </>
+          )}
         </DialogContent>
 
         <DialogActions

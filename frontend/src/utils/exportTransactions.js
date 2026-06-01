@@ -99,11 +99,6 @@ export const exportLoanPDF = (loans) => {
   const rows = [];
 
   loans.forEach((loan) => {
-    const paidAmount =
-      Number(loan.completed_emi || 0) * Number(loan.emi_amount || 0);
-    const remainingAmount =
-      Number(loan.remaining_emi || 0) * Number(loan.emi_amount || 0);
-
     let runningBalance =
       Number(loan.emi_amount || 0) *
       (Number(loan.completed_emi || 0) + Number(loan.remaining_emi || 0));
@@ -241,8 +236,6 @@ export const exportTransactionsCSV = (transactions, type = "all") => {
     "Name,Type,Stage,Principal,Start,Due,Interest,Total,Paid,Balance,Paid Date,Installments,Status\n";
 
   normalTransactions.forEach((tx) => {
-    let totalInterest = 0;
-
     const totalAmount = Number(tx.principal_amount || 0);
 
     const paidAmount =
@@ -859,7 +852,7 @@ export const exportProfilePDF = ({
 
   doc.setFontSize(22);
 
-  doc.text("MoMaS Financial Analytics Report", 18, 26);
+  doc.text("VRinLoop Financial Analytics Report", 18, 26);
 
   doc.setFontSize(10);
 
@@ -1216,7 +1209,7 @@ export const exportProfilePDF = ({
 
   exportLoanPDFToDocument(doc, loans);
 
-  doc.save("MoMaS-Full-Financial-Report.pdf");
+  doc.save("VRinLoop-Full-Financial-Report.pdf");
 };
 
 const exportLoanPDFToDocument = (doc, loans) => {
