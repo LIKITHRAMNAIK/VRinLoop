@@ -8,4 +8,6 @@ yarn-error.log*
 build/
 dist/
 coverage/
+backend/temp/
+uploads/
 .DS_Store
