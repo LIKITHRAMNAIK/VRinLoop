@@ -30,11 +30,13 @@ import {
   Area,
 } from "recharts";
 
+
 function MyProfile() {
   const navigate = useNavigate();
   const [allTransactions, setAllTransactions] = useState([]);
 
   const user = JSON.parse(localStorage.getItem("user"));
+  
 
   const [openForm, setOpenForm] = useState(false);
 
@@ -43,6 +45,7 @@ function MyProfile() {
   const [otp, setOtp] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const BACKEND_URL = "https://vrinloop.onrender.com";
 
   const [profileForm, setProfileForm] = useState({
     name: user?.name || "",
@@ -696,7 +699,7 @@ function MyProfile() {
               >
                 {user?.profile_image ? (
                   <img
-                    src={`http://localhost:5000/uploads/${user.profile_image}`}
+                    src={`${BACKEND_URL}/uploads/${user.profile_image}`}
                     alt="profile"
                     style={{
                       width: "100%",
@@ -2030,7 +2033,7 @@ function MyProfile() {
                   profileImage
                     ? URL.createObjectURL(profileImage)
                     : user?.profile_image
-                      ? `http://localhost:5000/uploads/${user.profile_image}`
+                      ? `${BACKEND_URL}/uploads/${user.profile_image}`
                       : "https://ui-avatars.com/api/?name=User"
                 }
                 alt="profile"

@@ -1,7 +1,8 @@
 import axios from "axios";
+import { BACKEND_URL } from "../config";
 
 const API = axios.create({
-  baseURL: "https://vrinloop.onrender.com/api/transactions",
+  baseURL: `${BACKEND_URL}/api/transactions`,
 });
 
 API.interceptors.request.use((req) => {
@@ -20,14 +21,12 @@ API.interceptors.response.use(
   (err) => {
     if (err.response?.status === 401) {
       localStorage.removeItem("token");
-
       localStorage.removeItem("user");
-
       window.location.href = "/login";
     }
 
     return Promise.reject(err);
-  },
+  }
 );
 
 export default API;

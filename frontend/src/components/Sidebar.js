@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { BACKEND_URL }
+  from "../config";
 
 import {
   exportTransactionsCSV,
@@ -12,9 +14,12 @@ import {
 } from "../utils/exportTransactions";
 
 function Sidebar({ open, setOpen, onOpenExport }) {
+
   const navigate = useNavigate();
 
-  const user = JSON.parse(localStorage.getItem("user"));
+  const user = JSON.parse(
+    localStorage.getItem("user")
+  );
 
   const exportCSV = async () => {
     try {
@@ -377,26 +382,21 @@ function Sidebar({ open, setOpen, onOpenExport }) {
           }}
         >
           <img
-            src={
-              user?.profile_image
-                ? `http://localhost:5000/uploads/${user.profile_image}`
-                : "https://ui-avatars.com/api/?name=User"
-            }
-            alt="profile"
-            style={{
-              width: 52,
-
-              height: 52,
-
-              borderRadius: "50%",
-
-              objectFit: "cover",
-
-              border: "3px solid #09d858",
-
-              boxShadow: "0 4px 10px rgba(0,0,0,0.2)",
-            }}
-          />
+  src={
+    user?.profile_image
+      ? `${BACKEND_URL}/uploads/${user.profile_image}`
+      : "https://ui-avatars.com/api/?name=User"
+  }
+  alt="profile"
+  style={{
+    width: 52,
+    height: 52,
+    borderRadius: "50%",
+    objectFit: "cover",
+    border: "3px solid #09d858",
+    boxShadow: "0 4px 10px rgba(0,0,0,0.2)",
+  }}
+/>
 
           {open && (
             <div>

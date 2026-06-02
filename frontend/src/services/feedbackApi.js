@@ -1,7 +1,8 @@
 import axios from "axios";
+import { BACKEND_URL } from "../config";
 
 const feedbackAPI = axios.create({
-  baseURL: "https://vrinloop.onrender.com/api/feedback",
+  baseURL: `${BACKEND_URL}/api/feedback`,
 });
 
 feedbackAPI.interceptors.request.use((req) => {

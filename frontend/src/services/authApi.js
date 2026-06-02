@@ -1,7 +1,8 @@
 import axios from "axios";
+import { BACKEND_URL } from "../config";
 
 const authAPI = axios.create({
-  baseURL: "https://vrinloop.onrender.com/api/auth",
+  baseURL: `${BACKEND_URL}/api/auth`,
 });
 
 authAPI.interceptors.request.use((req) => {
