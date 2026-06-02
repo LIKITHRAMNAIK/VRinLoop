@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const authAPI = axios.create({
-  baseURL: "http://localhost:5000/api/auth",
+  baseURL: "https://vrinloop.onrender.com/api/auth",
 });
 
 authAPI.interceptors.request.use((req) => {

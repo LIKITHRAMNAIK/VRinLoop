@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "http://localhost:5000/api/transactions",
+  baseURL: "https://vrinloop.onrender.com/api/transactions",
 });
 
 API.interceptors.request.use((req) => {
