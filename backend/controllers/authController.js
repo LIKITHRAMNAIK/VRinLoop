@@ -8,7 +8,7 @@ const sendMail = require("../utils/sendMail");
 
 exports.signup = async (req, res) => {
   try {
-    const { name, email, phone } = req.body;
+    const { name, email, phone, password } = req.body;
 
     const existingUser = await User.findOne({
       email,
