@@ -24,10 +24,14 @@ function LoanProfile({ data, refresh }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const tx = data;
-  const [emiSuccessOpen, setEmiSuccessOpen] = useState(false);
+  const loans = Array.isArray(data)
+  ? data
+  : data
+    ? [data]
+    : [];
 
-  const [selectedLoan, setSelectedLoan] = useState(null);
+const [emiSuccessOpen, setEmiSuccessOpen] = useState(false);
+const [selectedLoan, setSelectedLoan] = useState(null);
 
   const payLoanEmi = async (id) => {
     try {
@@ -440,7 +444,9 @@ function LoanProfile({ data, refresh }) {
 
   return (
     <div>
-      <div>{renderCard(tx)}</div>
+      <div>
+  {loans.map((loan) => renderCard(loan))}
+</div>
       {editHistory && (
         <div
           onClick={() => setEditHistory(null)}

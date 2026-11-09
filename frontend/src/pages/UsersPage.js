@@ -90,7 +90,7 @@ function UsersPage() {
           }
 
           // ROTATION
-          else {
+else if (tx.transaction_type === "rotation") {
             let interest = tx.base_interest;
 
             tx.extensions?.forEach((ext) => {
