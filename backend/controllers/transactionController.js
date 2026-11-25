@@ -563,20 +563,18 @@ const user =
     req.user.id
   );
 
-if (
-  tx.transaction_type ===
-  "rotation"
-) {
-
-  await sendRotationCompletedEmail(
+if (tx.transaction_type === "rotation") {
+  sendRotationCompletedEmail(
     user,
     tx,
     totalInterest,
     finalTotal
-  );
+  ).catch((err) => {
+    console.error("Rotation payment email error:", err);
+  });
 }
 
-res.json(tx);
+return res.json(tx);
   } catch (err) {
     console.log(err);
 
