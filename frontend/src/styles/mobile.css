@@ -374,3 +374,220 @@
   }
 
 }
+
+/* ========================================
+   MOBILE OVERDUE PAYMENTS
+   ======================================== */
+
+@media screen and (max-width: 767px) {
+
+  /* Main overdue section */
+  .overdue-section {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+    padding: 12px !important;
+    border-radius: 20px !important;
+    margin-bottom: 16px !important;
+  }
+
+  /* Overdue section header */
+  .overdue-header {
+    display: flex !important;
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 8px !important;
+    margin-bottom: 16px !important;
+    min-width: 0;
+  }
+
+  .overdue-header h2 {
+    font-size: 22px !important;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .overdue-header p {
+    font-size: 13px !important;
+    line-height: 1.4;
+    margin: 6px 0 !important;
+  }
+
+  /* Total overdue count */
+  .overdue-header > div:last-child {
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+    border-radius: 10px !important;
+    box-sizing: border-box;
+  }
+
+  /* Single-column overdue cards */
+  .overdue-card-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    gap: 10px !important;
+    box-sizing: border-box;
+  }
+
+  /* Individual overdue cards */
+  .overdue-card-grid > div {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    padding: 12px !important;
+    overflow-wrap: anywhere;
+  }
+
+  .overdue-card-grid div {
+    min-width: 0 !important;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+  }
+
+}
+
+/* ========================================
+   MOBILE FILTER OVERFLOW FIX
+   ======================================== */
+
+@media screen and (max-width: 767px) {
+
+  /* Search and dropdown layout */
+  .transaction-filter-panel > div:first-child {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    gap: 10px !important;
+    box-sizing: border-box;
+  }
+
+  /* Search input parent wrapper */
+  .transaction-filter-panel > div:first-child > div:first-child {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  /* Search input */
+  .transaction-filter-panel input {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    padding: 12px 10px !important;
+    font-size: 16px !important;
+  }
+
+  /* User and status dropdowns */
+  .transaction-filter-panel select {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    font-size: 13px !important;
+    padding: 12px 6px !important;
+    text-overflow: ellipsis;
+  }
+
+  /* Sort dropdown */
+  .transaction-filter-panel select:last-child {
+    grid-column: 1 / -1 !important;
+  }
+
+}
+
+/* ========================================
+   MOBILE PAYMENT ALERT POPUP
+   Overdue and Upcoming 7 Days
+   ======================================== */
+
+@media screen and (max-width: 767px) {
+
+  /* Main alert popup */
+  .payment-alert-popup {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+
+    width: calc(100% - 24px) !important;
+    max-width: 420px !important;
+    min-width: 0 !important;
+
+    max-height: 85vh !important;
+    max-height: 85dvh !important;
+
+    padding: 14px !important;
+    border-radius: 18px !important;
+    box-sizing: border-box;
+
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+  }
+
+  /* Alert heading */
+  .payment-alert-popup h3 {
+    font-size: 20px !important;
+    margin: 0 0 14px !important;
+  }
+
+  /* Section headings */
+  .payment-alert-popup h4 {
+    font-size: 15px !important;
+    margin-bottom: 10px !important;
+  }
+
+  /* Prevent card content overflow */
+  .payment-alert-popup div {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+  }
+
+  /* Individual payment cards */
+  .payment-alert-popup > div > div {
+    width: 100% !important;
+    gap: 8px !important;
+    flex-wrap: wrap;
+    padding: 10px !important;
+  }
+
+  /* Card inner rows */
+  .payment-alert-popup > div > div div {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  /* Names and payment details */
+  .payment-alert-popup b {
+    font-size: 14px !important;
+  }
+
+  .payment-alert-popup p,
+  .payment-alert-popup span {
+    overflow-wrap: anywhere;
+  }
+
+  /* Keep close button accessible */
+  .payment-alert-popup > button {
+    position: sticky !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    min-height: 44px;
+    box-sizing: border-box;
+    margin-top: 14px !important;
+    font-size: 15px !important;
+    z-index: 2;
+  }
+
+}

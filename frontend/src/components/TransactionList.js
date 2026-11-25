@@ -298,9 +298,9 @@ const [loanFilterType, setLoanFilterType] = useState("pending");
         }
 
         // 🔥 ROTATION → direct payment
-        await API.put(`/paid/${id}`);
+await API.put(`/paid/${id}`);
 
-        alert("Marked as Paid ✅"); // 👈 ADD THIS (IMPORTANT)
+alert("Marked as Paid ✅"); // 👈 ADD THIS (IMPORTANT)
       }
 
       if (type === "extend") {
@@ -847,7 +847,12 @@ const [loanFilterType, setLoanFilterType] = useState("pending");
         : Number(tx.principal_amount || 0) + Number(finalInterest || 0);
 
     const due = new Date(tx.due_date);
-    const overdueDays = Math.floor((today - due) / (1000 * 60 * 60 * 24));
+due.setHours(0, 0, 0, 0);
+
+const overdueDays = Math.max(
+  0,
+  Math.round((today - due) / (1000 * 60 * 60 * 24))
+);
     // const type = (tx.transaction_type || "rotation").toLowerCase();
     // const isNormal = type.includes("normal");
 
@@ -917,7 +922,7 @@ const [loanFilterType, setLoanFilterType] = useState("pending");
               fontWeight: "500",
             }}
           >
-            ⚠ {overdueDays} days
+            ⚠ {overdueDays} day{overdueDays !== 1 ? "s" : ""} overdue
           </p>
 
           {/* 🔹 DATES SAME ROW */}
@@ -2590,11 +2595,12 @@ fetchData();
       )}
 
       {showAlert &&
-        (dueTransactions.length > 0 || upcomingTransactions.length > 0) && (
-          <div
-            style={{
-              position: "fixed",
-              top: 60,
+  (dueTransactions.length > 0 || upcomingTransactions.length > 0) && (
+    <div
+      className="payment-alert-popup"
+      style={{
+        position: "fixed",
+        top: 60,
               left: "50%",
               transform: "translateX(-50%)",
               background: "white",
@@ -3099,6 +3105,7 @@ fetchData();
       {/* 🔴 AUTO DUE SECTION */}
 {dueTransactions.length > 0 && (
   <div
+    className="overdue-section"
     style={{
       background: "white",
       borderRadius: 28,
@@ -3109,13 +3116,14 @@ fetchData();
     }}
   >
     <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 20,
-      }}
-    >
+  className="overdue-header"
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  }}
+>
       <div>
         <h2
           style={{
@@ -3152,15 +3160,16 @@ fetchData();
     </div>
 
     <div
-      style={{
-        display: "grid",
-        gridTemplateColumns:
-          "repeat(auto-fill,minmax(280px,1fr))",
-        gap: 16,
-      }}
-    >
-      {dueTransactions.map(renderDueCard)}
-    </div>
+  className="overdue-card-grid"
+  style={{
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(auto-fill,minmax(280px,1fr))",
+    gap: 16,
+  }}
+>
+  {dueTransactions.map(renderDueCard)}
+</div>
   </div>
 )}
 
@@ -4214,14 +4223,18 @@ fetchData();
                     fontWeight: "bold",
                   }}
                   onClick={async () => {
-                    await API.put(`/paid/${normalPayPopup._id}`, {});
+  try {
+    await API.put(`/paid/${normalPayPopup._id}`, {});
 
-setNormalPayPopup(null);
+    setNormalPayPopup(null);
+    setSuccessMessage("Payment completed successfully.");
+    fetchData();
 
-setSuccessMessage("Payment completed successfully.");
-
-fetchData();
-                  }}
+  } catch (err) {
+    console.error("Payment error:", err);
+    alert("Unable to confirm payment status. Please refresh and check.");
+  }
+}}
                 >
                   Confirm
                 </button>
