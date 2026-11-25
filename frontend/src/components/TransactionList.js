@@ -50,6 +50,7 @@ function TransactionList({ refresh }) {
   const [confirmAction, setConfirmAction] = useState(null);
 
   const [filterType, setFilterType] = useState("pending");
+const [loanFilterType, setLoanFilterType] = useState("pending");
   const [selectedMonth, setSelectedMonth] = useState("");
   const [sortType, setSortType] = useState("date");
 
@@ -1903,9 +1904,14 @@ function TransactionList({ refresh }) {
     .filter((tx) => tx.transaction_type === "rotation")
     .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
 
-  const loanData = filteredData
-    .filter((tx) => tx.transaction_type === "loan")
-    .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+  const loanData = loanStats
+  .filter((tx) => {
+    if (!selectedMonth) return true;
+
+    const txDate = new Date(tx.start_date);
+    return txDate.toISOString().slice(0, 7) === selectedMonth;
+  })
+  .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
 
   const handleInstallment = async () => {
     if (!payAmount) {
@@ -1931,21 +1937,33 @@ fetchData();
   };
 
   const filteredLoanData = loanData.filter((tx) => {
-    const matchesSearch = tx.person_name
-      .toLowerCase()
-      .includes(search.toLowerCase());
+  if (loanFilterType === "pending") {
+    return tx.status !== "paid";
+  }
 
-    const matchesStatus =
-      filterType === "all"
-        ? true
-        : filterType === "pending"
-          ? tx.status !== "paid"
-          : filterType === "paid"
-            ? tx.status === "paid"
-            : true;
+  if (loanFilterType === "paid") {
+    return tx.status === "paid";
+  }
 
-    return matchesSearch && matchesStatus;
-  });
+  return true;
+});
+
+  // const filteredLoanData = loanData.filter((tx) => {
+  //   const matchesSearch = tx.person_name
+  //     .toLowerCase()
+  //     .includes(search.toLowerCase());
+
+  //   const matchesStatus =
+  //     filterType === "all"
+  //       ? true
+  //       : filterType === "pending"
+  //         ? tx.status !== "paid"
+  //         : filterType === "paid"
+  //           ? tx.status === "paid"
+  //           : true;
+
+  //   return matchesSearch && matchesStatus;
+  // });
 
   const handleFullPayment = async () => {
     try {
@@ -3150,6 +3168,7 @@ fetchData();
       {/* ================= PRO FILTER TOOLBAR ================= */}
 
       <div
+      className="transaction-filter-panel"
         style={{
           background: "rgba(255,255,255,0.75)",
           backdropFilter: "blur(14px)",
@@ -3491,8 +3510,9 @@ fetchData();
 
       <div style={{ marginTop: 25 }}>
         {/* NORMAL SECTION */}
-        <div
-          style={{
+<div
+  className="payment-section"
+  style={{
             background: "white",
             borderRadius: 28,
             padding: 24,
@@ -3610,19 +3630,21 @@ fetchData();
 
           {/* GRID */}
           <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))",
-              gap: 16,
-            }}
-          >
+  className="payment-card-grid"
+  style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))",
+    gap: 16,
+  }}
+>
             {normalData.map(renderCard)}
           </div>
         </div>
 
         {/* ROTATION SECTION */}
-        <div
-          style={{
+<div
+  className="payment-section"
+  style={{
             background: "white",
             borderRadius: 28,
             padding: 24,
@@ -3752,19 +3774,21 @@ fetchData();
 
           {/* GRID */}
           <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))",
-              gap: 16,
-            }}
-          >
+  className="payment-card-grid"
+  style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))",
+    gap: 16,
+  }}
+>
             {rotationData.map(renderCard)}
           </div>
         </div>
 
         {/* LOAN SECTION */}
-        <div
-          style={{
+<div
+  className="payment-section"
+  style={{
             background: "white",
             borderRadius: 28,
             padding: 24,
@@ -3811,8 +3835,8 @@ fetchData();
             {/* LOAN FILTER */}
             <div>
               <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
+  value={loanFilterType}
+  onChange={(e) => setLoanFilterType(e.target.value)}
                 style={{
                   padding: "12px 18px",
                   borderRadius: 14,
@@ -3876,12 +3900,13 @@ fetchData();
 
           {/* LOAN GRID */}
           <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))",
-              gap: 16,
-            }}
-          >
+  className="payment-card-grid"
+  style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))",
+    gap: 16,
+  }}
+>
             {filteredLoanData.map((loan) => (
   <LoanProfile
     key={loan._id}

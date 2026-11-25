@@ -1,0 +1,376 @@
+/* ========================================
+   MOBILE RESPONSIVE UI
+   Android and iOS
+   ======================================== */
+
+@media screen and (max-width: 767px) {
+
+  /* Dashboard main container */
+  .dashboard-container {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 12px !important;
+    padding-left: 82px !important;
+  }
+
+  /* Welcome section */
+  .dashboard-header {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 16px !important;
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 16px !important;
+  }
+
+  .dashboard-header h1 {
+    font-size: 22px !important;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  /* Calendar wrapper */
+  .dashboard-calendar-wrapper {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Calendar card */
+  .dashboard-calendar {
+    box-sizing: border-box;
+    width: 100% !important;
+    min-width: 0;
+    min-height: auto !important;
+    flex-direction: column;
+    padding: 10px !important;
+    gap: 16px !important;
+  }
+
+  /* Today's events */
+  .dashboard-calendar-events {
+    width: 100% !important;
+    overflow-wrap: anywhere;
+  }
+
+  /* Calendar dates */
+  .dashboard-calendar-dates {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .dashboard-calendar-dates > div:first-child {
+    font-size: 12px;
+  }
+
+  .dashboard-calendar-dates > div:nth-child(2) {
+    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+    gap: 2px !important;
+  }
+
+  .dashboard-calendar-dates > div:nth-child(2) > div {
+    max-width: 100%;
+    font-size: 11px !important;
+  }
+
+}
+
+/* ========================================
+   MOBILE TRANSACTION FILTER PANEL
+   ======================================== */
+
+@media screen and (max-width: 767px) {
+
+  /* Disable floating filter panel */
+  .transaction-filter-panel {
+    position: static !important;
+    top: auto !important;
+    z-index: auto !important;
+    backdrop-filter: none !important;
+    background: #ffffff !important;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 12px !important;
+    border-radius: 16px !important;
+    margin-bottom: 16px !important;
+  }
+
+  /* Search and dropdown container */
+  .transaction-filter-panel > div:first-child {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px !important;
+    margin-bottom: 12px !important;
+  }
+
+  /* Search bar */
+  .transaction-filter-panel input {
+    grid-column: 1 / -1;
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+    padding: 10px !important;
+    font-size: 16px !important;
+  }
+
+  /* Dropdowns */
+  .transaction-filter-panel select {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+    padding: 10px 6px !important;
+    font-size: 16px !important;
+  }
+
+  /* Sort by Date dropdown */
+  .transaction-filter-panel select:last-child {
+    grid-column: 1 / -1;
+  }
+
+  /* Status buttons container */
+  .transaction-filter-panel > div:nth-child(2) {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px !important;
+  }
+
+  /* Status buttons */
+  .transaction-filter-panel > div:nth-child(2) > * {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+    padding: 10px 6px !important;
+    font-size: 13px !important;
+    text-align: center;
+  }
+
+}
+
+/* ========================================
+   MOBILE DASHBOARD SUMMARY CARDS
+   ======================================== */
+
+@media screen and (max-width: 767px) {
+
+  /* Two-column financial cards */
+  .dashboard-summary-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+    margin-top: 16px !important;
+    margin-bottom: 18px !important;
+  }
+
+  /* Individual summary cards */
+  .dashboard-summary-grid > div {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    padding: 14px 6px !important;
+    border-radius: 16px !important;
+    text-align: center;
+    transform: none !important;
+  }
+
+  /* Card headings */
+  .dashboard-summary-grid h3 {
+    font-size: 14px !important;
+    margin-bottom: 8px !important;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  /* Card amounts */
+  .dashboard-summary-grid p {
+    font-size: clamp(14px, 4vw, 20px) !important;
+    font-weight: bold;
+    overflow-wrap: anywhere;
+    line-height: 1.3;
+  }
+
+  /* Profit or Loss full-width card */
+  .dashboard-summary-grid .dashboard-profit-card {
+    grid-column: 1 / -1 !important;
+    padding: 16px 10px !important;
+  }
+
+  .dashboard-profit-card h3 {
+    font-size: 16px !important;
+  }
+
+  .dashboard-profit-card p {
+    font-size: 22px !important;
+  }
+
+  /* Profit bar */
+  .dashboard-profit-bar {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+  }
+
+  .dashboard-profit-bar h3 {
+    font-size: 16px !important;
+  }
+
+  .dashboard-profit-bar > div {
+    height: 22px !important;
+  }
+
+}
+
+/* ========================================
+   MOBILE PAYMENT SECTIONS
+   Normal, Rotation and Loan Payments
+   ======================================== */
+
+@media screen and (max-width: 767px) {
+
+  /* Main payment section container */
+  .payment-section {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+    padding: 12px !important;
+    border-radius: 20px !important;
+    margin-bottom: 20px !important;
+  }
+
+  /* Section header */
+  .payment-section > div:first-child {
+    min-width: 0;
+    max-width: 100%;
+    gap: 10px !important;
+    margin-bottom: 16px !important;
+  }
+
+  /* Section heading */
+  .payment-section > div:first-child h2 {
+    font-size: 22px !important;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  /* Section description */
+  .payment-section > div:first-child p {
+    font-size: 13px !important;
+    line-height: 1.4;
+  }
+
+  /* Header stats container */
+  .payment-section > div:first-child > div:last-child {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px !important;
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Individual status badges */
+  .payment-section > div:first-child > div:last-child > div {
+    padding: 8px 6px !important;
+    font-size: 12px !important;
+    text-align: center;
+    border-radius: 10px !important;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+  }
+
+  /* Single-column payment cards */
+  .payment-card-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    gap: 12px !important;
+    box-sizing: border-box;
+  }
+
+  /* Individual payment cards and wrappers */
+  .payment-card-grid > div {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+  }
+
+  /* Prevent nested card content from overflowing */
+  .payment-card-grid div {
+    min-width: 0 !important;
+    box-sizing: border-box;
+  }
+
+  /* Names, dates and amounts */
+  .payment-card-grid h3,
+  .payment-card-grid h4,
+  .payment-card-grid p {
+    overflow-wrap: anywhere;
+  }
+
+  /* Payment buttons */
+  .payment-card-grid button {
+    max-width: 100%;
+    min-width: 0 !important;
+    box-sizing: border-box;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  /* Loan filter dropdown */
+  .payment-section > div:first-child select {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    font-size: 16px !important;
+    box-sizing: border-box;
+  }
+
+  /* Individual loan card */
+  .mobile-loan-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+    padding: 12px !important;
+    overflow-wrap: anywhere;
+  }
+
+  /* Loan EMI action layout */
+  .loan-emi-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px !important;
+    width: 100%;
+  }
+
+  /* EMI selector and penalty input */
+  .loan-emi-actions select,
+  .loan-emi-actions input {
+    grid-column: 1 / -1;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    font-size: 16px !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* Pay EMI and More Details buttons */
+  .loan-emi-actions button {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 44px;
+    font-size: 13px !important;
+    padding: 10px 6px !important;
+    box-sizing: border-box;
+  }
+
+}

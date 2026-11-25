@@ -111,11 +111,12 @@ const [selectedLoan, setSelectedLoan] = useState(null);
     const isUpcoming = diffDays < 0 && Math.abs(diffDays) <= 3;
 
     return (
-      <div
-        key={tx._id}
-        style={{
-          padding: 15,
-          borderRadius: 12,
+  <div
+    className="mobile-loan-card"
+    key={tx._id}
+    style={{
+      padding: 15,
+      borderRadius: 12,
           background: isOverdue ? "#ffe5e5" : "#ede7f6",
 
           border: isOverdue ? "2px solid #f44336" : "1px solid #d1c4e9",
@@ -299,12 +300,13 @@ const [selectedLoan, setSelectedLoan] = useState(null);
         </div>
 
         {tx.status !== "paid" && (
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              marginTop: 15,
-            }}
+  <div
+    className="loan-emi-actions"
+    style={{
+      display: "flex",
+      gap: 10,
+      marginTop: 15,
+    }}
           >
             <select
               value={emiCounts[tx._id] || 1}

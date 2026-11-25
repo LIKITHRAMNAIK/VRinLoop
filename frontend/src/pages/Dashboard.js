@@ -192,9 +192,10 @@ function Dashboard() {
 
   return (
     <div
-      style={{
-        padding: "30px",
-        paddingLeft: "95px",
+  className="dashboard-container"
+  style={{
+    padding: "30px",
+    paddingLeft: "95px",
         fontFamily: "Arial",
         transition: "0.3s",
         background: "#f4f7fb",
@@ -209,8 +210,9 @@ function Dashboard() {
       />
 
       {/* HEADER CONTAINER */}
-      <div
-        style={{
+<div
+  className="dashboard-header"
+  style={{
           background: "linear-gradient(135deg, #0F2027, #203A43, #2C5364)",
           color: "white",
           padding: "28px 30px",
@@ -272,8 +274,9 @@ function Dashboard() {
         </div>
 
         {/* Right Actions Section (Bundles Date and Button Together) */}
-        <div
-          style={{
+<div
+  className="dashboard-calendar-wrapper"
+  style={{
             display: "flex",
             alignItems: "center",
             gap: "20px",
@@ -283,8 +286,9 @@ function Dashboard() {
           {/* Date Card */}
 
           <div
-            style={{
-              width: 470,
+  className="dashboard-calendar"
+  style={{
+    width: 470,
 
               minHeight: 230,
 
@@ -308,8 +312,9 @@ function Dashboard() {
             {/* LEFT */}
 
             <div
-              style={{
-                width: 150,
+  className="dashboard-calendar-events"
+  style={{
+    width: 150,
               }}
             >
               <div
@@ -444,10 +449,10 @@ function Dashboard() {
             </div>
 
             {/* RIGHT */}
-
-            <div
-              style={{
-                flex: 1,
+<div
+  className="dashboard-calendar-dates"
+  style={{
+    flex: 1,
               }}
             >
               <div
@@ -646,9 +651,10 @@ function Dashboard() {
       )}
 
       {/* DASHBOARD CARDS */}
-      <div
-        style={{
-          display: "grid",
+<div
+  className="dashboard-summary-grid"
+  style={{
+    display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(240px,1fr))",
           gap: 22,
           marginTop: "20px",
@@ -773,10 +779,11 @@ function Dashboard() {
         </div>
 
         <div
-          style={{
-            ...card(profitLoss >= 0 ? "#4CAF50" : "#D32F2F"),
-            gridColumn: "span 4",
-          }}
+  className="dashboard-profit-card"
+  style={{
+    ...card(profitLoss >= 0 ? "#4CAF50" : "#D32F2F"),
+    gridColumn: "span 4",
+  }}
           onMouseEnter={(e) => {
             e.currentTarget.style.transform = "translateY(-6px)";
           }}
@@ -807,7 +814,10 @@ function Dashboard() {
       </div>
 
       {/* 🔥 PROFIT BAR (CORRECT LOCATION) */}
-      <div style={{ marginTop: "10px", marginBottom: "20px" }}>
+<div
+  className="dashboard-profit-bar"
+  style={{ marginTop: "10px", marginBottom: "20px" }}
+>
         <h3 style={{ marginBottom: 8 }}>🔥 PROFIT BAR</h3>
 
         <div
