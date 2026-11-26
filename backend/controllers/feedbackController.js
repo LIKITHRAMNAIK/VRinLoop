@@ -134,17 +134,29 @@ exports.submitFeedback = async (req, res) => {
 </div>
 `;
 
-    console.log("Uploaded File:", req.file);
+        try {
+      const emailSent = await sendMail(
+        "likithramnaik123@gmail.com",
 
-    await sendMail(
-      "likithramnaik123@gmail.com",
+        `💡 VRinLoop Feedback - ${req.body.type}`,
 
-      `💡 VRinLoop Feedback - ${req.body.type}`,
+        html,
 
-      html,
+        req.file,
+      );
 
-      req.file,
-    );
+      if (emailSent !== true) {
+        throw new Error("Feedback email request failed");
+      }
+
+      console.log("Feedback email accepted by Brevo");
+
+    } catch (emailError) {
+      console.error(
+        "Feedback Email Error:",
+        emailError.message
+      );
+    }
 
     res.status(200).json({
       success: true,

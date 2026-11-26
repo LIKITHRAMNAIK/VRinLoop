@@ -8,18 +8,26 @@ const {
 const EmailLog =
   require("../models/EmailLog");
 
-const runOverdueCron = async () => {
+const runOverdueCron = async (testUserId = null) => {
   try {
 
     console.log(
       "Running Overdue Cron..."
     );
 
-    const users =
-      await User.find({
-        "notifications.overdueReminder":
-          true,
-      });
+    const filter = {
+  "notifications.overdueReminder": true,
+};
+
+if (process.env.NODE_ENV === "test") {
+  if (!testUserId) {
+    throw new Error("Test user ID is required");
+  }
+
+  filter._id = testUserId;
+}
+
+const users = await User.find(filter);
 
     const today = new Date();
 
@@ -71,10 +79,18 @@ if (existingLog) {
   transactions.length > 0
 ) {
 
-  await sendOverdueEmail(
+    const emailSent = await sendOverdueEmail(
     user,
     transactions
   );
+
+  if (emailSent !== true) {
+    console.error(
+      `Overdue email failed for ${user.email}`
+    );
+
+    continue;
+  }
 
   await EmailLog.create({
     user: user._id,
@@ -83,7 +99,7 @@ if (existingLog) {
   });
 
   console.log(
-    `Overdue email sent to ${user.email}`
+    `Overdue email accepted by Brevo for ${user.email}`
   );
 }
     }

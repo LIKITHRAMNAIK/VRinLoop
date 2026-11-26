@@ -4,7 +4,6 @@ const transactionController = require("../controllers/transactionController");
 
 const authMiddleware = require("../middleware/authMiddleware");
 
-console.log("CONTROLLER:", transactionController);
 router.post("/add", authMiddleware, transactionController.addTransaction);
 router.put(
   "/extend/:id",

@@ -9,18 +9,26 @@ const EmailLog =
   require("../models/EmailLog");
 
 const runWeeklyUpcomingCron =
-  async () => {
+  async (testUserId = null) => {
     try {
 
       console.log(
         "Running Weekly Upcoming Cron..."
       );
 
-      const users =
-        await User.find({
-          "notifications.weeklyUpcoming":
-            true,
-        });
+      const filter = {
+  "notifications.weeklyUpcoming": true,
+};
+
+if (process.env.NODE_ENV === "test") {
+  if (!testUserId) {
+    throw new Error("Test user ID is required");
+  }
+
+  filter._id = testUserId;
+}
+
+const users = await User.find(filter);
 
       for (const user of users) {
 
@@ -88,10 +96,18 @@ if (existingLog) {
   transactions.length > 0
 ) {
 
-  await sendWeeklyUpcomingEmail(
-    user,
-    transactions
+  const emailSent = await sendWeeklyUpcomingEmail(
+  user,
+  transactions
+);
+
+if (emailSent !== true) {
+  console.error(
+    `Weekly Upcoming email failed for ${user.email}`
   );
+
+  continue;
+}
 
   await EmailLog.create({
     user: user._id,
@@ -100,8 +116,8 @@ if (existingLog) {
   });
 
   console.log(
-    `Weekly email sent to ${user.email}`
-  );
+  `Weekly Upcoming email accepted by Brevo for ${user.email}`
+);
 }
       }
 

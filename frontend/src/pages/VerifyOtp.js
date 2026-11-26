@@ -12,26 +12,67 @@ export default function VerifyOtp() {
 
   const [successModal, setSuccessModal] = useState(false);
 
-  const [otp, setOtp] = useState("");
+const [otp, setOtp] = useState("");
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+const [resetToken, setResetToken] = useState("");
 
-    try {
-      await authAPI.post(
-        "/verify-otp",
+const [loading, setLoading] = useState(false);
 
-        {
-          email,
-          otp,
-        },
-      );
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-      setSuccessModal(true);
-    } catch (error) {
-      alert(error.response?.data?.message || "Invalid OTP");
+  if (loading || successModal) return;
+
+  if (!email) {
+    alert("Please request a new OTP.");
+
+    navigate("/forgot-password", {
+      replace: true,
+    });
+
+    return;
+  }
+
+  if (!/^\d{6}$/.test(otp)) {
+    alert("Please enter a valid 6-digit OTP.");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const response = await authAPI.post(
+      "/verify-otp",
+      {
+        email,
+        otp,
+      },
+    );
+
+    const token = response.data?.resetToken;
+
+    if (
+      response.data?.success !== true ||
+      typeof token !== "string" ||
+      !/^[a-f0-9]{64}$/.test(token)
+    ) {
+      alert("Verification failed. Please request a new OTP.");
+      return;
     }
-  };
+
+    setResetToken(token);
+
+    setSuccessModal(true);
+  } catch (error) {
+    alert(
+      error.response?.data?.message ||
+      "OTP verification failed."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div style={containerStyle}>
@@ -60,17 +101,34 @@ export default function VerifyOtp() {
         </div>
 
         <input
-          type="text"
-          placeholder="Enter OTP"
-          value={otp}
-          onChange={(e) => setOtp(e.target.value)}
-          required
-          style={inputStyle}
-        />
+  type="text"
+  placeholder="Enter OTP"
+  value={otp}
+  onChange={(e) =>
+    setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+  }
+  inputMode="numeric"
+  autoComplete="one-time-code"
+  maxLength={6}
+  pattern="[0-9]{6}"
+  disabled={loading || successModal}
+  required
+  style={inputStyle}
+/>
 
-        <button type="submit" style={buttonStyle}>
-          Verify OTP
-        </button>
+        <button
+  type="submit"
+  disabled={loading || successModal}
+  style={{
+    ...buttonStyle,
+    opacity: loading || successModal ? 0.7 : 1,
+    cursor: loading || successModal
+      ? "not-allowed"
+      : "pointer",
+  }}
+>
+  {loading ? "Verifying..." : "Verify OTP"}
+</button>
       </form>
 
       {successModal && (
@@ -101,10 +159,14 @@ export default function VerifyOtp() {
 
             <button
               onClick={() =>
-                navigate("/reset-password", {
-                  state: { email },
-                })
-              }
+  navigate("/reset-password", {
+    state: {
+      email,
+      resetToken,
+    },
+    replace: true,
+  })
+}
               style={buttonStyle}
             >
               Continue →

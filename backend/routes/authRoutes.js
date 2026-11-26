@@ -1,47 +1,73 @@
+
 const express = require("express");
 
 const router = express.Router();
 
 const authController = require("../controllers/authController");
-
 const upload = require("../middleware/uploadMiddleware");
-
 const authMiddleware = require("../middleware/authMiddleware");
 
-router.post("/signup", upload.single("profile_image"), authController.signup);
+// Authentication rate limiters
+const {
+  signupLimiter,
+  loginLimiter,
+  forgotPasswordLimiter,
+  verifyOtpLimiter,
+  resetPasswordLimiter,
+  profileOtpLimiter,
+  verifyProfileOtpLimiter,
+} = require("../middleware/authRateLimiter");
 
-router.post("/login", authController.login);
-
-router.post("/forgot-password", authController.forgotPassword);
-
-router.post("/verify-otp", authController.verifyOtp);
-
-router.post("/reset-password", authController.resetPassword);
-
-router.put(
-  "/update-profile",
-  authMiddleware,
-
+// Signup
+router.post(
+  "/signup",
+  signupLimiter,
   upload.single("profile_image"),
-
-  authController.updateProfile,
+  authController.signup,
 );
 
+// Login
+router.post(
+  "/login",
+  loginLimiter,
+  authController.login,
+);
+
+// Forgot password
+router.post(
+  "/forgot-password",
+  forgotPasswordLimiter,
+  authController.forgotPassword,
+);
+
+// Verify password reset OTP
+router.post(
+  "/verify-otp",
+  verifyOtpLimiter,
+  authController.verifyOtp,
+);
+
+// Reset password
+router.post(
+  "/reset-password",
+  resetPasswordLimiter,
+  authController.resetPassword,
+);
+
+// Send profile update OTP
 router.post(
   "/send-profile-update-otp",
-
+  profileOtpLimiter,
   authMiddleware,
-
   authController.sendProfileUpdateOtp,
 );
 
+// Verify OTP and update profile
 router.put(
   "/verify-profile-update-otp",
-
+  verifyProfileOtpLimiter,
   authMiddleware,
-
   upload.single("profile_image"),
-
   authController.verifyProfileUpdateOtp,
 );
 

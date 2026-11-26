@@ -9,32 +9,81 @@ export default function ResetPassword() {
 
   const location = useLocation();
 
-  const email = location.state?.email;
+const email = location.state?.email;
 
+const resetToken = location.state?.resetToken;
   const [successModal, setSuccessModal] = useState(false);
 
   const [password, setPassword] = useState("");
 
-  const [showPassword, setShowPassword] = useState(false);
+const [showPassword, setShowPassword] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+const [loading, setLoading] = useState(false);
 
-    try {
-      await authAPI.post(
-        "/reset-password",
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-        {
-          email,
-          password,
-        },
-      );
+  if (loading || successModal) return;
 
-      setSuccessModal(true);
-    } catch (error) {
-      alert(error.response?.data?.message || "Reset failed");
+  // Validate password reset session
+  if (
+    !email ||
+    typeof resetToken !== "string" ||
+    !/^[a-f0-9]{64}$/.test(resetToken)
+  ) {
+    alert(
+      "Invalid password reset session. Please request a new OTP."
+    );
+
+    navigate("/forgot-password", {
+      replace: true,
+    });
+
+    return;
+  }
+
+  // Validate minimum password length
+  if (password.length < 8) {
+    alert("Password must contain at least 8 characters.");
+    return;
+  }
+
+  // Match backend bcrypt password limit
+  if (new TextEncoder().encode(password).length > 72) {
+    alert("Password must not exceed 72 bytes.");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const response = await authAPI.post(
+      "/reset-password",
+      {
+        email,
+        password,
+        resetToken,
+      },
+    );
+
+    if (response.data?.success !== true) {
+      alert("Password reset failed. Please try again.");
+      return;
     }
-  };
+
+    setPassword("");
+
+    setSuccessModal(true);
+  } catch (error) {
+    alert(
+      error.response?.data?.message ||
+      "Password reset failed. Please try again."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div style={containerStyle}>
@@ -68,13 +117,16 @@ export default function ResetPassword() {
           }}
         >
           <input
-            type={showPassword ? "text" : "password"}
-            placeholder="New Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={inputStyle}
-          />
+  type={showPassword ? "text" : "password"}
+  placeholder="New Password"
+  value={password}
+  onChange={(e) => setPassword(e.target.value)}
+  autoComplete="new-password"
+  minLength={8}
+  disabled={loading || successModal}
+  required
+  style={inputStyle}
+/>
 
           <span
             onClick={() => setShowPassword(!showPassword)}
@@ -98,9 +150,19 @@ export default function ResetPassword() {
           </span>
         </div>
 
-        <button type="submit" style={buttonStyle}>
-          Update Password
-        </button>
+        <button
+  type="submit"
+  disabled={loading || successModal}
+  style={{
+    ...buttonStyle,
+    opacity: loading || successModal ? 0.7 : 1,
+    cursor: loading || successModal
+      ? "not-allowed"
+      : "pointer",
+  }}
+>
+  {loading ? "Updating Password..." : "Update Password"}
+</button>
       </form>
 
       {successModal && (
@@ -129,7 +191,14 @@ export default function ResetPassword() {
 
             <p>Your password has been updated successfully.</p>
 
-            <button onClick={() => navigate("/login")} style={buttonStyle}>
+            <button
+  onClick={() =>
+    navigate("/login", {
+      replace: true,
+    })
+  }
+  style={buttonStyle}
+>
               Login Now →
             </button>
           </div>

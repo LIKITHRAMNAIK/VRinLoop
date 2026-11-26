@@ -10,18 +10,26 @@ const {
 const EmailLog =
   require("../models/EmailLog");
 
-const runDueTodayCron = async () => {
+const runDueTodayCron = async (testUserId = null) => {
   try {
 
     console.log(
       "Running Due Today Cron..."
     );
 
-    const users =
-      await User.find({
-        "notifications.dueToday":
-          true,
-      });
+    const filter = {
+  "notifications.dueToday": true,
+};
+
+if (process.env.NODE_ENV === "test") {
+  if (!testUserId) {
+    throw new Error("Test user ID is required");
+  }
+
+  filter._id = testUserId;
+}
+
+const users = await User.find(filter);
 
     for (const user of users) {
 
@@ -84,10 +92,18 @@ if (existingLog) {
   transactions.length > 0
 ) {
 
-  await sendDueTodayEmail(
+    const emailSent = await sendDueTodayEmail(
     user,
     transactions
   );
+
+  if (emailSent !== true) {
+    console.error(
+      `Due Today email failed for ${user.email}`
+    );
+
+    continue;
+  }
 
   await EmailLog.create({
     user: user._id,
@@ -96,7 +112,7 @@ if (existingLog) {
   });
 
   console.log(
-    `Due Today email sent to ${user.email}`
+    `Due Today email accepted by Brevo for ${user.email}`
   );
 }
     }

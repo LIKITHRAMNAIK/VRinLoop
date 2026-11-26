@@ -8,23 +8,53 @@ export default function ForgotPassword() {
 
   const [email, setEmail] = useState("");
 
-  const [successModal, setSuccessModal] = useState(false);
+const [successModal, setSuccessModal] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+const [loading, setLoading] = useState(false);
 
-    try {
-      await authAPI.post(
-        "/forgot-password",
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-        { email },
-      );
+  if (loading || successModal) return;
 
-      setSuccessModal(true);
-    } catch (error) {
-      alert(error.response?.data?.message || "Something went wrong");
+  const cleanEmail = email.trim();
+
+  if (
+    cleanEmail.length > 254 ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)
+  ) {
+    alert("Please enter a valid email address.");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const response = await authAPI.post(
+      "/forgot-password",
+      {
+        email: cleanEmail,
+      },
+    );
+
+    if (response.data?.success !== true) {
+      alert("Unable to process request. Please try again.");
+      return;
     }
-  };
+
+    setEmail(cleanEmail);
+
+    setSuccessModal(true);
+  } catch (error) {
+    alert(
+      error.response?.data?.message ||
+      "Unable to process request. Please try again."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div style={containerStyle}>
@@ -54,17 +84,30 @@ export default function ForgotPassword() {
         </div>
 
         <input
-          type="email"
-          placeholder="Enter Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          style={inputStyle}
-        />
+  type="email"
+  placeholder="Enter Email"
+  value={email}
+  onChange={(e) => setEmail(e.target.value)}
+  autoComplete="email"
+  maxLength={254}
+  disabled={loading || successModal}
+  required
+  style={inputStyle}
+/>
 
-        <button type="submit" style={buttonStyle}>
-          Send OTP
-        </button>
+        <button
+  type="submit"
+  disabled={loading || successModal}
+  style={{
+    ...buttonStyle,
+    opacity: loading || successModal ? 0.7 : 1,
+    cursor: loading || successModal
+      ? "not-allowed"
+      : "pointer",
+  }}
+>
+  {loading ? "Processing..." : "Send OTP"}
+</button>
       </form>
       {successModal && (
         <div
@@ -88,16 +131,20 @@ export default function ForgotPassword() {
               textAlign: "center",
             }}
           >
-            <h2>📧 OTP Sent</h2>
+            <h2>📧 Request Submitted</h2>
 
-            <p>Verification code has been sent to your email.</p>
+<p>
+  If your email is registered, you will receive an OTP.
+  Please check your inbox and spam folder.
+</p>
 
             <button
               onClick={() =>
-                navigate("/verify-otp", {
-                  state: { email },
-                })
-              }
+  navigate("/verify-otp", {
+    state: { email },
+    replace: true,
+  })
+}
               style={buttonStyle}
             >
               Continue →

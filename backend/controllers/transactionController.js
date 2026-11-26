@@ -3,13 +3,33 @@ const User = require("../models/User");
 
 const {
   sendInstallmentPaymentEmail,
+  sendNormalCompletedEmail,
   sendRotationCompletedEmail,
   sendRotationExtendedEmail,
+  sendLoanCreatedEmail,
   sendLoanEmiPaymentEmail,
   sendLoanCompletedEmail,
 } = require(
   "../services/notificationService"
 );
+
+const sendPaymentEmailSafely = (sendEmail, ...args) => {
+  Promise.resolve()
+    .then(() => sendEmail(...args))
+    .then((emailSent) => {
+      if (emailSent !== true) {
+        console.error(
+          `${sendEmail.name}: Email request failed`
+        );
+      }
+    })
+    .catch((error) => {
+      console.error(
+        `${sendEmail.name}:`,
+        error.message
+      );
+    });
+};
 exports.extendTransaction = async (req, res) => {
   try {
     const { id } = req.params;
@@ -91,7 +111,8 @@ const latestExtension =
     transaction.extensions.length - 1
   ];
 
-await sendRotationExtendedEmail(
+sendPaymentEmailSafely(
+  sendRotationExtendedEmail,
   user,
   transaction,
   latestExtension,
@@ -101,7 +122,7 @@ await sendRotationExtendedEmail(
 
 res.json(transaction);
   } catch (error) {
-    console.log("EXTEND ERROR:", error); // 👈 THIS WILL SHOW REAL ERROR
+    console.error("Extend Transaction Error:", error.name);
     res.status(500).json({ message: error.message });
   }
 };
@@ -421,18 +442,18 @@ const paidAmount =
   safeCount *
   Number(tx.emi_amount || 0);
 
-if (
-  tx.status === "paid"
-) {
+if (tx.status === "paid") {
 
-  await sendLoanCompletedEmail(
+  sendPaymentEmailSafely(
+    sendLoanCompletedEmail,
     user,
     tx
   );
 
 } else {
 
-  await sendLoanEmiPaymentEmail(
+  sendPaymentEmailSafely(
+    sendLoanEmiPaymentEmail,
     user,
     tx,
     safeCount,
@@ -442,7 +463,7 @@ if (
 
 res.json(tx);
   } catch (error) {
-    console.log(error);
+    console.error("Transaction Error:", error.name);
 
     res.status(500).json({
       message: error.message,
@@ -491,16 +512,16 @@ exports.markAsPaid = async (req, res) => {
 
       await tx.save();
 
-if (
-  tx.status !== "paid"
-) {
-
-  console.log("INSTALLMENT MAIL");
-console.log(user.email);
-console.log(amount);
-console.log(tx.paid_amount);
-console.log(tx.status);
-  await sendInstallmentPaymentEmail(
+if (tx.status === "paid") {
+  sendPaymentEmailSafely(
+    sendNormalCompletedEmail,
+    user,
+    tx,
+    amount
+  );
+} else {
+  sendPaymentEmailSafely(
+    sendInstallmentPaymentEmail,
     user,
     tx,
     amount
@@ -564,19 +585,18 @@ const user =
   );
 
 if (tx.transaction_type === "rotation") {
-  sendRotationCompletedEmail(
+  sendPaymentEmailSafely(
+    sendRotationCompletedEmail,
     user,
     tx,
     totalInterest,
     finalTotal
-  ).catch((err) => {
-    console.error("Rotation payment email error:", err);
-  });
+  );
 }
 
 return res.json(tx);
   } catch (err) {
-    console.log(err);
+    console.error("Transaction Error:", err.name);
 
     res.status(500).json({
       message: "Server Error",
@@ -684,7 +704,7 @@ exports.updateTransaction = async (req, res) => {
 
     res.json(tx);
   } catch (error) {
-    console.log(error);
+    console.error("Transaction Error:", error.name);
 
     res.status(500).json({
       message: error.message,
@@ -696,13 +716,18 @@ exports.deleteTransaction = async (req, res) => {
   try {
     const { id } = req.params;
 
-    await Transaction.findOneAndDelete({
-      _id: id,
+    const deletedTransaction = await Transaction.findOneAndDelete({
+  _id: id,
+  user: req.user.id,
+});
 
-      user: req.user.id,
-    });
+if (!deletedTransaction) {
+  return res.status(404).json({
+    message: "Transaction not found",
+  });
+}
 
-    res.json({ message: "Deleted successfully" });
+res.json({ message: "Deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -782,12 +807,7 @@ exports.addTransaction = async (req, res) => {
 
       finalTotal = Number(req.body.principal_amount) + totalInterest;
     }
-    console.log({
-      completedEmi,
-      remainingEmi,
-      loanStatus: Number(remainingEmi) <= 0 ? "paid" : "pending",
-    });
-    console.log("REQ USER:", req.user);
+
     const transaction = new Transaction({
       user: req.user.id,
 
@@ -875,7 +895,27 @@ exports.addTransaction = async (req, res) => {
       paid_amount: req.body.transaction_type === "normal" ? totalPaid : 0,
     });
 
-    await transaction.save();
+        await transaction.save();
+
+    // ================= LOAN CREATION EMAIL =================
+
+    if (transaction.transaction_type === "loan") {
+      sendPaymentEmailSafely(
+        async () => {
+          const user = await User.findById(req.user.id);
+
+          if (!user || !user.email) {
+            throw new Error("Loan creation email recipient not found");
+          }
+
+          return sendLoanCreatedEmail(
+            user,
+            transaction,
+            loan_mode
+          );
+        }
+      );
+    }
 
     res.status(201).json(transaction);
   } catch (error) {
@@ -948,7 +988,7 @@ const updateLoanHistoryDate = async (req, res) => {
       message: "EMI date updated",
     });
   } catch (err) {
-    console.log(err);
+    console.error("Transaction Error:", err.name);
 
     res.status(500).json({
       message: "Server Error",

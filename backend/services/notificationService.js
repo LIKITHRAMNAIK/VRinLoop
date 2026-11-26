@@ -36,11 +36,11 @@ const sendNotificationEmail = async ({ email, subject, title, content }) => {
       </div>
     `;
 
-    await sendMail(email, subject, html);
+        const emailSent = await sendMail(email, subject, html);
 
-    return true;
+    return emailSent === true;
   } catch (error) {
-    console.log("Notification Error:", error.message);
+    console.error("Notification Error:", error.message);
 
     return false;
   }
@@ -378,6 +378,73 @@ const sendInstallmentPaymentEmail = async (user, tx, installmentAmount) => {
   });
 };
 
+const sendNormalCompletedEmail = async (
+  user,
+  tx,
+  finalPaymentAmount
+) => {
+  const installmentNumber = tx.installments.filter(
+    (i) => Number(i.amount) > 0
+  ).length;
+
+  const remaining = Math.max(
+    0,
+    Number(tx.principal_amount) - Number(tx.paid_amount)
+  );
+
+  return sendNotificationEmail({
+    email: user.email,
+
+    subject: "✅ Normal Payment Completed",
+
+    title: "Normal Payment Completed",
+
+    content: `
+      <p>
+        <b>
+          ${tx.person_name}
+          (${getDirection(tx)})
+        </b>
+      </p>
+
+      <p>
+        Principal Amount:
+        ₹${Number(tx.principal_amount).toLocaleString("en-IN")}
+      </p>
+
+      <p>
+        Payments Recorded:
+        ${installmentNumber}
+      </p>
+
+      <p>
+        Final Payment:
+        ₹${Number(finalPaymentAmount).toLocaleString("en-IN")}
+      </p>
+
+      <p>
+        Total Paid:
+        ₹${Number(tx.paid_amount).toLocaleString("en-IN")}
+      </p>
+
+      <p>
+        Remaining:
+        ₹${remaining.toLocaleString("en-IN")}
+      </p>
+
+      <p>
+        Status:
+        <b style="color: green;">Fully Paid</b>
+      </p>
+
+      <p>
+        Completed On:
+        ${formatDate(tx.paid_date)}
+      </p>
+    `,
+  });
+};
+
 const sendRotationCompletedEmail = async (
   user,
   tx,
@@ -546,63 +613,325 @@ const sendLoanEmiPaymentEmail = async (user, tx, emiCount, paidAmount) => {
   });
 };
 
-const sendLoanCompletedEmail = async (user, tx) => {
+const sendLoanCreatedEmail = async (user, tx, loanMode) => {
+  const principal = Number(tx.principal_amount || 0);
+  const interest = Number(tx.base_interest || 0);
+  const totalLoan = principal + interest;
+
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    })[char]);
+
   return sendNotificationEmail({
     email: user.email,
 
-    subject: "🎉 Loan Completed",
+    subject: "📋 Loan Creation Confirmation",
 
-    title: "Loan Completed",
+    title: "Loan Creation Confirmation",
 
     content: `
-  <b>
-  ${tx.person_name}
-  (${getDirection(tx)})
-</b>
+      <p>
+        A loan has been successfully added to your VRinLoop account.
+      </p>
 
-  <p>
-    Principal Amount:
-    ₹${Number(tx.principal_amount).toLocaleString("en-IN")}
-  </p>
+      <p>
+        <b>
+          ${escapeHtml(tx.person_name)}
+          (${getDirection(tx)})
+        </b>
+      </p>
 
-  <p>
-    Total Interest:
-    ₹${Number(tx.base_interest).toLocaleString("en-IN")}
-  </p>
+      <p>
+        Loan Entry Type:
+        ${loanMode === "existing" ? "Existing Loan" : "New Loan"}
+      </p>
 
-  <p>
-    Total Loan Value:
-    ₹${(
-      Number(tx.principal_amount || 0) + Number(tx.base_interest || 0)
-    ).toLocaleString("en-IN")}
-  </p>
+      <hr/>
 
-  <hr/>
+      <p>
+        Principal Amount:
+        ₹${principal.toLocaleString("en-IN")}
+      </p>
 
-  <p>
-    Total EMI:
-    ${tx.loan_duration}
-  </p>
+      <p>
+        Interest Type:
+        ${escapeHtml(tx.interest_type)}
+      </p>
 
-  <p>
-    EMI Amount:
-    ₹${Number(tx.emi_amount).toLocaleString("en-IN")}
-  </p>
+      <p>
+        Total Interest:
+        ₹${interest.toLocaleString("en-IN")}
+      </p>
 
-  <p>
-    Completed EMI:
-    ${tx.completed_emi}
-  </p>
+      <p>
+        Total Loan Value:
+        ₹${totalLoan.toLocaleString("en-IN")}
+      </p>
 
-  <p>
-    Loan Closed Successfully
-  </p>
+      <hr/>
 
-  <p>
-    Completed On:
-    ${formatDate(tx.paid_date)}
-  </p>
-`,
+      <p>
+        Loan Duration:
+        ${tx.loan_duration} Months
+      </p>
+
+      <p>
+        Monthly EMI:
+        ₹${Number(tx.emi_amount).toLocaleString("en-IN")}
+      </p>
+
+      <p>
+        Completed EMIs:
+        ${tx.completed_emi}
+      </p>
+
+      <p>
+        Remaining EMIs:
+        ${tx.remaining_emi}
+      </p>
+
+      <hr/>
+
+      <p>
+        Loan Start Date:
+        ${formatDate(tx.start_date)}
+      </p>
+
+      <p>
+        Next EMI Due Date:
+        ${
+          tx.status === "paid"
+            ? "Not Applicable"
+            : tx.due_date
+              ? formatDate(tx.due_date)
+              : "Not Available"
+        }
+      </p>
+
+      <p>
+        Added On:
+        ${formatDate(tx.createdAt || new Date())}
+      </p>
+
+      <p>
+        Loan Status:
+        <b style="color: green;">
+          ${tx.status === "paid" ? "Fully Paid" : "Active"}
+        </b>
+      </p>
+
+      <hr/>
+
+      <p>
+        Please review the above loan details carefully.
+        If you did not add this loan, please secure
+        your VRinLoop account immediately.
+      </p>
+    `,
+  });
+};
+
+const sendLoanCompletedEmail = async (user, tx) => {
+  const principal = Number(tx.principal_amount || 0);
+  const interest = Number(tx.base_interest || 0);
+  const totalLoan = principal + interest;
+
+  const emiHistory = [...(tx.emi_history || [])].sort(
+    (a, b) => Number(a.month_number) - Number(b.month_number)
+  );
+
+  const totalPaid = emiHistory.reduce(
+    (sum, emi) => sum + Number(emi.amount || 0),
+    0
+  );
+
+  const money = (amount) =>
+    Number(amount || 0).toLocaleString("en-IN");
+
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    })[char]);
+
+  const historyRows = emiHistory.map((emi, index) => {
+    let status = "Paid";
+    let statusColor = "#15803d";
+
+    if (emi.status === "late") {
+      status = `Late (${Number(emi.late_days || 0)} days)`;
+      statusColor = "#dc2626";
+    } else if (emi.status === "advance") {
+      status = "Advance";
+      statusColor = "#2563eb";
+    }
+
+    return `
+      <tr style="background:${index % 2 === 0 ? "#ffffff" : "#f8fafc"};">
+        <td style="padding:10px;border:1px solid #ddd;">
+          ${Number(emi.month_number)}
+        </td>
+
+        <td style="padding:10px;border:1px solid #ddd;">
+          ${emi.paid_date ? formatDate(emi.paid_date) : "Not Recorded"}
+        </td>
+
+        <td style="padding:10px;border:1px solid #ddd;">
+          ₹${money(emi.amount)}
+        </td>
+
+        <td style="padding:10px;border:1px solid #ddd;color:${statusColor};">
+          ${status}
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  const historyWarning =
+    emiHistory.length !== Number(tx.completed_emi)
+      ? `<p style="color:#b45309;">
+          Note: Some EMI history records may be missing.
+          The table shows available payment records only.
+        </p>`
+      : "";
+
+  return sendNotificationEmail({
+    email: user.email,
+
+    subject: "🎉 Loan Completed - Final Loan Statement",
+
+    title: "Loan Closure Statement",
+
+    content: `
+      <div style="
+        background:#f0fdf4;
+        border:1px solid #bbf7d0;
+        border-radius:10px;
+        padding:20px;
+        text-align:center;
+      ">
+        <h2 style="color:#15803d;margin:0;">
+          ✓ Loan Successfully Closed
+        </h2>
+
+        <p>All EMIs have been completed.</p>
+      </div>
+
+      <h3>Loan Summary</h3>
+
+      <p>
+        <b>
+          ${escapeHtml(tx.person_name)}
+          (${getDirection(tx)})
+        </b>
+      </p>
+
+      <p>Principal Amount: ₹${money(principal)}</p>
+
+      <p>Total Interest: ₹${money(interest)}</p>
+
+      <p>Total Loan Value: ₹${money(totalLoan)}</p>
+
+      <p>Loan Duration: ${tx.loan_duration} Months</p>
+
+      <p>Monthly EMI: ₹${money(tx.emi_amount)}</p>
+
+      <p>
+        Completed EMIs:
+        ${tx.completed_emi}/${tx.loan_duration}
+      </p>
+
+      <p>Remaining EMIs: ${tx.remaining_emi}</p>
+
+      <p>
+        Loan Start Date:
+        ${tx.start_date ? formatDate(tx.start_date) : "Not Recorded"}
+      </p>
+
+      <hr/>
+
+      <h3>Complete EMI Payment History</h3>
+
+      ${historyWarning}
+
+      <table style="
+        width:100%;
+        border-collapse:collapse;
+        font-size:13px;
+      ">
+        <thead>
+          <tr style="background:#2563eb;color:white;">
+            <th style="padding:10px;">EMI No.</th>
+            <th style="padding:10px;">Paid Date</th>
+            <th style="padding:10px;">Amount</th>
+            <th style="padding:10px;">Status</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          ${
+            historyRows ||
+            `<tr>
+              <td colspan="4" style="padding:10px;">
+                No EMI history available.
+              </td>
+            </tr>`
+          }
+
+          <tr style="background:#e8f5e9;font-weight:bold;">
+            <td colspan="2" style="padding:12px;">
+              Total Recorded EMI Payments
+            </td>
+
+            <td colspan="2" style="padding:12px;">
+              ₹${money(totalPaid)}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <br/>
+
+      <div style="
+        background:#f0fdf4;
+        border:1px solid #86efac;
+        border-radius:10px;
+        padding:20px;
+        text-align:center;
+      ">
+        <p>Total Loan Value Closed</p>
+
+        <h1 style="color:#15803d;margin:5px;">
+          ₹${money(totalLoan)}
+        </h1>
+
+        <p>Remaining EMIs: ${tx.remaining_emi}</p>
+
+        <h2 style="color:#15803d;">
+          LOAN CLOSED
+        </h2>
+
+        <p>
+          Completed On:
+          ${tx.paid_date ? formatDate(tx.paid_date) : "Not Recorded"}
+        </p>
+
+        <p>No further EMI payments are pending.</p>
+      </div>
+
+      <p>
+        Thank you for using VRinLoop.
+        Please retain this email for your financial records.
+      </p>
+    `,
   });
 };
 
@@ -613,8 +942,10 @@ module.exports = {
   sendOverdueEmail,
   sendWeeklyUpcomingEmail,
   sendInstallmentPaymentEmail,
+  sendNormalCompletedEmail,
   sendRotationCompletedEmail,
   sendRotationExtendedEmail,
+  sendLoanCreatedEmail,
   sendLoanEmiPaymentEmail,
   sendLoanCompletedEmail,
 };

@@ -10,17 +10,25 @@ const {
 const EmailLog =
   require("../models/EmailLog");
 
-const runDueTomorrowCron = async () => {
+const runDueTomorrowCron = async (testUserId = null) => {
   try {
     console.log(
       "Running Due Tomorrow Cron..."
     );
 
-    const users =
-      await User.find({
-        "notifications.dueTomorrow":
-          true,
-      });
+    const filter = {
+  "notifications.dueTomorrow": true,
+};
+
+if (process.env.NODE_ENV === "test") {
+  if (!testUserId) {
+    throw new Error("Test user ID is required");
+  }
+
+  filter._id = testUserId;
+}
+
+const users = await User.find(filter);
 
     for (const user of users) {
   const tomorrow = new Date();
@@ -80,10 +88,18 @@ if (existingLog) {
   transactions.length > 0
 ) {
 
-  await sendDueTomorrowEmail(
+    const emailSent = await sendDueTomorrowEmail(
     user,
     transactions
   );
+
+  if (emailSent !== true) {
+    console.error(
+      `Due Tomorrow email failed for ${user.email}`
+    );
+
+    continue;
+  }
 
   await EmailLog.create({
     user: user._id,
@@ -92,19 +108,10 @@ if (existingLog) {
   });
 
   console.log(
-    `Email sent to ${user.email}`
+    `Due Tomorrow email accepted by Brevo for ${user.email}`
   );
 }
-  transactions.forEach((tx) => {
-  console.log({
-    person: tx.person_name,
-    type: tx.transaction_type,
-    principal: tx.principal_amount,
-    interest: tx.base_interest,
-    emi: tx.emi_amount,
-    due: tx.due_date,
-  });
-});
+
 }
     console.log(
       `Users Found: ${users.length}`

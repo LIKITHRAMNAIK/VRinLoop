@@ -1,6 +1,8 @@
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
+const { finished } = require("stream/promises");
+const { randomUUID } = require("crypto");
 const generateMonthlyStatement = async (user, transactions) => {
   const tempDir = path.join(__dirname, "../temp");
 
@@ -8,15 +10,28 @@ const generateMonthlyStatement = async (user, transactions) => {
     fs.mkdirSync(tempDir);
   }
 
-  const filePath = path.join(tempDir, `${user._id}-statement.pdf`);
-
+const filePath = path.join(
+  tempDir,
+  `${user._id}-${randomUUID()}-statement.pdf`
+);
   const doc = new PDFDocument({
     margin: 20,
     size: "A4",
     layout: "landscape",
   });
 
-  doc.pipe(fs.createWriteStream(filePath));
+  const writeStream = fs.createWriteStream(filePath);
+
+doc.on("error", (error) => {
+  writeStream.destroy(error);
+});
+
+const pdfCompleted = finished(writeStream);
+
+pdfCompleted.catch(() => {});
+
+try {
+  doc.pipe(writeStream);
 
   const totalTransactions = transactions.length;
 
@@ -500,9 +515,32 @@ const generateMonthlyStatement = async (user, transactions) => {
     });
   });
 
-  doc.end();
+        doc.end();
 
-  return filePath;
+    await pdfCompleted;
+
+    return filePath;
+
+  } catch (error) {
+
+    doc.destroy();
+    writeStream.destroy();
+
+    await pdfCompleted.catch(() => {});
+
+    try {
+      await fs.promises.unlink(filePath);
+    } catch (cleanupError) {
+      if (cleanupError.code !== "ENOENT") {
+        console.error(
+          "Incomplete PDF Cleanup Error:",
+          cleanupError.message
+        );
+      }
+    }
+
+    throw error;
+  }
 };
 
 module.exports = {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import API from "../services/api";
 import { useNavigate } from "react-router-dom";
+import { BACKEND_URL } from "../config";
 import { formatCurrency } from "../utils/format";
 import {
   exportProfilePDF,
@@ -45,7 +46,6 @@ function MyProfile() {
   const [otp, setOtp] = useState("");
 
   const [loading, setLoading] = useState(false);
-  const BACKEND_URL = "https://vrinloop.onrender.com";
 
   const [profileForm, setProfileForm] = useState({
     name: user?.name || "",
