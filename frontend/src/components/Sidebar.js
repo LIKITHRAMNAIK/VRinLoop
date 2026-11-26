@@ -17,6 +17,12 @@ function Sidebar({ open, setOpen, onOpenExport }) {
 
   const navigate = useNavigate();
 
+  const closeSidebarOnMobile = () => {
+  if (window.matchMedia("(max-width: 767px)").matches) {
+    setOpen(false);
+  }
+};
+
   const user = JSON.parse(
     localStorage.getItem("user")
   );
@@ -286,10 +292,23 @@ function Sidebar({ open, setOpen, onOpenExport }) {
     window.location.href = "/login";
   };
 
-  return (
-    <>
-      {/* DARK OVERLAY */}
-      {open && (
+ return (
+  <>
+    {/* MOBILE MENU BUTTON */}
+    {!open && (
+      <button
+        type="button"
+        className="mobile-sidebar-toggle"
+        onClick={() => setOpen(true)}
+        aria-label="Open navigation menu"
+        aria-expanded={open}
+      >
+        ☰
+      </button>
+    )}
+
+    {/* DARK OVERLAY */}
+    {open && (
         <div
           onClick={() => setOpen(false)}
           style={{
@@ -302,12 +321,13 @@ function Sidebar({ open, setOpen, onOpenExport }) {
       )}
 
       {/* SIDEBAR */}
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: open ? 240 : 70,
+<div
+  className={`app-sidebar ${open ? "sidebar-open" : "sidebar-closed"}`}
+  style={{
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: open ? 240 : 70,
           height: "100vh",
           background: "#f3f1f700",
           color: "white",
@@ -362,7 +382,10 @@ function Sidebar({ open, setOpen, onOpenExport }) {
         {/* USER PROFILE */}
 
         <div
-          onClick={() => navigate("/my-profile")}
+          onClick={() => {
+  closeSidebarOnMobile();
+  navigate("/my-profile");
+}}
           style={{
             display: "flex",
 
@@ -446,22 +469,24 @@ function Sidebar({ open, setOpen, onOpenExport }) {
             <div
               key={index}
               onClick={async () => {
-                if (item.action === "export") {
-                  onOpenExport();
+  closeSidebarOnMobile();
 
-                  return;
-                }
+  if (item.action === "export") {
+    onOpenExport();
 
-                if (item.action === "logout") {
-                  handleLogout();
+    return;
+  }
 
-                  return;
-                }
+  if (item.action === "logout") {
+    handleLogout();
 
-                if (item.path) {
-                  navigate(item.path);
-                }
-              }}
+    return;
+  }
+
+  if (item.path) {
+    navigate(item.path);
+  }
+}}
               style={{
                 display: "flex",
                 alignItems: "center",

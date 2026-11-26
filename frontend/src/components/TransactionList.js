@@ -51,6 +51,19 @@ function TransactionList({ refresh }) {
 
   const [filterType, setFilterType] = useState("pending");
 const [loanFilterType, setLoanFilterType] = useState("pending");
+// MOBILE PAYMENT DROPDOWNS
+const [expandedSections, setExpandedSections] = useState({
+  normal: false,
+  rotation: false,
+  loan: false,
+});
+
+const togglePaymentSection = (section) => {
+  setExpandedSections((prev) => ({
+    ...prev,
+    [section]: !prev[section],
+  }));
+};
   const [selectedMonth, setSelectedMonth] = useState("");
   const [sortType, setSortType] = useState("date");
 
@@ -791,28 +804,14 @@ alert("Marked as Paid ✅"); // 👈 ADD THIS (IMPORTANT)
   }
 
   if (filterType === "due") {
-    filteredData = filteredData.filter((tx) => {
-      const due = new Date(tx.due_date);
+  filteredData = filteredData.filter((tx) => {
+    const due = new Date(tx.due_date);
+    due.setHours(0, 0, 0, 0);
 
-      due.setHours(0, 0, 0, 0);
-
-      // active overdue
-      if (due < today && tx.status !== "paid" && tx.status !== "extended") {
-        return true;
-      }
-
-      // paid late
-      if (tx.status === "paid" && tx.paid_date) {
-        const paidDate = new Date(tx.paid_date);
-
-        paidDate.setHours(0, 0, 0, 0);
-
-        return paidDate > due;
-      }
-
-      return false;
-    });
-  }
+    // Only active unpaid overdue transactions
+    return due < today && tx.status !== "paid";
+  });
+}
 
   // SORT
   if (sortType === "date") {
@@ -3520,7 +3519,9 @@ fetchData();
       <div style={{ marginTop: 25 }}>
         {/* NORMAL SECTION */}
 <div
-  className="payment-section"
+  className={`payment-section mobile-payment-accordion ${
+    expandedSections.normal ? "is-expanded" : "is-collapsed"
+  }`}
   style={{
             background: "white",
             borderRadius: 28,
@@ -3531,16 +3532,36 @@ fetchData();
           }}
         >
           {/* HEADER */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: 14,
-              marginBottom: 22,
-            }}
-          >
+          <button
+  type="button"
+  className="mobile-payment-toggle"
+  aria-expanded={expandedSections.normal}
+  onClick={() => togglePaymentSection("normal")}
+>
+  <span>Normal Payments</span>
+
+  <span className="mobile-payment-toggle-right">
+    <span className="mobile-payment-count">
+  {normalStats.filter((tx) => tx.status !== "paid").length}
+</span>
+
+    <span className="mobile-payment-arrow">
+      {expandedSections.normal ? "▲" : "▼"}
+    </span>
+  </span>
+</button>
+          {/* HEADER */}
+<div
+  className="payment-section-header"
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 14,
+    marginBottom: 22,
+  }}
+>
             <div>
               <h2
                 style={{
@@ -3652,28 +3673,52 @@ fetchData();
 
         {/* ROTATION SECTION */}
 <div
-  className="payment-section"
+  className={`payment-section mobile-payment-accordion ${
+    expandedSections.rotation ? "is-expanded" : "is-collapsed"
+  }`}
   style={{
-            background: "white",
-            borderRadius: 28,
-            padding: 24,
-            marginBottom: 28,
-            boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
-            border: "1px solid #e2e8f0",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: 14,
-              marginBottom: 22,
-            }}
-          >
-            <div>
-              <h2
+    background: "white",
+    borderRadius: 28,
+    padding: 24,
+    marginBottom: 28,
+    boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
+    border: "1px solid #e2e8f0",
+  }}
+>
+  {/* MOBILE DROPDOWN BUTTON */}
+  <button
+    type="button"
+    className="mobile-payment-toggle"
+    aria-expanded={expandedSections.rotation}
+    onClick={() => togglePaymentSection("rotation")}
+  >
+    <span>Rotation Payments</span>
+
+    <span className="mobile-payment-toggle-right">
+      <span className="mobile-payment-count">
+  {rotationStats.filter((tx) => tx.status !== "paid").length}
+</span>
+
+      <span className="mobile-payment-arrow">
+        {expandedSections.rotation ? "▲" : "▼"}
+      </span>
+    </span>
+  </button>
+
+  {/* HEADER */}
+  <div
+    className="payment-section-header"
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      flexWrap: "wrap",
+      gap: 14,
+      marginBottom: 22,
+    }}
+  >
+    <div>
+      <h2
                 style={{
                   fontSize: 32,
                   fontWeight: "800",
@@ -3796,28 +3841,52 @@ fetchData();
 
         {/* LOAN SECTION */}
 <div
-  className="payment-section"
+  className={`payment-section mobile-payment-accordion ${
+    expandedSections.loan ? "is-expanded" : "is-collapsed"
+  }`}
   style={{
-            background: "white",
-            borderRadius: 28,
-            padding: 24,
-            marginBottom: 28,
-            boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
-            border: "1px solid #e2e8f0",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: 14,
-              marginBottom: 22,
-            }}
-          >
-            <div>
-              <h2
+    background: "white",
+    borderRadius: 28,
+    padding: 24,
+    marginBottom: 28,
+    boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
+    border: "1px solid #e2e8f0",
+  }}
+>
+  {/* MOBILE DROPDOWN BUTTON */}
+  <button
+    type="button"
+    className="mobile-payment-toggle"
+    aria-expanded={expandedSections.loan}
+    onClick={() => togglePaymentSection("loan")}
+  >
+    <span>Loan Payments</span>
+
+    <span className="mobile-payment-toggle-right">
+      <span className="mobile-payment-count">
+  {loanStats.filter((tx) => (tx.remaining_emi || 0) > 0).length}
+</span>
+
+      <span className="mobile-payment-arrow">
+        {expandedSections.loan ? "▲" : "▼"}
+      </span>
+    </span>
+  </button>
+
+  {/* HEADER */}
+  <div
+    className="payment-section-header"
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      flexWrap: "wrap",
+      gap: 14,
+      marginBottom: 22,
+    }}
+  >
+    <div>
+      <h2
                 style={{
                   fontSize: 32,
                   fontWeight: "800",

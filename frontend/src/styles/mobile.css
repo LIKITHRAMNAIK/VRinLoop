@@ -5,14 +5,14 @@
 
 @media screen and (max-width: 767px) {
 
-  /* Dashboard main container */
-  .dashboard-container {
-    box-sizing: border-box;
-    width: 100%;
-    min-width: 0;
-    padding: 12px !important;
-    padding-left: 82px !important;
-  }
+ /* Dashboard main container */
+.dashboard-container {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 12px !important;
+  padding-top: 64px !important;
+}
 
   /* Welcome section */
   .dashboard-header {
@@ -588,6 +588,166 @@
     margin-top: 14px !important;
     font-size: 15px !important;
     z-index: 2;
+  }
+
+}
+
+/* ========================================
+   DESKTOP FILTER SCROLL FIX
+   ======================================== */
+
+@media screen and (min-width: 768px) {
+  .transaction-filter-panel {
+    position: static !important;
+    top: auto !important;
+  }
+}
+
+/* ========================================
+   MOBILE PAYMENT ACCORDIONS
+   ======================================== */
+
+/* Hide dropdown buttons on desktop */
+.mobile-payment-toggle {
+  display: none !important;
+}
+
+/* Mobile-only dropdown layout */
+@media screen and (max-width: 767px) {
+
+  .mobile-payment-accordion {
+    padding: 12px !important;
+    margin-bottom: 12px !important;
+    border-radius: 16px !important;
+    box-sizing: border-box;
+  }
+
+  /* Dropdown button */
+  .mobile-payment-toggle {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 8px;
+    padding: 12px 8px;
+    background: transparent;
+    border: none;
+    color: #0f172a;
+    font-size: 16px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+    box-sizing: border-box;
+  }
+
+  /* Count and arrow container */
+  .mobile-payment-toggle-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  /* Transaction count */
+  .mobile-payment-count {
+    background: #eef2ff;
+    color: #4338ca;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  /* Dropdown arrow */
+  .mobile-payment-arrow {
+    color: #64748b;
+    font-size: 12px;
+  }
+
+  /* Hide header and cards when collapsed */
+  .mobile-payment-accordion.is-collapsed
+    > .payment-section-header,
+  .mobile-payment-accordion.is-collapsed
+    > .payment-card-grid {
+    display: none !important;
+  }
+
+  /* Show header when expanded */
+  .mobile-payment-accordion.is-expanded
+    > .payment-section-header {
+    display: flex !important;
+    margin-top: 12px !important;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  /* Avoid duplicate payment titles on mobile */
+  .mobile-payment-accordion
+    > .payment-section-header h2 {
+    display: none !important;
+  }
+
+  /* Show payment cards when expanded */
+  .mobile-payment-accordion.is-expanded
+    > .payment-card-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+}
+
+/* ========================================
+   MOBILE HIDDEN SIDEBAR
+   ======================================== */
+
+/* Hide the new menu button on desktop */
+.mobile-sidebar-toggle {
+  display: none !important;
+}
+
+@media screen and (max-width: 767px) {
+
+  /* Completely hide the closed sidebar */
+  .app-sidebar.sidebar-closed {
+    transform: translateX(-100%);
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  /* Open sidebar as an overlay */
+  .app-sidebar.sidebar-open {
+    transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
+    width: 240px !important;
+    max-width: 85vw;
+    height: 100vh !important;
+    height: 100dvh !important;
+    background: #1e293b !important;
+    box-sizing: border-box;
+    overflow-y: auto !important;
+    z-index: 1000 !important;
+  }
+
+  /* Independent mobile menu button */
+  .mobile-sidebar-toggle {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+top: 12px;
+left: 12px;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 10px;
+    background: #f311a8;
+    color: white;
+    font-size: 22px;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 998;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   }
 
 }
