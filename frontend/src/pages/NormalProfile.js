@@ -1,13 +1,9 @@
-import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useState } from "react";
 import API from "../services/api";
 import { formatCurrency } from "../utils/format";
 
 // function NormalProfile() {
 function NormalProfile({ data, refresh }) {
-  const navigate = useNavigate();
-
-  // const [data, setData] = useState([]);
 
   const [payId, setPayId] = useState(null);
   const [payAmount, setPayAmount] = useState("");

@@ -1,5 +1,114 @@
 import { useState, useEffect } from "react";
 
+const evaluateExpression = (expression) => {
+  if (
+    typeof expression !== "string" ||
+    !expression.trim() ||
+    expression.length > 500
+  ) {
+    throw new Error("Invalid expression");
+  }
+
+  const input = expression.trim();
+  let index = 0;
+
+  const skipSpaces = () => {
+    while (index < input.length && /\s/.test(input[index])) {
+      index++;
+    }
+  };
+
+  const parseNumber = () => {
+    skipSpaces();
+
+    const match = input
+      .slice(index)
+      .match(/^(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/);
+
+    if (!match) {
+      throw new Error("Invalid number");
+    }
+
+    index += match[0].length;
+    return Number(match[0]);
+  };
+
+  const parseUnary = () => {
+    skipSpaces();
+
+    if (input[index] === "+") {
+      index++;
+      return parseUnary();
+    }
+
+    if (input[index] === "-") {
+      index++;
+      return -parseUnary();
+    }
+
+    return parseNumber();
+  };
+
+  const parseTerm = () => {
+    let result = parseUnary();
+
+    while (true) {
+      skipSpaces();
+
+      const operator = input[index];
+
+      if (!["*", "/", "%"].includes(operator)) {
+        break;
+      }
+
+      index++;
+      const right = parseUnary();
+
+      if ((operator === "/" || operator === "%") && right === 0) {
+        throw new Error("Division by zero");
+      }
+
+      if (operator === "*") result *= right;
+      if (operator === "/") result /= right;
+      if (operator === "%") result %= right;
+    }
+
+    return result;
+  };
+
+  const parseExpression = () => {
+    let result = parseTerm();
+
+    while (true) {
+      skipSpaces();
+
+      const operator = input[index];
+
+      if (!["+", "-"].includes(operator)) {
+        break;
+      }
+
+      index++;
+      const right = parseTerm();
+
+      if (operator === "+") result += right;
+      if (operator === "-") result -= right;
+    }
+
+    return result;
+  };
+
+  const result = parseExpression();
+
+  skipSpaces();
+
+  if (index !== input.length || !Number.isFinite(result)) {
+    throw new Error("Invalid expression");
+  }
+
+  return result;
+};
+
 export default function FloatingCalculator() {
   const [open, setOpen] = useState(false);
 
@@ -71,7 +180,7 @@ export default function FloatingCalculator() {
         e.preventDefault();
 
         try {
-          const result = eval(display);
+          const result = evaluateExpression(display);
 
           setHistory((prev) => [
             `${display}
@@ -106,7 +215,7 @@ export default function FloatingCalculator() {
 
     if (value === "=") {
       try {
-        const result = eval(display);
+        const result = evaluateExpression(display);
 
         setHistory((prev) => [
           `${display}

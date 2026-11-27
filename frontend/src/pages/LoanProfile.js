@@ -53,40 +53,6 @@ const [selectedLoan, setSelectedLoan] = useState(null);
   };
 
   const renderCard = (tx) => {
-    let totalPaid = 0;
-
-    let totalPenalty = 0;
-
-    let latePayments = 0;
-
-    let advancePayments = 0;
-
-    let onTimePayments = 0;
-
-    tx.emi_history?.forEach((emi) => {
-      totalPaid += emi.amount || 0;
-
-      totalPenalty += emi.penalty_amount || 0;
-
-      if (emi.status === "late") {
-        latePayments += 1;
-      } else if (emi.status === "advance") {
-        advancePayments += 1;
-      } else {
-        onTimePayments += 1;
-      }
-    });
-
-    const totalEmis = tx.emi_history?.length || 0;
-
-    const paymentScore =
-      totalEmis === 0
-        ? 100
-        : Math.max(
-            0,
-
-            Math.round(((onTimePayments + advancePayments) / totalEmis) * 100),
-          );
 
     const paidMonths = tx.completed_emi || 0;
 

@@ -6,7 +6,6 @@ import {
 } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
-import TransactionList from "./components/TransactionList";
 import UsersPage from "./pages/UsersPage";
 import MyProfile from "./pages/MyProfile";
 import LoanAnalyticsPage from "./pages/LoanAnalyticsPage";

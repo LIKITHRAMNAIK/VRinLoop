@@ -6,8 +6,6 @@ import { formatCurrency } from "../utils/format";
 import {
   exportProfilePDF,
   exportProfileCSV,
-  exportTransactionsPDF,
-  exportLoanPDF,
 } from "../utils/exportTransactions";
 import authAPI from "../services/authApi";
 import CountUp from "react-countup";
@@ -16,14 +14,9 @@ import AddTransaction from "../components/AddTransaction";
 
 import {
   ResponsiveContainer,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   Tooltip,
-  PieChart,
-  Pie,
-  Cell,
   LineChart,
   Line,
   CartesianGrid,
@@ -212,36 +205,7 @@ function MyProfile() {
     riskyUsers: {},
   });
 
-  const financeData = [
-    {
-      name: "Incoming",
-      amount: stats.paidIncoming,
-    },
 
-    {
-      name: "Outgoing",
-      amount: stats.paidOutgoing,
-    },
-
-    {
-      name: "Profit",
-      amount: stats.paidIncoming - stats.paidOutgoing,
-    },
-  ];
-
-  const loanData = [
-    {
-      name: "Completed",
-      value: stats.completedLoans,
-    },
-
-    {
-      name: "Pending",
-      value: stats.pendingLoans,
-    },
-  ];
-
-  const COLORS = ["#22c55e", "#ef4444"];
 
   useEffect(() => {
     API.get("/")
@@ -2416,33 +2380,6 @@ const heroMiniCard = () => ({
   backdropFilter: "blur(10px)",
 });
 
-const proCard = (bg) => ({
-  background: bg,
-
-  color: "white",
-
-  padding: "30px 24px",
-
-  borderRadius: 28,
-
-  boxShadow: "0 12px 25px rgba(0,0,0,0.12)",
-
-  transition: "0.3s ease",
-
-  cursor: "pointer",
-
-  minHeight: 180,
-
-  display: "flex",
-
-  flexDirection: "column",
-
-  justifyContent: "center",
-
-  position: "relative",
-
-  overflow: "hidden",
-});
 
 const analyticsCard = () => ({
   background: "linear-gradient(135deg,#f8fafc,#eef2ff)",
@@ -2456,22 +2393,6 @@ const loanCard = () => ({
   padding: 25,
   borderRadius: 24,
   backdropFilter: "blur(10px)",
-});
-
-const card = (bg) => ({
-  background: bg,
-  color: "white",
-  padding: "28px 22px",
-  borderRadius: 24,
-  textAlign: "center",
-  boxShadow: "0 10px 20px rgba(0,0,0,0.12)",
-  transition: "0.25s ease",
-  cursor: "pointer",
-  minHeight: 160,
-  display: "flex",
-  flexDirection: "column",
-  justifyContent: "center",
-  border: "1px solid rgba(255,255,255,0.08)",
 });
 
 const insightCard = () => ({
@@ -2508,51 +2429,5 @@ const premiumInput = {
   boxSizing: "border-box",
 };
 
-const inputStyle = {
-  width: "100%",
 
-  padding: 14,
-
-  marginTop: 14,
-
-  borderRadius: 10,
-
-  border: "1px solid #cbd5e1",
-};
-
-const saveBtn = {
-  flex: 1,
-
-  padding: 14,
-
-  border: "none",
-
-  borderRadius: 12,
-
-  background: "#16a34a",
-
-  color: "white",
-
-  fontWeight: "bold",
-
-  cursor: "pointer",
-};
-
-const cancelBtn = {
-  flex: 1,
-
-  padding: 14,
-
-  border: "none",
-
-  borderRadius: 12,
-
-  background: "#ef4444",
-
-  color: "white",
-
-  fontWeight: "bold",
-
-  cursor: "pointer",
-};
 export default MyProfile;

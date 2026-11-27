@@ -1,12 +1,10 @@
 import { useState } from "react";
-
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Charts from "../components/Charts";
 
 function LoanAnalyticsPage() {
   const [selectedLoan, setSelectedLoan] = useState("all");
 
-  const { name } = useParams();
   const navigate = useNavigate();
 
   const data = JSON.parse(localStorage.getItem("profileData")) || [];

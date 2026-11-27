@@ -132,12 +132,6 @@ function Dashboard() {
 
   const date = today.getDate();
 
-  const month = today.toLocaleDateString("en-US", {
-    month: "long",
-  });
-
-  const year = today.getFullYear();
-
   const firstDay = new Date(currentYear, currentMonth, 1).getDay();
 
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();

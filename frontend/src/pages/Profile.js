@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import API from "../services/api";
 import NormalProfile from "./NormalProfile";
 import RotationProfile from "./RotationProfile";
 import { formatCurrency } from "../utils/format";
 import LoanProfile from "./LoanProfile";
-import Charts from "../components/Charts";
 
 function Profile() {
   const { name } = useParams();
@@ -19,20 +18,20 @@ function Profile() {
 
   const [loanFilter, setLoanFilter] = useState("pending");
 
-  const fetchData = () => {
-    API.get(`/person/${name}`)
-      .then((res) => {
-        const list = res.data.transactions || [];
-        setData(list);
+  const fetchData = useCallback(() => {
+  API.get(`/person/${name}`)
+    .then((res) => {
+      const list = res.data.transactions || [];
+      setData(list);
 
-        localStorage.setItem("profileData", JSON.stringify(list));
-      })
-      .catch((err) => console.log(err));
-  };
+      localStorage.setItem("profileData", JSON.stringify(list));
+    })
+    .catch((err) => console.log(err));
+}, [name]);
 
-  useEffect(() => {
-    fetchData();
-  }, [name]);
+useEffect(() => {
+  fetchData();
+}, [fetchData]);
 
   const normalData = data.filter((tx) => tx.transaction_type === "normal");
 
@@ -51,9 +50,6 @@ function Profile() {
 
   let incoming = 0;
   let outgoing = 0;
-
-  let netIncoming = 0;
-  let netOutgoing = 0;
 
   let totalLoanBalance = 0;
 
@@ -309,15 +305,6 @@ function Profile() {
         }
       }
 
-      // NET MONEY
-      if (paid > 0) {
-        if (tx.type === "incoming") {
-          netIncoming += paid;
-        } else {
-          netOutgoing += paid;
-        }
-      }
-
       return;
     }
     // ================= LOAN =================
@@ -359,26 +346,9 @@ function Profile() {
         outgoing += total;
       }
     }
-
-    // NET
-    if (tx.status === "paid") {
-      if (tx.type === "incoming") {
-        netIncoming += total;
-      } else {
-        netOutgoing += total;
-      }
-    }
   });
 
-  const net = netIncoming + netOutgoing;
   const activeTransactions = data.filter((tx) => tx.status !== "paid").length;
-
-  // ================= PAID EMIS =================
-
-  const totalPaidEmis = loanData.reduce(
-    (sum, tx) => sum + (tx.completed_emi || 0),
-    0,
-  );
 
   // ================= EXTENSIONS =================
 

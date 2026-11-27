@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 import { formatCurrency } from "../utils/format";
 
@@ -26,12 +26,6 @@ function RotationProfile({ data, refresh }) {
   const [normalPayPopup, setNormalPayPopup] = useState(null);
 
   if (!data) return <h2>Loading...</h2>;
-
-  const handleDelete = async () => {
-    await API.delete(`/delete/${confirmAction.id}`);
-    setConfirmAction(null);
-    refresh();
-  };
 
   const handleEditSave = async () => {
     await API.put(`/update/${editId}`, editForm);

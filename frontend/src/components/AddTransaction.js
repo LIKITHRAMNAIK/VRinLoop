@@ -97,8 +97,6 @@ function AddTransaction({ refresh }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    console.log("SENDING DATA:", form); // ✅ ADD THIS
-
     try {
       await API.post("/add", {
         extensions: rotationExtension
@@ -220,9 +218,9 @@ function AddTransaction({ refresh }) {
 
       const emi = Math.ceil(total / Number(form.loan_duration));
 
-      let nextDueDate = form.due_date;
+      let nextDueDate;
 
-      let calculatedStartDate = form.start_date;
+let calculatedStartDate;
 
       // EXISTING LOAN
       if (form.loan_mode === "existing" && form.last_paid_date) {
@@ -244,14 +242,14 @@ function AddTransaction({ refresh }) {
       }
 
       setForm((prev) => ({
-        ...prev,
+  ...prev,
 
-        emi_amount: emi,
+  emi_amount: emi,
 
-        start_date: calculatedStartDate,
+  start_date: calculatedStartDate ?? prev.start_date,
 
-        due_date: nextDueDate,
-      }));
+  due_date: nextDueDate ?? prev.due_date,
+}));
     }
   }, [
     form.principal_amount,

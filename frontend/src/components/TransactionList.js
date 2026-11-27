@@ -6,10 +6,6 @@ import autoTable from "jspdf-autotable";
 import { formatCurrency } from "../utils/format";
 import LoanProfile from "../pages/LoanProfile";
 
-const getColor = (name) => {
-  const colors = ["#e3f2fd", "#fce4ec", "#e8f5e9", "#fff3e0"];
-  return colors[name.charCodeAt(0) % colors.length];
-};
 const miniButtonStyle = {
   color: "white",
   border: "none",
@@ -64,7 +60,7 @@ const togglePaymentSection = (section) => {
     [section]: !prev[section],
   }));
 };
-  const [selectedMonth, setSelectedMonth] = useState("");
+const [selectedMonth] = useState("");
   const [sortType, setSortType] = useState("date");
 
   const [payId, setPayId] = useState(null);
@@ -145,14 +141,6 @@ const togglePaymentSection = (section) => {
 
     .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
 
-  const badgeStyle = (bg) => ({
-    background: bg,
-    color: "white",
-    padding: "5px 10px",
-    borderRadius: "20px",
-    fontSize: "12px",
-    fontWeight: "bold",
-  });
 
   // ✅ COUNTS
   const pendingCount = data.filter((tx) => {
@@ -226,13 +214,6 @@ const togglePaymentSection = (section) => {
           ? Number(tx.final_total)
           : Number(tx.principal_amount || 0) + Number(finalInterest || 0);
 
-      const paidAmount = Number(tx.paid_amount || 0);
-
-      const balanceAmount = Math.max(
-        0,
-        Number(tx.principal_amount || 0) - paidAmount,
-      );
-
       return sum + total;
     }, 0);
 
@@ -283,60 +264,7 @@ const togglePaymentSection = (section) => {
     }
   }, [filterType, dueCount]);
 
-  // ✅ ACTIONS
-  const handlePaid = async (id) => {
-    await API.put(`/paid/${id}`);
-    fetchData();
-  };
 
-  const executeAction = async () => {
-    if (!confirmAction) return;
-
-    const { type, id } = confirmAction;
-
-    const txData = data.find((t) => t._id === id);
-    const transactionType = txData?.transaction_type || "rotation";
-
-    try {
-      if (type === "delete") {
-        await API.delete(`/delete/${id}`);
-      }
-
-      if (type === "paid") {
-        // 🔥 NORMAL → open popup
-        if (transactionType === "normal") {
-          setPayId(id);
-          setConfirmAction(null);
-          return;
-        }
-
-        // 🔥 ROTATION → direct payment
-await API.put(`/paid/${id}`);
-
-alert("Marked as Paid ✅"); // 👈 ADD THIS (IMPORTANT)
-      }
-
-      if (type === "extend") {
-        setExtendId(id);
-        setConfirmAction(null);
-        return;
-      }
-
-      if (type === "edit") {
-        setEditId(id);
-        setConfirmAction(null);
-        return;
-      }
-
-      setConfirmAction(null);
-
-      fetchData(); // 👈 MUST BE AFTER EVERYTHING
-    } catch (err) {
-      console.log(err);
-      alert("Error ❌");
-      setConfirmAction(null);
-    }
-  };
   const handleExport = (type, month) => {
     const rows = [];
 
@@ -506,22 +434,6 @@ alert("Marked as Paid ✅"); // 👈 ADD THIS (IMPORTANT)
     a.download = `${fileType}-transactions${fileMonth}.csv`;
     a.click();
   };
-  const calculateTotal = (tx, uptoIndex) => {
-    let totalInterest = tx.base_interest;
-
-    for (let i = 0; i <= uptoIndex; i++) {
-      const ext = tx.extensions[i];
-
-      if (ext.interest_paid) {
-        // keep principal + ONLY new interest
-        totalInterest = ext.extra_interest;
-      } else {
-        totalInterest += ext.extra_interest;
-      }
-    }
-
-    return tx.principal_amount + totalInterest;
-  };
   const getReportTitle = (type, month) => {
     let typeName = "All Transactions";
 
@@ -662,12 +574,7 @@ alert("Marked as Paid ✅"); // 👈 ADD THIS (IMPORTANT)
       // 👉 gap between transactions
       rows.push(["", "", "", "", "", "", "", "", "", "", "", "", ""]);
     });
-    const nameHeader =
-      type === "normal"
-        ? "Name (Normal)"
-        : type === "rotation"
-          ? "Name (Rotation)"
-          : "Name (All)";
+
     autoTable(doc, {
       startY: 30,
 
@@ -740,21 +647,9 @@ alert("Marked as Paid ✅"); // 👈 ADD THIS (IMPORTANT)
     doc.save(`${fileType}-transactions${fileMonth}.pdf`);
   };
 
-  const handleExtend = async (id) => {
-    await API.put(`/extend/${id}`, extendForm);
 
-    setExtendForm({
-      new_due_date: "",
-      extra_interest: 0,
-      interest_paid: false,
-    });
-
-    setExtendId(null);
-    fetchData();
-  };
 
   // ✅ FILTER LOGIC
-  console.log("ALL DATA:", data);
   let filteredData = [...data];
   if (search.trim() !== "") {
     filteredData = filteredData.filter((tx) =>
@@ -852,9 +747,6 @@ const overdueDays = Math.max(
   0,
   Math.round((today - due) / (1000 * 60 * 60 * 24))
 );
-    // const type = (tx.transaction_type || "rotation").toLowerCase();
-    // const isNormal = type.includes("normal");
-
     return (
       <div
         key={tx._id}
@@ -902,10 +794,9 @@ const overdueDays = Math.max(
               style={{
                 background: tx.type === "incoming" ? "#4CAF50" : "#F44336",
                 color: "white",
-                padding: "2px 8px",
-                borderRadius: "10px",
-                fontSize: "11px",
-                padding: "3px 10px",
+borderRadius: "10px",
+fontSize: "11px",
+padding: "3px 10px",
               }}
             >
               {tx.type === "incoming" ? "IN" : "OUT"}
@@ -941,10 +832,9 @@ const overdueDays = Math.max(
           <p
             style={{
               textAlign: "right",
-              fontWeight: "bold",
-              fontSize: "18px",
-              fontWeight: "bold",
-              marginTop: "6px",
+fontSize: "18px",
+fontWeight: "bold",
+marginTop: "6px",
             }}
           >
             {formatCurrency(total)}
@@ -955,11 +845,9 @@ const overdueDays = Math.max(
   };
   // ✅ CARD
   const renderCard = (tx) => {
-    console.log("TX DATA:", tx);
 
     // 🔥 FIX: decide type properly
     const type = tx.transaction_type || "rotation";
-    const isLoan = type === "loan";
 
     // ✅ NORMAL INSTALLMENT CARD
     if (type === "normal") {
@@ -3336,7 +3224,6 @@ fetchData();
               alignItems: "center",
               gap: 8,
               transform: "translateY(0px)",
-              transition: "0.25s ease",
               boxShadow:
                 filterType === "pending"
                   ? "0 8px 20px rgba(255,152,0,0.35)"
@@ -3373,7 +3260,6 @@ fetchData();
               alignItems: "center",
               gap: 8,
               transform: "translateY(0px)",
-              transition: "0.25s ease",
               boxShadow:
                 filterType === "paid"
                   ? "0 8px 20px rgba(76,175,80,0.35)"
@@ -3410,7 +3296,6 @@ fetchData();
               alignItems: "center",
               gap: 8,
               transform: "translateY(0px)",
-              transition: "0.25s ease",
               boxShadow:
                 filterType === "extended"
                   ? "0 8px 20px rgba(33,150,243,0.35)"
@@ -3447,7 +3332,6 @@ fetchData();
               alignItems: "center",
               gap: 8,
               transform: "translateY(0px)",
-              transition: "0.25s ease",
               boxShadow:
                 filterType === "due"
                   ? "0 8px 20px rgba(244,67,54,0.35)"
@@ -4204,11 +4088,6 @@ fetchData();
                     cursor: "pointer",
                   }}
                   onClick={async () => {
-                    console.log({
-                      earlyPay: true,
-                      newInterest: Number(earlyInterest),
-                    });
-
                     await API.put(`/paid/${earlyPayPopup._id}`, {
                       earlyPay: true,
                       newInterest: Number(earlyInterest),
