@@ -3733,7 +3733,11 @@ return (
     gap: 16,
   }}
 >
-            {normalData.map(renderCard)}
+            {normalData.map((tx) => (
+  <React.Fragment key={tx._id}>
+    {renderCard(tx)}
+  </React.Fragment>
+))}
           </div>
         </div>
 
@@ -3901,7 +3905,11 @@ return (
     gap: 16,
   }}
 >
-            {rotationData.map(renderCard)}
+            {rotationData.map((tx) => (
+  <React.Fragment key={tx._id}>
+    {renderCard(tx)}
+  </React.Fragment>
+))}
           </div>
         </div>
 

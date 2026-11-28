@@ -197,10 +197,10 @@ function AppContent() {
       return (
     <>
       {hasActiveSession && !hideCalculator && (
-        <FloatingCalculator key={sessionId} />
+        <FloatingCalculator key={`calculator-${sessionId}`} />
       )}
 
-      <Routes key={sessionId || "guest"}>
+      <Routes key={`routes-${sessionId || "guest"}`}>
         <Route
           path="/"
           element={

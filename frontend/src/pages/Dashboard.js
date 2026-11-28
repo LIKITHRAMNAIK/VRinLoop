@@ -574,9 +574,9 @@ if (!isCurrentSession(sessionToken, sessionId)) {
                   textAlign: "center",
                 }}
               >
-                {["S", "M", "T", "W", "T", "F", "S"].map((dayName) => (
-                  <div
-                    key={dayName}
+                {["S", "M", "T", "W", "T", "F", "S"].map((dayName, index) => (
+  <div
+    key={`weekday-${index}`}
                     style={{
                       color: "#94a3b8",
 

@@ -344,34 +344,6 @@
   }
 
   /* Loan EMI action layout */
-  .loan-emi-actions {
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px !important;
-    width: 100%;
-  }
-
-  /* EMI selector and penalty input */
-  .loan-emi-actions select,
-  .loan-emi-actions input {
-    grid-column: 1 / -1;
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    box-sizing: border-box;
-    font-size: 16px !important;
-    margin-bottom: 0 !important;
-  }
-
-  /* Pay EMI and More Details buttons */
-  .loan-emi-actions button {
-    width: 100% !important;
-    min-width: 0 !important;
-    min-height: 44px;
-    font-size: 13px !important;
-    padding: 10px 6px !important;
-    box-sizing: border-box;
-  }
 
 }
 
@@ -750,4 +722,185 @@ left: 12px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   }
 
+}
+
+/* ========================================
+   PREMIUM LOAN EMI ACTIONS — PC & MOBILE
+   ======================================== */
+
+.loan-emi-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 15px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Main 66.66% / 33.33% layout */
+
+.loan-emi-action-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+/* Combined EMI payment box */
+
+.loan-emi-payment-box {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+  height: 46px;
+  border: 1px solid #7e57c2;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #ffffff;
+  box-sizing: border-box;
+  box-shadow: 0 2px 6px rgba(94, 53, 177, 0.08);
+}
+
+/* Number input section */
+
+.loan-emi-input-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 6px;
+  min-width: 0;
+  background: #ffffff;
+}
+
+.loan-emi-count-input {
+  width: 100%;
+  min-width: 0;
+  max-width: 60px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #311b92;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  box-sizing: border-box;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.loan-emi-count-input::-webkit-inner-spin-button,
+.loan-emi-count-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.loan-emi-suffix {
+  color: #85749e;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Pay EMI button */
+
+.loan-emi-pay-button {
+  min-width: 0;
+  width: 100%;
+  padding: 0 4px;
+  border: none;
+  border-left: 1px solid #7e57c2;
+  border-radius: 0;
+  background: linear-gradient(135deg, #7e57c2, #5e35b1);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.loan-emi-pay-button:hover {
+  background: #512da8;
+}
+
+/* Separate More Details box */
+
+.loan-emi-details-button {
+  width: 100%;
+  min-width: 0;
+  height: 46px;
+  padding: 0 4px;
+  border: 1px solid #b39ddb;
+  border-radius: 10px;
+  background: #f3edfc;
+  color: #5e35b1;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background 0.2s ease;
+}
+
+.loan-emi-details-button:hover {
+  background: #e8ddfa;
+}
+
+/* Keyboard focus */
+
+.loan-emi-payment-box:focus-within,
+.loan-emi-details-button:focus-visible {
+  outline: 2px solid #9575cd;
+  outline-offset: 2px;
+}
+
+.loan-emi-pay-button:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: -4px;
+}
+
+/* Optional overdue penalty */
+
+.loan-emi-penalty-input {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+/* Mobile adjustments */
+
+@media screen and (max-width: 767px) {
+  .loan-emi-action-row {
+    gap: 6px;
+  }
+
+  .loan-emi-payment-box,
+  .loan-emi-details-button {
+    height: 44px;
+  }
+
+  .loan-emi-input-box {
+    gap: 3px;
+    padding: 0 4px;
+  }
+
+  .loan-emi-count-input,
+  .loan-emi-penalty-input {
+    font-size: 16px;
+  }
+
+  .loan-emi-suffix {
+    font-size: 10px;
+  }
+
+  .loan-emi-pay-button,
+  .loan-emi-details-button {
+    font-size: 11px;
+    padding: 0 3px;
+  }
 }

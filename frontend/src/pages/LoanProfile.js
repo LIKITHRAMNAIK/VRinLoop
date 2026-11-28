@@ -52,7 +52,7 @@ const openPaymentConfirmation = (tx) => {
     return;
   }
 
-  const emiCount = Number(emiCounts[tx._id] || 1);
+  const emiCount = Number(emiCounts[tx._id] ?? 1);
   const penaltyAmount = Number(emiPenalties[tx._id] || 0);
   const emiAmount = Number(tx.emi_amount || 0);
   const completedEmi = Number(tx.completed_emi || 0);
@@ -60,14 +60,17 @@ const openPaymentConfirmation = (tx) => {
 
   // Validate selected EMI count
   if (
-    tx.status === "paid" ||
-    !Number.isInteger(emiCount) ||
-    emiCount < 1 ||
-    emiCount > Math.min(remainingEmi, 6)
-  ) {
-    alert("Please select a valid number of EMIs.");
-    return;
-  }
+  tx.status === "paid" ||
+  !Number.isSafeInteger(emiCount) ||
+  !Number.isSafeInteger(tx.remaining_emi) ||
+  !Number.isSafeInteger(tx.completed_emi) ||
+  tx.completed_emi < 0 ||
+  emiCount < 1 ||
+  emiCount > tx.remaining_emi
+) {
+  alert("Please select a valid number of EMIs.");
+  return;
+}
 
   // Validate payment amounts
   if (
@@ -112,7 +115,7 @@ const openPaymentConfirmation = (tx) => {
   });
 };
 
-  const payLoanEmi = async (id) => {
+  const payLoanEmi = async (id, confirmation) => {
   if (
     mutationRef.current ||
     !isCurrentSession(sessionToken, sessionId)
@@ -124,9 +127,12 @@ const openPaymentConfirmation = (tx) => {
 
   try {
     const response = await API.put(`/loan-emi/${id}`, {
-      emiCount: Number(emiCounts[id] || 1),
-      penaltyAmount: Number(emiPenalties[id] || 0),
-    });
+  emiCount: confirmation.emiCount,
+  penaltyAmount: confirmation.penaltyAmount,
+  expectedCompletedEmi: confirmation.completedEmi,
+  expectedRemainingEmi: confirmation.remainingEmi,
+  expectedEmiAmount: confirmation.emiAmount,
+});
 
     if (!isCurrentSession(sessionToken, sessionId)) {
       return;
@@ -135,15 +141,43 @@ const openPaymentConfirmation = (tx) => {
     onPaymentSuccess(response.data);
 
 refresh();
-  } catch {
-    if (!isCurrentSession(sessionToken, sessionId)) {
-      return;
-    }
+  } catch (error) {
+  if (!isCurrentSession(sessionToken, sessionId)) {
+    return;
+  }
 
+  const status = error.response?.status;
+
+  if (status === 409) {
     alert(
-      "Unable to confirm EMI payment. Please refresh and check before retrying."
+      "Loan details have changed. Please review the updated loan before making another payment."
     );
-  } finally {
+
+    refresh();
+    return;
+  }
+
+  if (status === 400) {
+    alert(
+      error.response?.data?.message ||
+      "Invalid payment details. Please check and try again."
+    );
+
+    refresh();
+    return;
+  }
+
+  if (status === 404) {
+    alert("Loan not found. Please check the updated loan list.");
+
+    refresh();
+    return;
+  }
+
+  alert(
+    "Unable to confirm EMI payment. Please refresh and check before retrying."
+  );
+} finally {
     mutationRef.current = false;
   }
 };
@@ -366,92 +400,87 @@ refresh();
         </div>
 
         {tx.status !== "paid" && (
-  <div
-    className="loan-emi-actions"
-    style={{
-      display: "flex",
-      gap: 10,
-      marginTop: 15,
-    }}
-          >
-            <select
-              value={emiCounts[tx._id] || 1}
-              onChange={(e) =>
-                setEmiCounts({
-                  ...emiCounts,
-                  [tx._id]: Number(e.target.value),
-                })
-              }
-              style={{
-                width: "100%",
-                padding: 10,
-                borderRadius: 10,
-                border: "1px solid #d1d5db",
-                marginBottom: 10,
-                fontWeight: "bold",
-              }}
-            >
-              {[...Array(Math.min(tx.remaining_emi, 6))].map((_, index) => (
-                <option key={index} value={index + 1}>
-                  Pay {index + 1} EMI
-                </option>
-              ))}
-            </select>
-            {isOverdue && (
-              <input
-                type="number"
-                placeholder="Penalty (optional)"
-                value={emiPenalties[tx._id] || ""}
-                onChange={(e) =>
-                  setEmiPenalties({
-                    ...emiPenalties,
+  <div className="loan-emi-actions">
 
-                    [tx._id]: e.target.value,
-                  })
-                }
-                style={{
-                  width: "100%",
-                  padding: 10,
-                  borderRadius: 10,
-                  border: "1px solid #d1d5db",
-                  marginBottom: 10,
-                  fontWeight: "bold",
-                }}
-              />
-            )}
-            <button
-              onClick={() => openPaymentConfirmation(tx)}
-              style={{
-                flex: 1,
-                background: "#5E35B1",
-                color: "white",
-                border: "none",
-                padding: 10,
-                borderRadius: 8,
-                cursor: "pointer",
-                fontWeight: "bold",
-              }}
-            >
-              Pay EMI
-            </button>
+    <div className="loan-emi-action-row">
 
-            <button
-              onClick={() => setOpenHistory(tx)}
-              style={{
-                flex: 1,
-                background: "#9575CD",
-                color: "white",
-                border: "none",
-                padding: 10,
-                borderRadius: 8,
-                cursor: "pointer",
-                fontWeight: "bold",
-              }}
-            >
-              More Details
-            </button>
-          </div>
-        )}
+      {/* Combined EMI Input and Pay Button */}
+      <div className="loan-emi-payment-box">
+
+        <div className="loan-emi-input-box">
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={tx.remaining_emi}
+            step={1}
+            aria-label="Number of EMIs to pay"
+            placeholder="1"
+            className="loan-emi-count-input"
+            value={emiCounts[tx._id] ?? 1}
+            onChange={(e) =>
+              setEmiCounts((prev) => ({
+                ...prev,
+                [tx._id]: e.target.value,
+              }))
+            }
+          />
+
+          <span className="loan-emi-suffix">
+            {Number(emiCounts[tx._id] ?? 1) === 1
+              ? "EMI"
+              : "EMIs"}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          className="loan-emi-pay-button"
+          onClick={() => openPaymentConfirmation(tx)}
+        >
+          Pay EMI
+        </button>
+
+      </div>
+
+      {/* Separate More Details Button */}
+      <button
+        type="button"
+        className="loan-emi-details-button"
+        onClick={() => setOpenHistory(tx)}
+      >
+        More Details
+      </button>
+
+    </div>
+
+    {/* Optional Overdue Penalty */}
+    {isOverdue && (
+      <input
+        type="number"
+        placeholder="Penalty (optional)"
+        aria-label="Optional penalty amount"
+        className="loan-emi-penalty-input"
+        value={emiPenalties[tx._id] || ""}
+        onChange={(e) =>
+          setEmiPenalties({
+            ...emiPenalties,
+            [tx._id]: e.target.value,
+          })
+        }
+        style={{
+          width: "100%",
+          padding: 10,
+          borderRadius: 10,
+          border: "1px solid #d1d5db",
+          fontWeight: "bold",
+          boxSizing: "border-box",
+        }}
+      />
+    )}
+
+  </div>
+)}
 
         {tx.status === "paid" && (
           <div
@@ -1826,7 +1855,7 @@ refresh();
                 paymentConfirmation.remainingEmi ||
               Number(currentLoan.emi_amount || 0) !==
                 paymentConfirmation.emiAmount ||
-              Number(emiCounts[loanId] || 1) !==
+              Number(emiCounts[loanId] ?? 1) !==
                 paymentConfirmation.emiCount ||
               Number(emiPenalties[loanId] || 0) !==
                 paymentConfirmation.penaltyAmount
@@ -1839,7 +1868,7 @@ refresh();
             setPaymentSubmitting(true);
 
             try {
-              await payLoanEmi(loanId);
+              await payLoanEmi(loanId, paymentConfirmation);
             } finally {
               setPaymentSubmitting(false);
               setPaymentConfirmation(null);

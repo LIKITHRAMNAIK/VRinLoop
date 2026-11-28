@@ -335,7 +335,7 @@ exports.payLoanEmi = async (req, res) => {
       });
     }
 
-    if (tx.remaining_emi <= 0) {
+    if (tx.status === "paid" || tx.remaining_emi <= 0) {
       return res.status(400).json({
         message: "Loan already completed",
       });
@@ -344,12 +344,81 @@ exports.payLoanEmi = async (req, res) => {
     // EMI HISTORY
     // ================= EMI COUNT =================
 
-    const emiCount = Number(req.body.emiCount || 1);
+    const emiCount = req.body.emiCount;
+    const penaltyAmount = req.body.penaltyAmount;
 
-    const penaltyAmount = Number(req.body.penaltyAmount || 0);
+// Validate EMI count
+if (
+  !Number.isSafeInteger(emiCount) ||
+  emiCount < 1 ||
+  emiCount > tx.remaining_emi
+) {
+  return res.status(400).json({
+    message: "Invalid EMI count",
+  });
+}
 
-    // SAFE LIMIT
-    const safeCount = Math.min(emiCount, tx.remaining_emi);
+// Validate penalty amount
+if (
+  typeof penaltyAmount !== "number" ||
+  !Number.isFinite(penaltyAmount) ||
+  penaltyAmount < 0
+) {
+  return res.status(400).json({
+    message: "Invalid penalty amount",
+  });
+}
+
+// Verify confirmed loan details
+const {
+  expectedCompletedEmi,
+  expectedRemainingEmi,
+  expectedEmiAmount,
+} = req.body;
+
+// Validate confirmation details
+if (
+  !Number.isSafeInteger(expectedCompletedEmi) ||
+  expectedCompletedEmi < 0 ||
+  !Number.isSafeInteger(expectedRemainingEmi) ||
+  expectedRemainingEmi < 1 ||
+  typeof expectedEmiAmount !== "number" ||
+  !Number.isFinite(expectedEmiAmount) ||
+  expectedEmiAmount <= 0
+) {
+  return res.status(400).json({
+    message: "Invalid payment confirmation details",
+  });
+}
+
+// Reject outdated payment confirmations
+if (
+  tx.completed_emi !== expectedCompletedEmi ||
+  tx.remaining_emi !== expectedRemainingEmi ||
+  tx.emi_amount !== expectedEmiAmount
+) {
+  return res.status(409).json({
+    message: "Loan details changed. Please refresh and confirm again.",
+  });
+}
+
+const safeCount = emiCount;
+
+// Capture original loan state for atomic payment protection
+const originalLoanState = {
+  _id: tx._id,
+  user: req.user.id,
+  transaction_type: "loan",
+  status: tx.status,
+  completed_emi: tx.completed_emi,
+  remaining_emi: tx.remaining_emi,
+  emi_amount: tx.emi_amount,
+  updatedAt: tx.updatedAt,
+  __v: tx.__v,
+};
+
+const originalHistoryLength = tx.emi_history.length;
+
 
     // ================= EMI LOOP =================
 
@@ -431,7 +500,39 @@ exports.payLoanEmi = async (req, res) => {
       tx.paid_date = new Date();
     }
 
-    await tx.save();
+    // Atomically save payment only if the loan state is unchanged
+const updatedLoan = await Transaction.findOneAndUpdate(
+  originalLoanState,
+  {
+    $set: {
+      completed_emi: tx.completed_emi,
+      remaining_emi: tx.remaining_emi,
+      due_date: tx.due_date,
+      status: tx.status,
+      ...(tx.status === "paid"
+        ? { paid_date: tx.paid_date }
+        : {}),
+    },
+    $push: {
+      emi_history: {
+        $each: tx.emi_history.slice(originalHistoryLength),
+      },
+    },
+    $inc: {
+      __v: 1,
+    },
+  },
+  {
+    returnDocument: "after",
+    runValidators: true,
+  }
+);
+
+if (!updatedLoan) {
+  return res.status(409).json({
+    message: "Loan details changed. Please refresh and confirm again.",
+  });
+}
 
 const user =
   await User.findById(
@@ -440,28 +541,25 @@ const user =
 
 const paidAmount =
   safeCount *
-  Number(tx.emi_amount || 0);
+  Number(updatedLoan.emi_amount || 0);
 
-if (tx.status === "paid") {
-
+if (updatedLoan.status === "paid") {
   sendPaymentEmailSafely(
     sendLoanCompletedEmail,
     user,
-    tx
+    updatedLoan
   );
-
 } else {
-
   sendPaymentEmailSafely(
     sendLoanEmiPaymentEmail,
     user,
-    tx,
+    updatedLoan,
     safeCount,
     paidAmount
   );
 }
 
-res.json(tx);
+res.json(updatedLoan);
   } catch (error) {
     console.error("Transaction Error:", error.name);
 
