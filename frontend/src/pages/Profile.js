@@ -5,6 +5,12 @@ import NormalProfile from "./NormalProfile";
 import RotationProfile from "./RotationProfile";
 import { formatCurrency } from "../utils/format";
 import LoanProfile from "./LoanProfile";
+import LoanPaymentSuccess from "../components/LoanPaymentSuccess";
+import {
+  getToken,
+  getSessionId,
+  isCurrentSession,
+} from "../utils/session";
 
 function Profile() {
   const { name } = useParams();
@@ -17,15 +23,45 @@ function Profile() {
   const [rotationFilter, setRotationFilter] = useState("pending");
 
   const [loanFilter, setLoanFilter] = useState("pending");
+  const [sessionToken] = useState(getToken);
+const [sessionId] = useState(getSessionId);
+
+const [loanPaymentResult, setLoanPaymentResult] = useState(null);
+
+const handleLoanPaymentSuccess = (loan) => {
+  if (!isCurrentSession(sessionToken, sessionId)) {
+    return;
+  }
+
+  setLoanPaymentResult({
+    person_name: loan.person_name,
+    completed_emi: loan.completed_emi,
+    remaining_emi: loan.remaining_emi,
+    loan_duration: loan.loan_duration,
+    emi_amount: loan.emi_amount,
+  });
+};
 
   const fetchData = useCallback(() => {
+  if (!isCurrentSession(sessionToken, sessionId)) {
+    return;
+  }
+
   API.get(`/person/${encodeURIComponent(name)}`)
     .then((res) => {
+      if (!isCurrentSession(sessionToken, sessionId)) {
+        return;
+      }
+
       const list = res.data.transactions || [];
       setData(list);
     })
-    .catch((err) => console.log(err));
-}, [name]);
+    .catch((err) => {
+      if (isCurrentSession(sessionToken, sessionId)) {
+        console.log(err);
+      }
+    });
+}, [name, sessionToken, sessionId]);
 
 useEffect(() => {
   fetchData();
@@ -628,9 +664,19 @@ useEffect(() => {
     }
   });
 
-  return (
-    <div style={{ padding: 20 }}>
-      <button
+  if (!isCurrentSession(sessionToken, sessionId)) {
+  return null;
+}
+
+return (
+  <div style={{ padding: 20 }}>
+    <LoanPaymentSuccess
+      open={Boolean(loanPaymentResult)}
+      selectedLoan={loanPaymentResult}
+      onClose={() => setLoanPaymentResult(null)}
+    />
+
+    <button
         onClick={() => navigate("/")}
         style={{
           marginBottom: 15,
@@ -1972,7 +2018,11 @@ useEffect(() => {
                   </div>
                 </div>
 
-                <LoanProfile data={finalFilteredLoanData} refresh={fetchData} />
+                <LoanProfile
+  data={finalFilteredLoanData}
+  refresh={fetchData}
+  onPaymentSuccess={handleLoanPaymentSuccess}
+/>
               </div>
             </div>
           )}

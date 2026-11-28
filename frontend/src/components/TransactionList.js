@@ -6,6 +6,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatCurrency } from "../utils/format";
 import LoanProfile from "../pages/LoanProfile";
+import LoanPaymentSuccess from "./LoanPaymentSuccess";
 import {
   getToken,
   getSessionId,
@@ -87,6 +88,21 @@ const [selectedMonth] = useState("");
 
   const [normalPayPopup, setNormalPayPopup] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
+  const [loanPaymentResult, setLoanPaymentResult] = useState(null);
+
+const handleLoanPaymentSuccess = (loan) => {
+  if (!isCurrentSession(sessionToken, sessionId)) {
+    return;
+  }
+
+  setLoanPaymentResult({
+    person_name: loan.person_name,
+    completed_emi: loan.completed_emi,
+    remaining_emi: loan.remaining_emi,
+    loan_duration: loan.loan_duration,
+    emi_amount: loan.emi_amount,
+  });
+};
   // ✅ EDIT STATE
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState({
@@ -1983,12 +1999,18 @@ if (!isCurrentSession(sessionToken, sessionId)) {
     };
 
   if (!isCurrentSession(sessionToken, sessionId)) {
-    return null;
-  }
+  return null;
+}
 
-  return (
-    <div>
-      {confirmAction &&
+return (
+  <div>
+    <LoanPaymentSuccess
+      open={Boolean(loanPaymentResult)}
+      selectedLoan={loanPaymentResult}
+      onClose={() => setLoanPaymentResult(null)}
+    />
+
+    {confirmAction &&
         (() => {
           const txData = data.find((t) => t._id === confirmAction.id);
           const type = txData?.transaction_type || "rotation";
@@ -4034,6 +4056,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
     key={loan._id}
     data={loan}
     refresh={fetchData}
+    onPaymentSuccess={handleLoanPaymentSuccess}
   />
 ))}
           </div>

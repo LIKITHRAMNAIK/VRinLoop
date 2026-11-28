@@ -14,7 +14,7 @@ import {
   DialogActions,
   Button,
 } from "@mui/material";
-function LoanProfile({ data, refresh }) {
+function LoanProfile({ data, refresh, onPaymentSuccess }) {
   const navigate = useNavigate();
 
   const [sessionToken] = useState(getToken);
@@ -39,8 +39,78 @@ function LoanProfile({ data, refresh }) {
     ? [data]
     : [];
 
-const [emiSuccessOpen, setEmiSuccessOpen] = useState(false);
-const [selectedLoan, setSelectedLoan] = useState(null);
+
+const [paymentConfirmation, setPaymentConfirmation] = useState(null);
+const [paymentSubmitting, setPaymentSubmitting] = useState(false);
+
+const openPaymentConfirmation = (tx) => {
+  if (
+    mutationRef.current ||
+    paymentSubmitting ||
+    !isCurrentSession(sessionToken, sessionId)
+  ) {
+    return;
+  }
+
+  const emiCount = Number(emiCounts[tx._id] || 1);
+  const penaltyAmount = Number(emiPenalties[tx._id] || 0);
+  const emiAmount = Number(tx.emi_amount || 0);
+  const completedEmi = Number(tx.completed_emi || 0);
+  const remainingEmi = Number(tx.remaining_emi || 0);
+
+  // Validate selected EMI count
+  if (
+    tx.status === "paid" ||
+    !Number.isInteger(emiCount) ||
+    emiCount < 1 ||
+    emiCount > Math.min(remainingEmi, 6)
+  ) {
+    alert("Please select a valid number of EMIs.");
+    return;
+  }
+
+  // Validate payment amounts
+  if (
+    !Number.isFinite(penaltyAmount) ||
+    penaltyAmount < 0 ||
+    !Number.isFinite(emiAmount) ||
+    emiAmount <= 0
+  ) {
+    alert("Please enter a valid payment amount.");
+    return;
+  }
+
+  // Prepare selected EMI numbers
+  const selectedEmis = Array.from(
+    { length: emiCount },
+    (_, index) => ({
+      emiNumber: completedEmi + index + 1,
+      amount: emiAmount,
+      penalty: penaltyAmount,
+      total: emiAmount + penaltyAmount,
+    })
+  );
+
+  const emiSubtotal = emiAmount * emiCount;
+  const totalPenalty = penaltyAmount * emiCount;
+  const totalAmount = emiSubtotal + totalPenalty;
+
+  setPaymentConfirmation({
+    loanId: tx._id,
+    personName: tx.person_name,
+    type: tx.type,
+    emiCount,
+    emiAmount,
+    penaltyAmount,
+    completedEmi,
+    remainingEmi,
+    selectedEmis,
+    emiSubtotal,
+    totalPenalty,
+    totalAmount,
+    remainingAfterPayment: remainingEmi - emiCount,
+  });
+};
 
   const payLoanEmi = async (id) => {
   if (
@@ -62,11 +132,9 @@ const [selectedLoan, setSelectedLoan] = useState(null);
       return;
     }
 
-    setSelectedLoan(response.data);
+    onPaymentSuccess(response.data);
 
-    setEmiSuccessOpen(true);
-
-    refresh();
+refresh();
   } catch {
     if (!isCurrentSession(sessionToken, sessionId)) {
       return;
@@ -352,7 +420,7 @@ const [selectedLoan, setSelectedLoan] = useState(null);
               />
             )}
             <button
-              onClick={() => payLoanEmi(tx._id)}
+              onClick={() => openPaymentConfirmation(tx)}
               style={{
                 flex: 1,
                 background: "#5E35B1",
@@ -1458,53 +1526,344 @@ const [selectedLoan, setSelectedLoan] = useState(null);
           </div>
         </div>
       )}
-      <Dialog open={emiSuccessOpen} onClose={() => setEmiSuccessOpen(false)}>
-        <DialogTitle
-          style={{
-            textAlign: "center",
-            color: "#4CAF50",
-            fontWeight: "bold",
-          }}
-        >
-          ✅ EMI Paid Successfully
-        </DialogTitle>
+      {/* EMI PAYMENT CONFIRMATION */}
+<Dialog
+  open={Boolean(paymentConfirmation)}
+  onClose={() => {
+    if (!paymentSubmitting && !mutationRef.current) {
+      setPaymentConfirmation(null);
+    }
+  }}
+  fullWidth
+  maxWidth="xs"
+  aria-labelledby="emi-confirm-title"
+  slotProps={{
+  paper: {
+    sx: {
+      borderRadius: "20px",
+      margin: { xs: "12px", sm: "24px" },
+      width: { xs: "calc(100% - 24px)", sm: "100%" },
+      overflow: "hidden",
+    },
+  },
+}}
+>
+  {paymentConfirmation && (
+    <>
+      <DialogTitle
+        id="emi-confirm-title"
+        sx={{
+          background: "linear-gradient(135deg,#5E35B1,#7E57C2)",
+          color: "#fff",
+          textAlign: "center",
+          fontWeight: 800,
+          fontSize: { xs: 20, sm: 24 },
+          padding: "22px 16px",
+        }}
+      >
+        Confirm Loan Payment
+      </DialogTitle>
 
-        <DialogContent
+      <DialogContent
+        sx={{
+          padding: { xs: "16px", sm: "24px" },
+          overflowY: "auto",
+        }}
+      >
+        {/* BORROWER DETAILS */}
+        <div
           style={{
-            textAlign: "center",
-            lineHeight: 1.8,
+            background: "#f5f3ff",
+            borderRadius: 14,
+            padding: 16,
+            marginTop: 16,
+            marginBottom: 16,
+            overflowWrap: "anywhere",
           }}
         >
-          {selectedLoan?.remaining_emi === 0 ? (
-            <>
-              🎉 Congratulations!
-              <br />
-              You have successfully completed all{" "}
-              <b>{selectedLoan?.loan_duration}</b> EMIs.
-              <br />
-              Loan Closed Successfully ✅
-            </>
-          ) : (
-            <>
-              Paid EMI :<b>{selectedLoan?.completed_emi}</b> out of{" "}
-              <b>{selectedLoan?.loan_duration}</b>
-              <br />
-              Remaining EMI: <b>{selectedLoan?.remaining_emi}</b>
-            </>
-          )}
-        </DialogContent>
+          <div style={{ color: "#64748b", fontSize: 13 }}>
+            Loan Profile
+          </div>
 
-        <DialogActions
+          <h3 style={{ margin: "6px 0", color: "#4527A0" }}>
+            {paymentConfirmation.personName}
+          </h3>
+
+          <div style={{ color: "#64748b", fontSize: 13 }}>
+            {paymentConfirmation.type === "incoming"
+              ? "Incoming Loan"
+              : "Outgoing Loan"}
+          </div>
+        </div>
+
+        {/* SELECTED EMIS */}
+        <div
           style={{
-            justifyContent: "center",
-            paddingBottom: 20,
+            border: "1px solid #e2e8f0",
+            borderRadius: 14,
+            padding: 14,
+            marginBottom: 16,
           }}
         >
-          <Button variant="contained" onClick={() => setEmiSuccessOpen(false)}>
-            OK
-          </Button>
-        </DialogActions>
-      </Dialog>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 8,
+              fontWeight: "bold",
+              color: "#334155",
+              marginBottom: 12,
+            }}
+          >
+            <span>Selected EMIs</span>
+
+            <span style={{ color: "#5E35B1" }}>
+              {paymentConfirmation.emiCount} EMI(s)
+            </span>
+          </div>
+
+          {paymentConfirmation.selectedEmis.map((emi) => (
+            <div
+              key={emi.emiNumber}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: 8,
+                background: "#f8fafc",
+                padding: 12,
+                borderRadius: 10,
+                marginBottom: 8,
+              }}
+            >
+              <div>
+                <b style={{ color: "#334155" }}>
+                  EMI #{emi.emiNumber}
+                </b>
+
+                {emi.penalty > 0 && (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "#dc2626",
+                      marginTop: 4,
+                    }}
+                  >
+                    Penalty: {formatCurrency(emi.penalty)}
+                  </div>
+                )}
+              </div>
+
+              <b style={{ color: "#15803d" }}>
+                {formatCurrency(emi.total)}
+              </b>
+            </div>
+          ))}
+        </div>
+
+        {/* PAYMENT SUMMARY */}
+        <div
+          style={{
+            background: "#f0fdf4",
+            border: "1px solid #bbf7d0",
+            borderRadius: 14,
+            padding: 16,
+            marginBottom: 16,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 8,
+              marginBottom: 10,
+              color: "#475569",
+            }}
+          >
+            <span>EMI Subtotal</span>
+
+            <b>
+              {formatCurrency(paymentConfirmation.emiSubtotal)}
+            </b>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 8,
+              marginBottom: 12,
+              color: "#475569",
+            }}
+          >
+            <span>Total Penalty</span>
+
+            <b>
+              {formatCurrency(paymentConfirmation.totalPenalty)}
+            </b>
+          </div>
+
+          <div
+            style={{
+              borderTop: "1px solid #bbf7d0",
+              paddingTop: 12,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 8,
+            }}
+          >
+            <b style={{ color: "#166534" }}>
+              Total Payment
+            </b>
+
+            <strong
+              style={{
+                fontSize: 24,
+                color: "#15803d",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {formatCurrency(paymentConfirmation.totalAmount)}
+            </strong>
+          </div>
+        </div>
+
+        {/* CONFIRMATION NOTE */}
+        <div
+          style={{
+            background: "#fffbeb",
+            border: "1px solid #fde68a",
+            borderRadius: 12,
+            padding: 14,
+            color: "#92400e",
+            fontSize: 13,
+            lineHeight: 1.7,
+          }}
+        >
+          <b>Payment Note</b>
+
+          <div style={{ marginTop: 5 }}>
+            You are about to mark{" "}
+            <b>
+              {paymentConfirmation.selectedEmis
+                .map((emi) => `EMI #${emi.emiNumber}`)
+                .join(", ")}
+            </b>{" "}
+            as paid.
+          </div>
+
+          <div style={{ marginTop: 6 }}>
+            Remaining EMIs after payment:{" "}
+            <b>
+              {paymentConfirmation.remainingAfterPayment}
+            </b>
+          </div>
+
+          Please verify the details before confirming.
+        </div>
+      </DialogContent>
+
+      {/* ACTION BUTTONS */}
+      <DialogActions
+        sx={{
+          padding: { xs: "12px 16px 20px", sm: "16px 24px 24px" },
+          gap: 1,
+          flexDirection: { xs: "column-reverse", sm: "row" },
+          "& > :not(style) ~ :not(style)": {
+            marginLeft: 0,
+          },
+        }}
+      >
+        <Button
+          fullWidth
+          variant="outlined"
+          disabled={paymentSubmitting}
+          onClick={() => setPaymentConfirmation(null)}
+          sx={{
+            borderRadius: "12px",
+            padding: "12px",
+            color: "#475569",
+            borderColor: "#cbd5e1",
+            textTransform: "none",
+            fontWeight: 700,
+          }}
+        >
+          Cancel
+        </Button>
+
+        <Button
+          fullWidth
+          variant="contained"
+          disabled={paymentSubmitting}
+          onClick={async () => {
+            if (
+              mutationRef.current ||
+              paymentSubmitting ||
+              !paymentConfirmation ||
+              !isCurrentSession(sessionToken, sessionId)
+            ) {
+              return;
+            }
+
+            const loanId = paymentConfirmation.loanId;
+
+            const currentLoan = loans.find(
+              (loan) => loan._id === loanId
+            );
+
+            if (
+              !currentLoan ||
+              currentLoan.status === "paid" ||
+              Number(currentLoan.completed_emi || 0) !==
+                paymentConfirmation.completedEmi ||
+              Number(currentLoan.remaining_emi || 0) !==
+                paymentConfirmation.remainingEmi ||
+              Number(currentLoan.emi_amount || 0) !==
+                paymentConfirmation.emiAmount ||
+              Number(emiCounts[loanId] || 1) !==
+                paymentConfirmation.emiCount ||
+              Number(emiPenalties[loanId] || 0) !==
+                paymentConfirmation.penaltyAmount
+            ) {
+              setPaymentConfirmation(null);
+              alert("Payment details changed. Please review again.");
+              return;
+            }
+
+            setPaymentSubmitting(true);
+
+            try {
+              await payLoanEmi(loanId);
+            } finally {
+              setPaymentSubmitting(false);
+              setPaymentConfirmation(null);
+            }
+          }}
+          sx={{
+            borderRadius: "12px",
+            padding: "12px",
+            background: "#15803d",
+            textTransform: "none",
+            fontWeight: 700,
+            "&:hover": {
+              background: "#166534",
+            },
+          }}
+        >
+          {paymentSubmitting
+            ? "Processing..."
+            : "Confirm Payment"}
+        </Button>
+      </DialogActions>
+    </>
+  )}
+</Dialog>
     </div>
   );
 }

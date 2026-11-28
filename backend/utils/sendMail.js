@@ -4,6 +4,12 @@ const path = require("path");
 
 const sendMail = async (to, subject, html, file = null) => {
   try {
+    // Prevent real email delivery during isolated testing
+    if (process.env.NODE_ENV === "test") {
+      console.log("[TEST MODE] Email delivery skipped.");
+      return true;
+    }
+
     const apiKey = process.env.BREVO_API_KEY;
     const senderEmail = process.env.BREVO_SENDER_EMAIL;
     const senderName =
