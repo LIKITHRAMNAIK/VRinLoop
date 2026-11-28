@@ -574,7 +574,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
               boxShadow: "0 8px 18px rgba(34,197,94,0.25)",
             }}
           >
-            â¬… Dashboard
+            ⬅ Dashboard
           </button>
 
           <button
@@ -591,7 +591,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
               boxShadow: "0 8px 18px rgba(124,58,237,0.25)",
             }}
           >
-            ðŸ‘¥ User Profiles
+            👥 User Profiles
           </button>
         </div>
         <button
@@ -608,7 +608,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             boxShadow: "0 8px 18px rgba(234,88,12,0.25)",
           }}
         >
-          âž• Add Transaction
+          ➕ Add Transaction
         </button>
         <div></div>
 
@@ -666,7 +666,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
               boxShadow: "0 8px 18px rgba(13,148,136,0.25)",
             }}
           >
-            ðŸ“¤ Export
+            📤 Export
           </button>
 
           <button
@@ -691,7 +691,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
               boxShadow: "0 8px 18px rgba(220,38,38,0.25)",
             }}
           >
-            ðŸšª Logout
+            🚪 Logout
           </button>
         </div>
       </div>
@@ -843,13 +843,13 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             }}
           >
             <div style={heroMiniCard()}>
-              <p>ðŸ’° Total Profit</p>
+              <p>💰 Total Profit</p>
 
               <h2>{formatCurrency(stats.paidIncoming - stats.paidOutgoing)}</h2>
             </div>
 
             <div style={heroMiniCard()}>
-              <p>ðŸ“ˆ Financial Health</p>
+              <p>📈 Financial Health</p>
 
               <h2>
                 {stats.overdue <= 5
@@ -861,7 +861,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             </div>
 
             <div style={heroMiniCard()}>
-              <p>ðŸ¦ Active Portfolio</p>
+              <p>🏦 Active Portfolio</p>
 
               <h2>{formatCurrency(stats.incoming + stats.outgoing)}</h2>
             </div>
@@ -905,7 +905,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             }}
           />
 
-          <p style={miniTitle()}>ðŸ‘¥ Total Users</p>
+          <p style={miniTitle()}>👥 Total Users</p>
 
           <h2 style={miniValue()}>
             <CountUp end={stats.users} duration={2} />
@@ -940,7 +940,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             }}
           />
 
-          <p style={miniTitle()}>ðŸ“„ Transactions</p>
+          <p style={miniTitle()}>📄 Transactions</p>
 
           <h2 style={miniValue()}>
             <CountUp end={stats.transactions} duration={2} />+
@@ -975,7 +975,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             }}
           />
 
-          <p style={miniTitle()}>ðŸ“¥ Active Incoming</p>
+          <p style={miniTitle()}>📥 Active Incoming</p>
 
           <h2 style={miniValue()}>{formatCurrency(stats.incoming)}</h2>
         </div>
@@ -1008,7 +1008,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             }}
           />
 
-          <p style={miniTitle()}>ðŸ“¤ Active Outgoing</p>
+          <p style={miniTitle()}>📤 Active Outgoing</p>
 
           <h2 style={miniValue()}>{formatCurrency(stats.outgoing)}</h2>
         </div>
@@ -1041,7 +1041,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             }}
           />
 
-          <p style={miniTitle()}>ðŸ’¸ Paid Incoming</p>
+          <p style={miniTitle()}>💸 Paid Incoming</p>
 
           <h2 style={miniValue()}>{formatCurrency(stats.paidIncoming)}</h2>
         </div>
@@ -1074,7 +1074,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             }}
           />
 
-          <p style={miniTitle()}>ðŸ’³ Paid Outgoing</p>
+          <p style={miniTitle()}>💳 Paid Outgoing</p>
 
           <h2 style={miniValue()}>{formatCurrency(stats.paidOutgoing)}</h2>
         </div>
@@ -1107,7 +1107,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             }}
           />
 
-          <p style={miniTitle()}>âš  Overdue Cases</p>
+          <p style={miniTitle()}>⚠ Overdue Cases</p>
 
           <h2 style={miniValue()}>
             <CountUp end={stats.overdue} duration={2} />
@@ -1142,7 +1142,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             }}
           />
 
-          <p style={miniTitle()}>ðŸ’° Net Profit</p>
+          <p style={miniTitle()}>💰 Net Profit</p>
 
           <h2 style={miniValue()}>
             {formatCurrency(stats.paidIncoming - stats.paidOutgoing)}
@@ -1177,7 +1177,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             }}
           />
 
-          <p style={miniTitle()}>ðŸ¦ Total Loans</p>
+          <p style={miniTitle()}>🏦 Total Loans</p>
 
           <h2 style={miniValue()}>{stats.totalLoans}</h2>
         </div>
@@ -1210,7 +1210,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             }}
           />
 
-          <p style={miniTitle()}>ðŸ¦ Loan Status</p>
+          <p style={miniTitle()}>🏦 Loan Status</p>
 
           <div
             style={{
@@ -1231,7 +1231,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
                   fontWeight: "600",
                 }}
               >
-                â³ Pending
+                ⏳ Pending
               </span>
 
               <span
@@ -1257,7 +1257,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
                   fontWeight: "600",
                 }}
               >
-                âœ… Completed
+                ✅ Completed
               </span>
 
               <span
@@ -1311,7 +1311,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             fontSize: 34,
           }}
         >
-          ðŸ“ˆ Financial Health Meter
+          📈 Financial Health Meter
         </h2>
 
         <div
@@ -1407,7 +1407,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
               color: "#0f172a",
             }}
           >
-            ðŸ“Š Financial Performance Dashboard
+            📊 Financial Performance Dashboard
           </h2>
 
           <div
@@ -1483,7 +1483,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
               fontSize: 34,
             }}
           >
-            ðŸ¤– Smart AI Insights
+            🤖 Smart AI Insights
           </h2>
 
           <div
@@ -1494,7 +1494,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             }}
           >
             <div style={insightCard()}>
-              ðŸ’µ Active Balance:{" "}
+              💵 Active Balance:{" "}
               <span
                 style={{
                   color: stats.activeBalance >= 0 ? "#4ade80" : "#f87171",
@@ -1506,19 +1506,19 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             </div>
 
             <div style={insightCard()}>
-              ðŸ“ˆ Net Profit: {formatCurrency(stats.totalProfit)}
+              📈 Net Profit: {formatCurrency(stats.totalProfit)}
             </div>
 
             <div style={insightCard()}>
-              ðŸ’° Loan Success Rate: {stats.loanSuccessRate}%
+              💰 Loan Success Rate: {stats.loanSuccessRate}%
             </div>
 
             <div style={insightCard()}>
-              âš  Overdue Risk: {stats.overduePercent}%
+              ⚠ Overdue Risk: {stats.overduePercent}%
             </div>
 
             <div style={insightCard()}>
-              ðŸš€ Recovery Efficiency: {stats.recoveryRate}%
+              🚀 Recovery Efficiency: {stats.recoveryRate}%
             </div>
           </div>
         </div>
@@ -1542,7 +1542,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             color: "#0f172a",
           }}
         >
-          ðŸ“œ Recent Activity Timeline
+          📜 Recent Activity Timeline
         </h2>
 
         <div
@@ -1580,7 +1580,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
                   }}
                 >
                   {item.type.toUpperCase()}
-                  {" â€¢ "}
+                  {" • "}
                   {item.status.toUpperCase()}
                 </p>
               </div>
@@ -1640,7 +1640,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             fontSize: 34,
           }}
         >
-          ðŸ’³ Loan Analytics
+          💳 Loan Analytics
         </h2>
 
         <div
@@ -1689,7 +1689,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             color: "#0f172a",
           }}
         >
-          ðŸš€ Performance Growth
+          🚀 Performance Growth
         </h2>
 
         <div
@@ -1745,7 +1745,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             color: "#991b1b",
           }}
         >
-          âš  Overdue Risk Users
+          ⚠ Overdue Risk Users
         </h2>
 
         <div
@@ -1765,7 +1765,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
                 fontSize: 18,
               }}
             >
-              ðŸŽ‰ No risky overdue users found
+              🎉 No risky overdue users found
             </div>
           ) : (
             Object.entries(stats.riskyUsers || {}).map(
@@ -1838,7 +1838,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
             color: "#0f172a",
           }}
         >
-          ðŸ“Š Financial Analytics
+          📊 Financial Analytics
         </h2>
 
         <div
@@ -1914,7 +1914,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
                 marginTop: 0,
               }}
             >
-              ðŸ“¤ Export Report
+              📤 Export Report
             </h2>
 
             <div
@@ -1967,7 +1967,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
                   cursor: "pointer",
                 }}
               >
-                ðŸ“• Export PDF
+                📕 Export PDF
               </button>
 
               <button
@@ -1989,7 +1989,7 @@ if (!isCurrentSession(sessionToken, sessionId)) {
                   cursor: "pointer",
                 }}
               >
-                ðŸ“— Export CSV
+                📗 Export CSV
               </button>
 
               <button
