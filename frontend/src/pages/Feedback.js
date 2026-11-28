@@ -1,12 +1,22 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import feedbackAPI from "../services/feedbackApi";
 
 import Sidebar from "../components/Sidebar";
-
 import { useNavigate } from "react-router-dom";
 
+import {
+  getSessionUser,
+  getToken,
+  getSessionId,
+  isCurrentSession,
+} from "../utils/session";
+
 export default function Feedback() {
-  const user = JSON.parse(localStorage.getItem("user"));
+  const [user] = useState(getSessionUser);
+
+const [sessionToken] = useState(getToken);
+
+const [sessionId] = useState(getSessionId);
 
   const navigate = useNavigate();
 
@@ -24,38 +34,79 @@ export default function Feedback() {
 
   const [image, setImage] = useState(null);
 
-  const submitFeedback = async () => {
-    try {
-      const formData = new FormData();
+const [imagePreview, setImagePreview] = useState(null);
 
-      formData.append("subject", subject);
+useEffect(() => {
+  setImagePreview(null);
 
-      formData.append("type", type);
+  if (
+    !image ||
+    !isCurrentSession(sessionToken, sessionId)
+  ) {
+    return;
+  }
 
-      formData.append("message", message);
+  const previewUrl = URL.createObjectURL(image);
 
-      formData.append("rating", rating);
+  setImagePreview({
+    file: image,
+    url: previewUrl,
+  });
 
-      if (image) {
-        formData.append("image", image);
-      }
-
-      await feedbackAPI.post("/submit", formData);
-
-      setSuccessModal(true);
-
-      setSubject("");
-      setMessage("");
-      setImage(null);
-    } catch (error) {
-      alert(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to submit feedback",
-      );
-    }
+  return () => {
+    URL.revokeObjectURL(previewUrl);
   };
+}, [image, sessionToken, sessionId]);
 
+const selectedImagePreview =
+  imagePreview?.file === image &&
+  isCurrentSession(sessionToken, sessionId)
+    ? imagePreview?.url || null
+    : null;
+
+  const submitFeedback = async () => {
+  if (!isCurrentSession(sessionToken, sessionId)) {
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+
+    formData.append("subject", subject);
+    formData.append("type", type);
+    formData.append("message", message);
+    formData.append("rating", rating);
+
+    if (image) {
+      formData.append("image", image);
+    }
+
+    await feedbackAPI.post("/submit", formData);
+
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    setSuccessModal(true);
+
+    setSubject("");
+    setMessage("");
+    setImage(null);
+
+  } catch (error) {
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    alert(
+      error.response?.data?.message ||
+      "Failed to submit feedback"
+    );
+  }
+};
+if (!user || !isCurrentSession(sessionToken, sessionId)) {
+  return null;
+}
   return (
     <>
       <Sidebar open={open} setOpen={setOpen} />
@@ -380,16 +431,16 @@ export default function Feedback() {
             />
           </label>
 
-          {image && (
-            <div
-              style={{
-                textAlign: "center",
-                marginBottom: 20,
-              }}
-            >
-              <img
-                src={URL.createObjectURL(image)}
-                alt="preview"
+          {selectedImagePreview && (
+  <div
+    style={{
+      textAlign: "center",
+      marginBottom: 20,
+    }}
+  >
+    <img
+      src={selectedImagePreview}
+      alt="preview"
                 style={{
                   maxWidth: "100%",
 

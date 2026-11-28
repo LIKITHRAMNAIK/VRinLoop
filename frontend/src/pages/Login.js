@@ -1,13 +1,27 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 import authAPI from "../services/authApi";
+import {
+  saveSession,
+  getSessionSnapshot,
+  isSameSnapshot,
+} from "../utils/session";
 
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export default function Login() {
-  const navigate = useNavigate();
 
   const [showPassword, setShowPassword] = useState(false);
+
+const [loading, setLoading] = useState(false);
+const submittingRef = useRef(false);
+const loginControllerRef = useRef(null);
+
+useEffect(() => {
+  return () => {
+    loginControllerRef.current?.abort();
+  };
+}, []);
 
   const [form, setForm] = useState({
     email: "",
@@ -22,33 +36,86 @@ export default function Login() {
     });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+    const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    try {
-      const res = await authAPI.post(
-        "/login",
+  if (submittingRef.current) return;
 
-        form,
+  submittingRef.current = true;
+  setLoading(true);
+
+  const controller = new AbortController();
+
+  loginControllerRef.current = controller;
+
+  try {
+    // Capture the current session revision
+    const snapshot = getSessionSnapshot();
+
+    if (!snapshot) {
+      alert(
+        "Your session has changed. Please refresh the page and try again."
       );
 
-      localStorage.setItem(
-        "token",
-
-        res.data.token,
-      );
-
-      localStorage.setItem(
-        "user",
-
-        JSON.stringify(res.data.user),
-      );
-
-      navigate("/");
-    } catch (error) {
-      alert(error.response?.data?.message || "Login failed");
+      return;
     }
-  };
+
+    // Send authentication request
+    const res = await authAPI.post("/login", form, {
+      signal: controller.signal,
+    });
+
+    // Reject canceled or outdated login requests
+    if (
+      controller.signal.aborted ||
+      loginControllerRef.current !== controller
+    ) {
+      return;
+    }
+
+    // Reject responses belonging to an outdated session
+    if (!isSameSnapshot(snapshot)) {
+      alert(
+        "Your session has changed. Please refresh the page and try again."
+      );
+
+      return;
+    }
+
+    // Save session using coordinated storage
+    await saveSession(
+      res.data.token,
+      res.data.user,
+      snapshot
+    );
+
+    // Start with a fresh application state
+    window.location.replace("/");
+
+  } catch (error) {
+    if (
+      controller.signal.aborted ||
+      error.code === "ERR_CANCELED"
+    ) {
+      return;
+    }
+
+    alert(
+      error.response?.data?.message ||
+      "Login could not be completed. Please refresh and try again."
+    );
+
+  } finally {
+    if (loginControllerRef.current === controller) {
+      loginControllerRef.current = null;
+      submittingRef.current = false;
+
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
+    }
+  }
+};
 
   return (
     <div
@@ -198,9 +265,17 @@ export default function Login() {
           </span>
         </div>
 
-        <button type="submit" style={buttonStyle}>
-          Login
-        </button>
+        <button
+  type="submit"
+  disabled={loading}
+  style={{
+    ...buttonStyle,
+    opacity: loading ? 0.7 : 1,
+    cursor: loading ? "not-allowed" : "pointer",
+  }}
+>
+  {loading ? "Logging in..." : "Login"}
+</button>
 
         <div
           style={{

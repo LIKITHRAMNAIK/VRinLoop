@@ -1,8 +1,8 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { BACKEND_URL }
-  from "../config";
+import usePrivateImage from "../utils/usePrivateImage";
 
+import { logout, getSessionUser } from "../utils/session";
 function Sidebar({ open, setOpen, onOpenExport }) {
 
   const navigate = useNavigate();
@@ -13,8 +13,20 @@ function Sidebar({ open, setOpen, onOpenExport }) {
   }
 };
 
-  const user = JSON.parse(
-    localStorage.getItem("user")
+    const user = getSessionUser();
+
+const privateProfileImage = usePrivateImage(
+  user?.profile_image
+);
+
+const fallbackAvatar =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">' +
+    '<rect width="100" height="100" fill="#e2e8f0"/>' +
+    '<circle cx="50" cy="35" r="18" fill="#64748b"/>' +
+    '<path d="M18 100V85a32 32 0 0 1 64 0v15" fill="#64748b"/>' +
+    '</svg>'
   );
 
   const menuItems = [
@@ -55,12 +67,8 @@ function Sidebar({ open, setOpen, onOpenExport }) {
     },
   ];
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-
-    localStorage.removeItem("user");
-
-    window.location.href = "/login";
+    const handleLogout = () => {
+    logout();
   };
 
  return (
@@ -176,11 +184,12 @@ function Sidebar({ open, setOpen, onOpenExport }) {
           }}
         >
           <img
-  src={
-    user?.profile_image
-      ? `${BACKEND_URL}/uploads/${user.profile_image}`
-      : "https://ui-avatars.com/api/?name=User"
-  }
+  src={privateProfileImage || fallbackAvatar}
+  onError={(event) => {
+    if (event.currentTarget.src !== fallbackAvatar) {
+      event.currentTarget.src = fallbackAvatar;
+    }
+  }}
   alt="profile"
   style={{
     width: 52,

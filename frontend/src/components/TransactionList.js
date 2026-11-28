@@ -1,11 +1,16 @@
 import React, { useEffect, useState } from "react";
+import { useCallback } from "react";
 import API from "../services/api";
 import { useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatCurrency } from "../utils/format";
 import LoanProfile from "../pages/LoanProfile";
-
+import {
+  getToken,
+  getSessionId,
+  isCurrentSession,
+} from "../utils/session";
 const miniButtonStyle = {
   color: "white",
   border: "none",
@@ -38,6 +43,9 @@ const miniStatValue = {
 };
 function TransactionList({ refresh }) {
   const navigate = useNavigate();
+
+  const [sessionToken] = useState(getToken);
+  const [sessionId] = useState(getSessionId);
   const [search, setSearch] = useState("");
   const [data, setData] = useState([]);
   const [selectedName, setSelectedName] = useState("all");
@@ -217,11 +225,36 @@ const [selectedMonth] = useState("");
       return sum + total;
     }, 0);
 
-  const fetchData = () => {
-    API.get("/")
-      .then((res) => setData(res.data))
-      .catch((err) => console.log(err));
-  };
+  const fetchData = useCallback(async (signal) => {
+  if (
+    signal?.aborted ||
+    !isCurrentSession(sessionToken, sessionId)
+  ) {
+    return;
+  }
+
+  try {
+    const res = await API.get("/", { signal });
+
+    if (
+      signal?.aborted ||
+      !isCurrentSession(sessionToken, sessionId)
+    ) {
+      return;
+    }
+
+    setData(res.data);
+  } catch {
+    if (
+      signal?.aborted ||
+      !isCurrentSession(sessionToken, sessionId)
+    ) {
+      return;
+    }
+
+    console.error("Unable to load transactions.");
+  }
+}, [sessionToken, sessionId]);
 
   const names = [
     "All Users",
@@ -231,28 +264,40 @@ const [selectedMonth] = useState("");
       ).values(),
     ),
   ];
-  useEffect(() => {
-    const lastShown = sessionStorage.getItem("alertShownTime");
+    useEffect(() => {
+    if (!isCurrentSession(sessionToken, sessionId)) return;
 
+    const alertKey = `alertShownTime:${sessionId}`;
+
+    const lastShown = sessionStorage.getItem(alertKey);
     const now = Date.now();
 
-    // 5 minutes
     const FIVE_MINUTES = 5 * 60 * 1000;
 
     if (!lastShown || now - Number(lastShown) > FIVE_MINUTES) {
       setShowAlert(true);
 
-      sessionStorage.setItem("alertShownTime", now);
+      sessionStorage.setItem(alertKey, String(now));
     }
-  }, []);
 
-  window.addEventListener("beforeunload", () => {
-    sessionStorage.removeItem("alertShownTime");
-  });
+    const handleBeforeUnload = () => {
+      sessionStorage.removeItem(alertKey);
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [sessionToken, sessionId]);
 
   useEffect(() => {
-    fetchData();
-  }, [refresh]);
+  const controller = new AbortController();
+
+  fetchData(controller.signal);
+
+  return () => controller.abort();
+}, [refresh, fetchData]);
 
   useEffect(() => {
     if (filterType === "due" && dueCount === 0) {
@@ -266,7 +311,11 @@ const [selectedMonth] = useState("");
 
 
   const handleExport = (type, month) => {
-    const rows = [];
+  if (!isCurrentSession(sessionToken, sessionId)) {
+    return;
+  }
+
+  const rows = [];
 
     let filteredSortedData = [...data];
 
@@ -432,7 +481,17 @@ const [selectedMonth] = useState("");
 
     // ✅ FINAL NAME
     a.download = `${fileType}-transactions${fileMonth}.csv`;
-    a.click();
+
+if (!isCurrentSession(sessionToken, sessionId)) {
+  window.URL.revokeObjectURL(url);
+  return;
+}
+
+try {
+  a.click();
+} finally {
+  window.URL.revokeObjectURL(url);
+}
   };
   const getReportTitle = (type, month) => {
     let typeName = "All Transactions";
@@ -452,7 +511,11 @@ const [selectedMonth] = useState("");
     return `${typeName}${monthText} - Money Report`;
   };
   const handleExportPDF = (type, month) => {
-    const doc = new jsPDF("landscape");
+  if (!isCurrentSession(sessionToken, sessionId)) {
+    return;
+  }
+
+  const doc = new jsPDF("landscape");
     doc.setFontSize(16);
     doc.text(getReportTitle(type, month), 14, 15);
 
@@ -644,7 +707,11 @@ const [selectedMonth] = useState("");
     }
 
     // ✅ FINAL NAME
-    doc.save(`${fileType}-transactions${fileMonth}.pdf`);
+if (!isCurrentSession(sessionToken, sessionId)) {
+  return;
+}
+
+doc.save(`${fileType}-transactions${fileMonth}.pdf`);
   };
 
 
@@ -1805,28 +1872,45 @@ marginTop: "6px",
   })
   .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
 
-  const handleInstallment = async () => {
-    if (!payAmount) {
-      alert("Enter amount");
+const handleInstallment = async () => {
+  if (!isCurrentSession(sessionToken, sessionId)) {
+    return;
+  }
+
+  if (!payAmount) {
+    alert("Enter amount");
+    return;
+  }
+
+  try {
+    await API.put(`/paid/${payId}`, {
+      amount: Number(payAmount),
+    });
+
+    if (!isCurrentSession(sessionToken, sessionId)) {
       return;
     }
 
-    try {
-  await API.put(`/paid/${payId}`, {
-  amount: Number(payAmount),
-});
+    setPayAmount("");
+    setPayId(null);
+    setPayType("");
 
-setPayAmount("");
-setPayId(null);
-setPayType("");
+    setSuccessMessage(
+      "Installment payment completed successfully."
+    );
 
-setSuccessMessage("Installment payment completed successfully.");
+    fetchData();
 
-fetchData();
-} catch (err) {
-  console.log(err);
-}
-  };
+  } catch {
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    alert(
+      "Unable to confirm installment payment status. Please refresh and check before retrying."
+    );
+  }
+};
 
   const filteredLoanData = loanData.filter((tx) => {
   if (loanFilterType === "pending") {
@@ -1869,9 +1953,17 @@ fetchData();
         return;
       }
 
-      await API.put(`/paid/${payId}`, {
-        amount: remaining,
-      });
+      if (!isCurrentSession(sessionToken, sessionId)) {
+  return;
+}
+
+await API.put(`/paid/${payId}`, {
+  amount: remaining,
+});
+
+if (!isCurrentSession(sessionToken, sessionId)) {
+  return;
+}
 
       setSuccessMessage("Full payment completed successfully.");
 
@@ -1879,11 +1971,21 @@ fetchData();
       setPayType(null);
 
       fetchData();
-    } catch (err) {
-      console.log(err);
-      alert("Error ❌");
-    }
-  };
+    } catch {
+  if (!isCurrentSession(sessionToken, sessionId)) {
+    return;
+  }
+
+  alert(
+    "Unable to confirm full payment status. Please refresh and check before retrying."
+  );
+}
+    };
+
+  if (!isCurrentSession(sessionToken, sessionId)) {
+    return null;
+  }
+
   return (
     <div>
       {confirmAction &&
@@ -1937,26 +2039,45 @@ fetchData();
                       cursor: "pointer",
                     }}
                     onClick={async () => {
-                      if (confirmAction.type === "delete") {
-                        await API.delete(`/delete/${confirmAction.id}`);
-                      } else if (confirmAction.type === "paid") {
-                        await API.put(`/paid/${confirmAction.id}`, {
-                          amount: null,
-                        });
-                      } else if (confirmAction.type === "extend") {
-                        setExtendId(confirmAction.id);
-                        setConfirmAction(null);
-                        return;
-                      } else if (confirmAction.type === "edit") {
-                        setEditId(confirmAction.id);
-                        setEditForm(confirmAction.tx);
-                        setConfirmAction(null);
-                        return;
-                      }
+  if (!isCurrentSession(sessionToken, sessionId)) {
+    return;
+  }
 
-                      setConfirmAction(null);
-                      fetchData();
-                    }}
+  try {
+    if (confirmAction.type === "delete") {
+      await API.delete(`/delete/${confirmAction.id}`);
+    } else if (confirmAction.type === "paid") {
+      await API.put(`/paid/${confirmAction.id}`, {
+        amount: null,
+      });
+    } else if (confirmAction.type === "extend") {
+      setExtendId(confirmAction.id);
+      setConfirmAction(null);
+      return;
+    } else if (confirmAction.type === "edit") {
+      setEditId(confirmAction.id);
+      setEditForm(confirmAction.tx);
+      setConfirmAction(null);
+      return;
+    }
+
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    setConfirmAction(null);
+    fetchData();
+
+  } catch {
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    alert(
+      "Unable to confirm transaction status. Please refresh and check before retrying."
+    );
+  }
+}}
                   >
                     Confirm
                   </button>
@@ -2327,10 +2448,30 @@ fetchData();
                   cursor: "pointer",
                 }}
                 onClick={async () => {
-                  await API.put(`/extend/${extendId}`, extendForm);
-                  setExtendId(null);
-                  fetchData();
-                }}
+  if (!isCurrentSession(sessionToken, sessionId)) {
+    return;
+  }
+
+  try {
+    await API.put(`/extend/${extendId}`, extendForm);
+
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    setExtendId(null);
+    fetchData();
+
+  } catch {
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    alert(
+      "Unable to confirm extension status. Please refresh and check before retrying."
+    );
+  }
+}}
               >
                 Save
               </button>
@@ -2449,15 +2590,34 @@ fetchData();
                   cursor: "pointer",
                 }}
                 onClick={async () => {
-                  await API.put(`/update/${editId}`, {
-                    ...editForm,
-                    principal_amount: Number(editForm.principal_amount),
-                    base_interest: Number(editForm.base_interest),
-                  });
+  if (!isCurrentSession(sessionToken, sessionId)) {
+    return;
+  }
 
-                  setEditId(null);
-                  fetchData();
-                }}
+  try {
+    await API.put(`/update/${editId}`, {
+      ...editForm,
+      principal_amount: Number(editForm.principal_amount),
+      base_interest: Number(editForm.base_interest),
+    });
+
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    setEditId(null);
+    fetchData();
+
+  } catch {
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    alert(
+      "Unable to confirm update status. Please refresh and check before retrying."
+    );
+  }
+}}
               >
                 Save
               </button>
@@ -4088,16 +4248,35 @@ fetchData();
                     cursor: "pointer",
                   }}
                   onClick={async () => {
-                    await API.put(`/paid/${earlyPayPopup._id}`, {
-                      earlyPay: true,
-                      newInterest: Number(earlyInterest),
-                    });
+  if (!isCurrentSession(sessionToken, sessionId)) {
+    return;
+  }
 
-                    setEarlyPayPopup(null);
-                    setEarlyInterest("");
+  try {
+    await API.put(`/paid/${earlyPayPopup._id}`, {
+      earlyPay: true,
+      newInterest: Number(earlyInterest),
+    });
 
-                    fetchData();
-                  }}
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    setEarlyPayPopup(null);
+    setEarlyInterest("");
+
+    fetchData();
+
+  } catch {
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    alert(
+      "Unable to confirm early payment status. Please refresh and check before retrying."
+    );
+  }
+}}
                 >
                   Confirm
                 </button>
@@ -4171,16 +4350,29 @@ fetchData();
                     fontWeight: "bold",
                   }}
                   onClick={async () => {
+  if (!isCurrentSession(sessionToken, sessionId)) {
+    return;
+  }
+
   try {
     await API.put(`/paid/${normalPayPopup._id}`, {});
+
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
 
     setNormalPayPopup(null);
     setSuccessMessage("Payment completed successfully.");
     fetchData();
 
-  } catch (err) {
-    console.error("Payment error:", err);
-    alert("Unable to confirm payment status. Please refresh and check.");
+  } catch {
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    alert(
+      "Unable to confirm payment status. Please refresh and check before retrying."
+    );
   }
 }}
                 >

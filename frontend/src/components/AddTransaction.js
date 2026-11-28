@@ -1,5 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import API from "../services/api";
+import {
+  getToken,
+  getSessionId,
+  isCurrentSession,
+} from "../utils/session";
 const inputStyle = {
   width: "100%",
   padding: "8px",
@@ -26,6 +31,10 @@ const closeBtn = {
   cursor: "pointer",
 };
 function AddTransaction({ refresh }) {
+  const [sessionToken] = useState(getToken);
+  const [sessionId] = useState(getSessionId);
+  const submittingRef = useRef(false);
+
   const [successModal, setSuccessModal] = useState(false);
   const [names, setNames] = useState([]);
   const [form, setForm] = useState({
@@ -73,13 +82,37 @@ function AddTransaction({ refresh }) {
     interest_paid: false,
   });
   useEffect(() => {
-    API.get("/")
-      .then((res) => {
-        const unique = [...new Set(res.data.map((tx) => tx.person_name))];
-        setNames(unique);
-      })
-      .catch((err) => console.log(err));
-  }, []);
+  const controller = new AbortController();
+
+  if (!isCurrentSession(sessionToken, sessionId)) {
+    return () => controller.abort();
+  }
+
+  API.get("/", { signal: controller.signal })
+    .then((res) => {
+      if (
+        controller.signal.aborted ||
+        !isCurrentSession(sessionToken, sessionId)
+      ) {
+        return;
+      }
+
+      const unique = [...new Set(res.data.map((tx) => tx.person_name))];
+      setNames(unique);
+    })
+    .catch(() => {
+      if (
+        controller.signal.aborted ||
+        !isCurrentSession(sessionToken, sessionId)
+      ) {
+        return;
+      }
+
+      console.error("Unable to load transaction names.");
+    });
+
+  return () => controller.abort();
+}, [sessionToken, sessionId]);
 
   const handleChange = (e) => {
     let { name, value } = e.target;
@@ -95,9 +128,18 @@ function AddTransaction({ refresh }) {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    try {
+  if (
+    submittingRef.current ||
+    !isCurrentSession(sessionToken, sessionId)
+  ) {
+    return;
+  }
+
+  submittingRef.current = true;
+
+  try {
       await API.post("/add", {
         extensions: rotationExtension
           ? [
@@ -151,7 +193,11 @@ function AddTransaction({ refresh }) {
 
           0,
         ),
-      });
+            });
+
+      if (!isCurrentSession(sessionToken, sessionId)) {
+        return;
+      }
 
       setSuccessModal(true);
 
@@ -201,10 +247,17 @@ function AddTransaction({ refresh }) {
           date: "",
         },
       ]);
-    } catch (err) {
-      console.log(err);
-      alert("Error ❌");
-    }
+    } catch {
+  if (!isCurrentSession(sessionToken, sessionId)) {
+    return;
+  }
+
+  alert(
+    "Unable to confirm transaction creation. Please refresh and check before retrying."
+  );
+} finally {
+  submittingRef.current = false;
+}
   };
 
   useEffect(() => {
@@ -258,8 +311,12 @@ let calculatedStartDate;
     form.last_paid_date,
     form.already_paid_months,
     form.loan_mode,
-    isLoan,
+        isLoan,
   ]);
+
+  if (!isCurrentSession(sessionToken, sessionId)) {
+    return null;
+  }
 
   return (
     <form
@@ -934,7 +991,17 @@ let calculatedStartDate;
           Add
         </button>
 
-        <button type="button" onClick={() => refresh()} style={closeBtn}>
+        <button
+  type="button"
+  onClick={() => {
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    refresh();
+  }}
+  style={closeBtn}
+>
           Close
         </button>
       </div>
@@ -977,9 +1044,13 @@ let calculatedStartDate;
 
             <button
               onClick={() => {
-                setSuccessModal(false);
+                if (!isCurrentSession(sessionToken, sessionId)) {
+  return;
+}
 
-                refresh();
+setSuccessModal(false);
+
+refresh();
               }}
               style={{
                 marginTop: 15,

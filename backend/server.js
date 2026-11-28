@@ -60,6 +60,7 @@ const cron = require("node-cron");
 const app = express();
 const cors = require("cors");
 const feedbackRoutes = require("./routes/feedbackRoutes");
+const imageRoutes = require("./routes/imageRoutes");
 const { runDueTomorrowCron } = require("./cron/dueTomorrowCron");
 
 const { runDueTodayCron } = require("./cron/dueTodayCron");
@@ -115,22 +116,21 @@ app.use(
 
 app.use(express.json());
 
-// Serve images from the appropriate upload directory
-const uploadDirectory = path.join(
-  __dirname,
-  isTestMode ? "uploads-test" : "uploads"
-);
+// Public image access is disabled.
+// Uploaded images must be accessed through
+// the authenticated /api/images endpoint.
+app.use("/uploads", (req, res) => {
+  res.setHeader("Cache-Control", "private, no-store");
+  res.setHeader("X-Content-Type-Options", "nosniff");
 
-app.use(
-  "/uploads",
-  express.static(uploadDirectory, {
-    setHeaders: (res) => {
-      res.setHeader("X-Content-Type-Options", "nosniff");
-    },
-  }),
-);
+  return res.status(404).json({
+    success: false,
+    message: "Image not found",
+  });
+});
 
 app.use("/api/feedback", feedbackRoutes);
+app.use("/api/images", imageRoutes);
 
 
 // ✅ ONLY THIS ROUTE

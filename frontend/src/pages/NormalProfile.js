@@ -1,9 +1,19 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import API from "../services/api";
 import { formatCurrency } from "../utils/format";
+import {
+  getToken,
+  getSessionId,
+  isCurrentSession,
+} from "../utils/session";
 
 // function NormalProfile() {
 function NormalProfile({ data, refresh }) {
+
+  const [sessionToken] = useState(getToken);
+  const [sessionId] = useState(getSessionId);
+
+  const mutationRef = useRef(false);
 
   const [payId, setPayId] = useState(null);
   const [payAmount, setPayAmount] = useState("");
@@ -17,42 +27,161 @@ function NormalProfile({ data, refresh }) {
   if (!data.length) return <h2>Loading...</h2>;
 
   const handleInstallment = async () => {
-  await API.put(`/paid/${payId}`, {
-    amount: Number(payAmount),
-  });
+  if (
+    mutationRef.current ||
+    !payId ||
+    !isCurrentSession(sessionToken, sessionId)
+  ) {
+    return;
+  }
 
-  setPayId(null);
-  setPayAmount("");
-  setPayType("");
+  mutationRef.current = true;
 
-  refresh();
+  try {
+    await API.put(`/paid/${payId}`, {
+      amount: Number(payAmount),
+    });
+
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    setPayId(null);
+    setPayAmount("");
+    setPayType("");
+
+    refresh();
+  } catch {
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    alert(
+      "Unable to confirm installment payment. Please refresh and check before retrying."
+    );
+  } finally {
+    mutationRef.current = false;
+  }
 };
 
   const handleFullPayment = async () => {
-    const tx = data.find((t) => t._id === payId);
-    const remaining = tx.principal_amount - (tx.paid_amount || 0);
+  if (
+    mutationRef.current ||
+    !payId ||
+    !isCurrentSession(sessionToken, sessionId)
+  ) {
+    return;
+  }
 
+  const tx = data.find((t) => t._id === payId);
+
+  if (!tx) {
+    alert("Transaction not found. Please refresh.");
+    return;
+  }
+
+  const remaining =
+    Number(tx.principal_amount) - Number(tx.paid_amount || 0);
+
+  if (remaining <= 0) {
+    alert("Already fully paid");
+    return;
+  }
+
+  mutationRef.current = true;
+
+  try {
     await API.put(`/paid/${payId}`, {
       amount: remaining,
     });
 
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
     setPayId(null);
+
     refresh();
-  };
+  } catch {
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    alert(
+      "Unable to confirm full payment. Please refresh and check before retrying."
+    );
+  } finally {
+    mutationRef.current = false;
+  }
+};
 
   const handleDelete = async () => {
+  if (
+    mutationRef.current ||
+    !confirmAction?.id ||
+    !isCurrentSession(sessionToken, sessionId)
+  ) {
+    return;
+  }
+
+  mutationRef.current = true;
+
+  try {
     await API.delete(`/delete/${confirmAction.id}`);
+
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
     setConfirmAction(null);
     refresh();
-  };
+  } catch {
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    alert(
+      "Unable to confirm transaction deletion. Please refresh and check before retrying."
+    );
+  } finally {
+    mutationRef.current = false;
+  }
+};
 
   const handleEditSave = async () => {
+  if (
+    mutationRef.current ||
+    !editId ||
+    !isCurrentSession(sessionToken, sessionId)
+  ) {
+    return;
+  }
+
+  mutationRef.current = true;
+
+  try {
     await API.put(`/update/${editId}`, {
       ...editForm,
     });
+
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
     setEditId(null);
     refresh();
-  };
+  } catch {
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    alert(
+      "Unable to confirm transaction update. Please refresh and check before retrying."
+    );
+  } finally {
+    mutationRef.current = false;
+  }
+};
 
   const renderCard = (tx) => {
     const paid = tx.paid_amount || 0;
@@ -72,10 +201,10 @@ function NormalProfile({ data, refresh }) {
       Math.ceil((today - due) / (1000 * 60 * 60 * 24)),
     );
 
-    return (
-      <div
-        key={tx._id}
-        style={{
+  return (
+  <div
+    key={tx._id}
+    style={{
           padding: 18,
 
           borderRadius: 18,
@@ -674,6 +803,10 @@ function NormalProfile({ data, refresh }) {
       </div>
     );
   };
+
+    if (!isCurrentSession(sessionToken, sessionId)) {
+    return null;
+  }
 
   return (
     <div>

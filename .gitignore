@@ -15,6 +15,7 @@ uploads/
 # Local testing environment files
 backend/.env.test
 frontend/.env.local
+frontend/.env.development.local
 frontend/.env.test
 
 # Temporary test uploads

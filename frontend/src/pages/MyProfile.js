@@ -1,13 +1,22 @@
 import React, { useEffect, useState } from "react";
 import API from "../services/api";
 import { useNavigate } from "react-router-dom";
-import { BACKEND_URL } from "../config";
+import usePrivateImage from "../utils/usePrivateImage";
 import { formatCurrency } from "../utils/format";
 import {
   exportProfilePDF,
   exportProfileCSV,
 } from "../utils/exportTransactions";
 import authAPI from "../services/authApi";
+
+import {
+  logout,
+  getToken,
+  getSessionId,
+  getSessionUser,
+  isCurrentSession,
+  updateSessionUser,
+} from "../utils/session";
 import CountUp from "react-countup";
 
 import AddTransaction from "../components/AddTransaction";
@@ -29,7 +38,23 @@ function MyProfile() {
   const navigate = useNavigate();
   const [allTransactions, setAllTransactions] = useState([]);
 
-  const user = JSON.parse(localStorage.getItem("user"));
+const [user] = useState(getSessionUser);
+
+const privateProfileImage = usePrivateImage(
+  user?.profile_image
+);
+
+const [failedProfileImage, setFailedProfileImage] =
+  useState(null);
+
+const displayProfileImage =
+  privateProfileImage &&
+  privateProfileImage !== failedProfileImage
+    ? privateProfileImage
+    : null;
+const [sessionToken] = useState(getToken);
+
+const [sessionId] = useState(getSessionId);
   
 
   const [openForm, setOpenForm] = useState(false);
@@ -50,85 +75,142 @@ function MyProfile() {
 
   const [profileImage, setProfileImage] = useState(null);
 
-  const [showEditProfile, setShowEditProfile] = useState(false);
+const [showEditProfile, setShowEditProfile] = useState(false);
 
-  const handleProfileUpdate = async () => {
+const [profileImagePreview, setProfileImagePreview] =
+  useState(null);
+
+useEffect(() => {
+  setProfileImagePreview(null);
+
+  if (
+    !showEditProfile ||
+    !profileImage ||
+    !isCurrentSession(sessionToken, sessionId)
+  ) {
+    return;
+  }
+
+  const previewUrl = URL.createObjectURL(profileImage);
+
+  setProfileImagePreview({
+    file: profileImage,
+    url: previewUrl,
+  });
+
+  return () => {
+    URL.revokeObjectURL(previewUrl);
+  };
+}, [
+  profileImage,
+  showEditProfile,
+  sessionToken,
+  sessionId,
+]);
+
+const selectedImagePreview =
+  showEditProfile &&
+  profileImagePreview?.file === profileImage &&
+  isCurrentSession(sessionToken, sessionId)
+    ? profileImagePreview?.url || null
+    : null;
+
+    const fallbackAvatar =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">' +
+    '<rect width="100" height="100" fill="#e2e8f0"/>' +
+    '<circle cx="50" cy="35" r="18" fill="#64748b"/>' +
+    '<path d="M18 100V85a32 32 0 0 1 64 0v15" fill="#64748b"/>' +
+    '</svg>'
+  );
+
+    const handleProfileUpdate = async () => {
+    if (loading || !isCurrentSession(sessionToken, sessionId)) return;
+
     try {
       setLoading(true);
 
-      const token = localStorage.getItem("token");
-
       await authAPI.post(
         "/send-profile-update-otp",
-
         {},
-
         {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${sessionToken}`,
           },
         },
       );
+
+      if (!isCurrentSession(sessionToken, sessionId)) return;
 
       setShowOtpPopup(true);
 
       alert("OTP sent to your email");
     } catch (error) {
+      if (!isCurrentSession(sessionToken, sessionId)) return;
+
       alert(error.response?.data?.message || "Failed to send OTP");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerifyOtp = async () => {
+    const handleVerifyOtp = async () => {
+    if (loading || !isCurrentSession(sessionToken, sessionId)) return;
+
     try {
       setLoading(true);
 
       const formData = new FormData();
 
       formData.append("otp", otp);
-
       formData.append("name", profileForm.name);
-
       formData.append("email", profileForm.email);
-
       formData.append("phone", profileForm.phone);
 
       if (profileImage) {
         formData.append("profile_image", profileImage);
       }
 
-      const token = localStorage.getItem("token");
-
       const res = await authAPI.put(
         "/verify-profile-update-otp",
-
         formData,
-
         {
           headers: {
-            Authorization: `Bearer ${token}`,
-
+            Authorization: `Bearer ${sessionToken}`,
             "Content-Type": "multipart/form-data",
           },
         },
       );
 
-      localStorage.setItem(
-        "user",
+      if (!isCurrentSession(sessionToken, sessionId)) return;
 
-        JSON.stringify(res.data.user),
-      );
+      if (
+        !res.data.user?._id ||
+        res.data.user._id !== user?._id
+      ) {
+        throw new Error("Invalid profile response");
+      }
+
+      await updateSessionUser(
+  res.data.user,
+  sessionToken,
+  sessionId
+);
 
       alert("Profile updated successfully");
 
       setShowOtpPopup(false);
-
       setShowEditProfile(false);
 
       window.location.reload();
     } catch (error) {
-      alert(error.response?.data?.message || "OTP verification failed");
+      if (!isCurrentSession(sessionToken, sessionId)) return;
+
+      alert(
+  error.response?.data?.message ||
+  "Unable to complete the profile update. Please refresh and check your profile before trying again."
+);
     } finally {
       setLoading(false);
     }
@@ -207,9 +289,22 @@ function MyProfile() {
 
 
 
-  useEffect(() => {
-    API.get("/")
+    useEffect(() => {
+    const controller = new AbortController();
+
+    if (!isCurrentSession(sessionToken, sessionId)) return;
+
+    API.get("/", {
+      signal: controller.signal,
+    })
       .then((res) => {
+        if (
+          controller.signal.aborted ||
+          !isCurrentSession(sessionToken, sessionId)
+        ) {
+          return;
+        }
+
         const data = res.data;
         setAllTransactions(data);
 
@@ -414,8 +509,23 @@ function MyProfile() {
         });
       })
 
-      .catch((err) => console.log(err));
-  }, []);
+            .catch(() => {
+        if (
+          controller.signal.aborted ||
+          !isCurrentSession(sessionToken, sessionId)
+        ) {
+          return;
+        }
+
+        console.error("Failed to load profile transactions");
+      });
+
+    return () => controller.abort();
+}, [sessionToken, sessionId]);
+
+if (!isCurrentSession(sessionToken, sessionId)) {
+  return null;
+}
 
   return (
     <div
@@ -464,7 +574,7 @@ function MyProfile() {
               boxShadow: "0 8px 18px rgba(34,197,94,0.25)",
             }}
           >
-            ⬅ Dashboard
+            â¬… Dashboard
           </button>
 
           <button
@@ -481,7 +591,7 @@ function MyProfile() {
               boxShadow: "0 8px 18px rgba(124,58,237,0.25)",
             }}
           >
-            👥 User Profiles
+            ðŸ‘¥ User Profiles
           </button>
         </div>
         <button
@@ -498,7 +608,7 @@ function MyProfile() {
             boxShadow: "0 8px 18px rgba(234,88,12,0.25)",
           }}
         >
-          ➕ Add Transaction
+          âž• Add Transaction
         </button>
         <div></div>
 
@@ -556,17 +666,11 @@ function MyProfile() {
               boxShadow: "0 8px 18px rgba(13,148,136,0.25)",
             }}
           >
-            📤 Export
+            ðŸ“¤ Export
           </button>
 
           <button
-            onClick={() => {
-              localStorage.removeItem("token");
-
-              localStorage.removeItem("user");
-
-              navigate("/login");
-            }}
+                        onClick={logout}
             style={{
               background: "linear-gradient(135deg,#dc2626,#991b1b)",
 
@@ -587,7 +691,7 @@ function MyProfile() {
               boxShadow: "0 8px 18px rgba(220,38,38,0.25)",
             }}
           >
-            🚪 Logout
+            ðŸšª Logout
           </button>
         </div>
       </div>
@@ -661,10 +765,13 @@ function MyProfile() {
                   border: "3px solid rgba(255,255,255,0.2)",
                 }}
               >
-                {user?.profile_image ? (
-                  <img
-                    src={`${BACKEND_URL}/uploads/${user.profile_image}`}
-                    alt="profile"
+                {displayProfileImage ? (
+  <img
+    src={displayProfileImage}
+    onError={() => {
+      setFailedProfileImage(displayProfileImage);
+    }}
+    alt="profile"
                     style={{
                       width: "100%",
 
@@ -736,13 +843,13 @@ function MyProfile() {
             }}
           >
             <div style={heroMiniCard()}>
-              <p>💰 Total Profit</p>
+              <p>ðŸ’° Total Profit</p>
 
               <h2>{formatCurrency(stats.paidIncoming - stats.paidOutgoing)}</h2>
             </div>
 
             <div style={heroMiniCard()}>
-              <p>📈 Financial Health</p>
+              <p>ðŸ“ˆ Financial Health</p>
 
               <h2>
                 {stats.overdue <= 5
@@ -754,7 +861,7 @@ function MyProfile() {
             </div>
 
             <div style={heroMiniCard()}>
-              <p>🏦 Active Portfolio</p>
+              <p>ðŸ¦ Active Portfolio</p>
 
               <h2>{formatCurrency(stats.incoming + stats.outgoing)}</h2>
             </div>
@@ -798,7 +905,7 @@ function MyProfile() {
             }}
           />
 
-          <p style={miniTitle()}>👥 Total Users</p>
+          <p style={miniTitle()}>ðŸ‘¥ Total Users</p>
 
           <h2 style={miniValue()}>
             <CountUp end={stats.users} duration={2} />
@@ -833,7 +940,7 @@ function MyProfile() {
             }}
           />
 
-          <p style={miniTitle()}>📄 Transactions</p>
+          <p style={miniTitle()}>ðŸ“„ Transactions</p>
 
           <h2 style={miniValue()}>
             <CountUp end={stats.transactions} duration={2} />+
@@ -868,7 +975,7 @@ function MyProfile() {
             }}
           />
 
-          <p style={miniTitle()}>📥 Active Incoming</p>
+          <p style={miniTitle()}>ðŸ“¥ Active Incoming</p>
 
           <h2 style={miniValue()}>{formatCurrency(stats.incoming)}</h2>
         </div>
@@ -901,7 +1008,7 @@ function MyProfile() {
             }}
           />
 
-          <p style={miniTitle()}>📤 Active Outgoing</p>
+          <p style={miniTitle()}>ðŸ“¤ Active Outgoing</p>
 
           <h2 style={miniValue()}>{formatCurrency(stats.outgoing)}</h2>
         </div>
@@ -934,7 +1041,7 @@ function MyProfile() {
             }}
           />
 
-          <p style={miniTitle()}>💸 Paid Incoming</p>
+          <p style={miniTitle()}>ðŸ’¸ Paid Incoming</p>
 
           <h2 style={miniValue()}>{formatCurrency(stats.paidIncoming)}</h2>
         </div>
@@ -967,7 +1074,7 @@ function MyProfile() {
             }}
           />
 
-          <p style={miniTitle()}>💳 Paid Outgoing</p>
+          <p style={miniTitle()}>ðŸ’³ Paid Outgoing</p>
 
           <h2 style={miniValue()}>{formatCurrency(stats.paidOutgoing)}</h2>
         </div>
@@ -1000,7 +1107,7 @@ function MyProfile() {
             }}
           />
 
-          <p style={miniTitle()}>⚠ Overdue Cases</p>
+          <p style={miniTitle()}>âš  Overdue Cases</p>
 
           <h2 style={miniValue()}>
             <CountUp end={stats.overdue} duration={2} />
@@ -1035,7 +1142,7 @@ function MyProfile() {
             }}
           />
 
-          <p style={miniTitle()}>💰 Net Profit</p>
+          <p style={miniTitle()}>ðŸ’° Net Profit</p>
 
           <h2 style={miniValue()}>
             {formatCurrency(stats.paidIncoming - stats.paidOutgoing)}
@@ -1070,7 +1177,7 @@ function MyProfile() {
             }}
           />
 
-          <p style={miniTitle()}>🏦 Total Loans</p>
+          <p style={miniTitle()}>ðŸ¦ Total Loans</p>
 
           <h2 style={miniValue()}>{stats.totalLoans}</h2>
         </div>
@@ -1103,7 +1210,7 @@ function MyProfile() {
             }}
           />
 
-          <p style={miniTitle()}>🏦 Loan Status</p>
+          <p style={miniTitle()}>ðŸ¦ Loan Status</p>
 
           <div
             style={{
@@ -1124,7 +1231,7 @@ function MyProfile() {
                   fontWeight: "600",
                 }}
               >
-                ⏳ Pending
+                â³ Pending
               </span>
 
               <span
@@ -1150,7 +1257,7 @@ function MyProfile() {
                   fontWeight: "600",
                 }}
               >
-                ✅ Completed
+                âœ… Completed
               </span>
 
               <span
@@ -1204,7 +1311,7 @@ function MyProfile() {
             fontSize: 34,
           }}
         >
-          📈 Financial Health Meter
+          ðŸ“ˆ Financial Health Meter
         </h2>
 
         <div
@@ -1300,7 +1407,7 @@ function MyProfile() {
               color: "#0f172a",
             }}
           >
-            📊 Financial Performance Dashboard
+            ðŸ“Š Financial Performance Dashboard
           </h2>
 
           <div
@@ -1376,7 +1483,7 @@ function MyProfile() {
               fontSize: 34,
             }}
           >
-            🤖 Smart AI Insights
+            ðŸ¤– Smart AI Insights
           </h2>
 
           <div
@@ -1387,7 +1494,7 @@ function MyProfile() {
             }}
           >
             <div style={insightCard()}>
-              💵 Active Balance:{" "}
+              ðŸ’µ Active Balance:{" "}
               <span
                 style={{
                   color: stats.activeBalance >= 0 ? "#4ade80" : "#f87171",
@@ -1399,19 +1506,19 @@ function MyProfile() {
             </div>
 
             <div style={insightCard()}>
-              📈 Net Profit: {formatCurrency(stats.totalProfit)}
+              ðŸ“ˆ Net Profit: {formatCurrency(stats.totalProfit)}
             </div>
 
             <div style={insightCard()}>
-              💰 Loan Success Rate: {stats.loanSuccessRate}%
+              ðŸ’° Loan Success Rate: {stats.loanSuccessRate}%
             </div>
 
             <div style={insightCard()}>
-              ⚠ Overdue Risk: {stats.overduePercent}%
+              âš  Overdue Risk: {stats.overduePercent}%
             </div>
 
             <div style={insightCard()}>
-              🚀 Recovery Efficiency: {stats.recoveryRate}%
+              ðŸš€ Recovery Efficiency: {stats.recoveryRate}%
             </div>
           </div>
         </div>
@@ -1435,7 +1542,7 @@ function MyProfile() {
             color: "#0f172a",
           }}
         >
-          📜 Recent Activity Timeline
+          ðŸ“œ Recent Activity Timeline
         </h2>
 
         <div
@@ -1473,7 +1580,7 @@ function MyProfile() {
                   }}
                 >
                   {item.type.toUpperCase()}
-                  {" • "}
+                  {" â€¢ "}
                   {item.status.toUpperCase()}
                 </p>
               </div>
@@ -1533,7 +1640,7 @@ function MyProfile() {
             fontSize: 34,
           }}
         >
-          💳 Loan Analytics
+          ðŸ’³ Loan Analytics
         </h2>
 
         <div
@@ -1582,7 +1689,7 @@ function MyProfile() {
             color: "#0f172a",
           }}
         >
-          🚀 Performance Growth
+          ðŸš€ Performance Growth
         </h2>
 
         <div
@@ -1638,7 +1745,7 @@ function MyProfile() {
             color: "#991b1b",
           }}
         >
-          ⚠ Overdue Risk Users
+          âš  Overdue Risk Users
         </h2>
 
         <div
@@ -1658,7 +1765,7 @@ function MyProfile() {
                 fontSize: 18,
               }}
             >
-              🎉 No risky overdue users found
+              ðŸŽ‰ No risky overdue users found
             </div>
           ) : (
             Object.entries(stats.riskyUsers || {}).map(
@@ -1731,7 +1838,7 @@ function MyProfile() {
             color: "#0f172a",
           }}
         >
-          📊 Financial Analytics
+          ðŸ“Š Financial Analytics
         </h2>
 
         <div
@@ -1807,7 +1914,7 @@ function MyProfile() {
                 marginTop: 0,
               }}
             >
-              📤 Export Report
+              ðŸ“¤ Export Report
             </h2>
 
             <div
@@ -1818,7 +1925,9 @@ function MyProfile() {
               }}
             >
               <button
-                onClick={() => {
+                                onClick={() => {
+                  if (!isCurrentSession(sessionToken, sessionId)) return;
+
                   exportProfilePDF({
                     users: stats.users,
 
@@ -1858,11 +1967,13 @@ function MyProfile() {
                   cursor: "pointer",
                 }}
               >
-                📕 Export PDF
+                ðŸ“• Export PDF
               </button>
 
               <button
-                onClick={() => {
+                                onClick={() => {
+                  if (!isCurrentSession(sessionToken, sessionId)) return;
+
                   exportProfileCSV(stats);
 
                   setShowExportPopup(false);
@@ -1878,7 +1989,7 @@ function MyProfile() {
                   cursor: "pointer",
                 }}
               >
-                📗 Export CSV
+                ðŸ“— Export CSV
               </button>
 
               <button
@@ -1994,13 +2105,16 @@ function MyProfile() {
             >
               <img
                 src={
-                  profileImage
-                    ? URL.createObjectURL(profileImage)
-                    : user?.profile_image
-                      ? `${BACKEND_URL}/uploads/${user.profile_image}`
-                      : "https://ui-avatars.com/api/?name=User"
-                }
-                alt="profile"
+  selectedImagePreview ||
+  displayProfileImage ||
+  fallbackAvatar
+}
+onError={(event) => {
+  if (event.currentTarget.src !== fallbackAvatar) {
+    event.currentTarget.src = fallbackAvatar;
+  }
+}}
+alt="profile"
                 style={{
                   width: 115,
 
@@ -2089,6 +2203,7 @@ function MyProfile() {
             >
               <button
                 onClick={handleProfileUpdate}
+disabled={loading}
                 style={{
                   flex: 1,
 
@@ -2235,6 +2350,7 @@ function MyProfile() {
             >
               <button
                 onClick={handleVerifyOtp}
+disabled={loading}
                 style={{
                   flex: 1,
 

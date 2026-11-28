@@ -1,7 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 import { formatCurrency } from "../utils/format";
+import {
+  getToken,
+  getSessionId,
+  isCurrentSession,
+} from "../utils/session";
 import {
   Dialog,
   DialogTitle,
@@ -11,6 +16,10 @@ import {
 } from "@mui/material";
 function LoanProfile({ data, refresh }) {
   const navigate = useNavigate();
+
+  const [sessionToken] = useState(getToken);
+  const [sessionId] = useState(getSessionId);
+  const mutationRef = useRef(false);
 
   const [openHistory, setOpenHistory] = useState(null);
   const [deleteLoanId, setDeleteLoanId] = useState(null);
@@ -34,23 +43,42 @@ const [emiSuccessOpen, setEmiSuccessOpen] = useState(false);
 const [selectedLoan, setSelectedLoan] = useState(null);
 
   const payLoanEmi = async (id) => {
-    try {
-      const response = await API.put(`/loan-emi/${id}`, {
-        emiCount: Number(emiCounts[id] || 1),
-        penaltyAmount: Number(emiPenalties[id] || 0),
-      });
+  if (
+    mutationRef.current ||
+    !isCurrentSession(sessionToken, sessionId)
+  ) {
+    return;
+  }
 
-      setSelectedLoan(response.data);
+  mutationRef.current = true;
 
-      setEmiSuccessOpen(true);
+  try {
+    const response = await API.put(`/loan-emi/${id}`, {
+      emiCount: Number(emiCounts[id] || 1),
+      penaltyAmount: Number(emiPenalties[id] || 0),
+    });
 
-      refresh();
-    } catch (err) {
-      console.log(err);
-
-      alert("Error ❌");
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
     }
-  };
+
+    setSelectedLoan(response.data);
+
+    setEmiSuccessOpen(true);
+
+    refresh();
+  } catch {
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    alert(
+      "Unable to confirm EMI payment. Please refresh and check before retrying."
+    );
+  } finally {
+    mutationRef.current = false;
+  }
+};
 
   const renderCard = (tx) => {
 
@@ -97,8 +125,12 @@ const [selectedLoan, setSelectedLoan] = useState(null);
         >
           <h3
             onClick={() => {
-              navigate(`/profile/${tx.person_name}`);
-            }}
+  if (!isCurrentSession(sessionToken, sessionId)) {
+    return;
+  }
+
+  navigate(`/profile/${encodeURIComponent(tx.person_name)}`);
+}}
             style={{
               margin: 0,
               color: "#4527A0",
@@ -394,21 +426,45 @@ const [selectedLoan, setSelectedLoan] = useState(null);
     );
   };
 
-  const handleDeleteLoan = async () => {
-    try {
-      await API.delete(`/delete/${deleteLoanId}`);
+ const handleDeleteLoan = async () => {
+  if (
+    mutationRef.current ||
+    !deleteLoanId ||
+    !isCurrentSession(sessionToken, sessionId)
+  ) {
+    return;
+  }
 
-      setDeleteLoanId(null);
+  mutationRef.current = true;
 
-      setOpenHistory(null);
+  try {
+    await API.delete(`/delete/${deleteLoanId}`);
 
-      refresh();
-    } catch (err) {
-      console.log(err);
-
-      alert("Delete failed ❌");
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
     }
-  };
+
+    setDeleteLoanId(null);
+
+    setOpenHistory(null);
+
+    refresh();
+  } catch {
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    alert(
+      "Unable to confirm loan deletion. Please refresh and check before retrying."
+    );
+  } finally {
+    mutationRef.current = false;
+  }
+};
+
+    if (!isCurrentSession(sessionToken, sessionId)) {
+    return null;
+  }
 
   return (
     <div>
@@ -470,24 +526,48 @@ const [selectedLoan, setSelectedLoan] = useState(null);
             >
               <button
                 onClick={async () => {
-                  try {
-                    await API.put(`/loan-history-date`, {
-                      txId: editHistory.txId,
-                      emiIndex: editHistory.emiIndex,
-                      paid_date: editDate,
-                    });
+  if (
+    mutationRef.current ||
+    !editHistory ||
+    !isCurrentSession(sessionToken, sessionId)
+  ) {
+    return;
+  }
 
-                    alert("Updated ✅");
+  mutationRef.current = true;
 
-                    setEditHistory(null);
+  try {
+    await API.put(`/loan-history-date`, {
+      txId: editHistory.txId,
+      emiIndex: editHistory.emiIndex,
+      paid_date: editDate,
+    });
 
-                    refresh();
-                  } catch (err) {
-                    console.log(err);
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
 
-                    alert("Error ❌");
-                  }
-                }}
+    alert("Updated ✅");
+
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    setEditHistory(null);
+
+    refresh();
+  } catch {
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    alert(
+      "Unable to confirm EMI date update. Please refresh and check before retrying."
+    );
+  } finally {
+    mutationRef.current = false;
+  }
+}}
                 style={{
                   flex: 1,
                   background: "#5E35B1",

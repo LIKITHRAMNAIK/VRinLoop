@@ -24,6 +24,7 @@
     "node-cron": "^4.2.1",
     "nodemailer": "^8.0.10",
     "pdfkit": "^0.18.0",
-    "pdfkit-table": "^0.2.11"
+    "pdfkit-table": "^0.2.11",
+    "sharp": "0.35.5"
   }
 }

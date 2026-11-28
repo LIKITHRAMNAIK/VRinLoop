@@ -1,3 +1,14 @@
+import { useEffect, useState } from "react";
+
+import {
+  getSessionId,
+  getSessionSnapshot,
+  logout,
+} from "./utils/session";
+
+import {
+  SESSION_KEY,
+} from "./utils/sessionStorage";
 import {
   BrowserRouter as Router,
   Routes,
@@ -25,6 +36,148 @@ import AboutVRinLoop from "./pages/AboutVRinLoop";
 function AppContent() {
   const location = useLocation();
 
+  const [sessionId, setSessionId] = useState(getSessionId);
+
+  const [sessionBlocked, setSessionBlocked] = useState(false);
+
+  const hasActiveSession = Boolean(sessionId);
+
+  useEffect(() => {
+    let redirecting = false;
+
+    // Remove legacy financial cache
+    localStorage.removeItem("profileData");
+
+    const discardSessionView = () => {
+      if (redirecting) return;
+
+      redirecting = true;
+
+      setSessionBlocked(true);
+      setSessionId(null);
+
+      sessionStorage.removeItem("alertShownTime");
+
+      window.location.replace("/login");
+    };
+
+    const syncSession = () => {
+      if (redirecting) return;
+
+      const currentSessionId = getSessionId();
+
+      const snapshot = getSessionSnapshot();
+
+      // Reject outdated or invalid session revisions
+      if (!snapshot) {
+        discardSessionView();
+        return;
+      }
+
+      // Handle expired authenticated sessions
+      if (sessionId && !currentSessionId) {
+        redirecting = true;
+
+        setSessionBlocked(true);
+        setSessionId(null);
+
+        void logout();
+
+        return;
+      }
+
+      setSessionId(currentSessionId);
+    };
+
+    const handleStorageChange = (event) => {
+      if (
+        event.storageArea === localStorage &&
+        (
+          event.key === SESSION_KEY ||
+          event.key === null
+        )
+      ) {
+        syncSession();
+      }
+    };
+
+    const handlePageShow = (event) => {
+      if (event.persisted) {
+        discardSessionView();
+        return;
+      }
+
+      syncSession();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        syncSession();
+      }
+    };
+
+    syncSession();
+
+    // Periodically validate session identity and expiry
+    const sessionInterval = window.setInterval(
+      syncSession,
+      1000
+    );
+
+    window.addEventListener(
+      "storage",
+      handleStorageChange
+    );
+
+    window.addEventListener(
+      "pageshow",
+      handlePageShow
+    );
+
+    window.addEventListener(
+      "focus",
+      syncSession
+    );
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange
+    );
+
+    return () => {
+      window.clearInterval(sessionInterval);
+
+      window.removeEventListener(
+        "storage",
+        handleStorageChange
+      );
+
+      window.removeEventListener(
+        "pageshow",
+        handlePageShow
+      );
+
+      window.removeEventListener(
+        "focus",
+        syncSession
+      );
+
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      );
+    };
+  }, [sessionId]);
+
+  useEffect(() => {
+    setSessionId(getSessionId());
+  }, [location.pathname]);
+
+  // Never render protected content from a blocked session
+  if (sessionBlocked) {
+    return null;
+  }
+
   const hideCalculator = [
     "/login",
 
@@ -41,11 +194,13 @@ function AppContent() {
     "/feedback",
   ].includes(location.pathname);
 
-  return (
+      return (
     <>
-      {!hideCalculator && <FloatingCalculator />}
+      {hasActiveSession && !hideCalculator && (
+        <FloatingCalculator key={sessionId} />
+      )}
 
-      <Routes>
+      <Routes key={sessionId || "guest"}>
         <Route
           path="/"
           element={

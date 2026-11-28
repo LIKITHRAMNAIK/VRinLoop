@@ -1,13 +1,85 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import Charts from "../components/Charts";
-
+import API from "../services/api";
+import {
+  getToken,
+  getSessionId,
+  isCurrentSession,
+} from "../utils/session";
 function LoanAnalyticsPage() {
   const [selectedLoan, setSelectedLoan] = useState("all");
 
-  const navigate = useNavigate();
+    const navigate = useNavigate();
+  const { name } = useParams();
 
-  const data = JSON.parse(localStorage.getItem("profileData")) || [];
+  const [sessionToken] = useState(getToken);
+const [sessionId] = useState(getSessionId);
+
+const [result, setResult] = useState(null);
+
+useEffect(() => {
+  const controller = new AbortController();
+
+  setResult(null);
+  setSelectedLoan("all");
+
+  if (!isCurrentSession(sessionToken, sessionId)) {
+    return () => controller.abort();
+  }
+
+  API.get(`/person/${encodeURIComponent(name)}`, {
+    signal: controller.signal,
+  })
+    .then((res) => {
+      if (
+        controller.signal.aborted ||
+        !isCurrentSession(sessionToken, sessionId)
+      ) {
+        return;
+      }
+
+      setResult({
+        name,
+        sessionToken,
+        sessionId,
+        data: Array.isArray(res.data.transactions)
+          ? res.data.transactions
+          : [],
+        error: "",
+      });
+    })
+    .catch(() => {
+      if (
+        controller.signal.aborted ||
+        !isCurrentSession(sessionToken, sessionId)
+      ) {
+        return;
+      }
+
+      setResult({
+        name,
+        sessionToken,
+        sessionId,
+        data: [],
+        error: "Unable to load loan analytics.",
+      });
+    });
+
+  return () => controller.abort();
+}, [name, sessionToken, sessionId]);
+
+const currentResult =
+  isCurrentSession(sessionToken, sessionId) &&
+  result?.name === name &&
+  result?.sessionToken === sessionToken &&
+  result?.sessionId === sessionId
+    ? result
+    : null;
+
+const data = currentResult?.data || [];
+const loading = !currentResult;
+const error = currentResult?.error || "";
 
   const loanData = data.filter((tx) => tx.transaction_type === "loan");
   const filteredLoans =
@@ -42,6 +114,33 @@ function LoanAnalyticsPage() {
       }
     });
   });
+
+  if (!isCurrentSession(sessionToken, sessionId)) {
+  return null;
+}
+
+    if (loading || error) {
+    return (
+      <div
+        style={{
+          padding: 25,
+          background: "#f8fafc",
+          minHeight: "100vh",
+          textAlign: "center",
+        }}
+      >
+        <p role={error ? "alert" : "status"}>
+          {error || "Loading loan analytics..."}
+        </p>
+
+        {error && (
+          <button onClick={() => navigate("/loan-users")}>
+            Back to Loan Users
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div

@@ -1,10 +1,20 @@
-import React, { useEffect, useState } from "react";
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
 import API from "../services/api";
+import { useNavigate } from "react-router-dom";
 import AddTransaction from "../components/AddTransaction";
 import TransactionList from "../components/TransactionList";
 import { formatCurrency } from "../utils/format";
 import Sidebar from "../components/Sidebar";
-import { useNavigate } from "react-router-dom";
+import {
+  getSessionUser,
+  getToken,
+  getSessionId,
+  isCurrentSession,
+} from "../utils/session";
 
 const card = (bg) => ({
   background: bg,
@@ -27,7 +37,11 @@ const card = (bg) => ({
 function Dashboard() {
   const [data, setData] = useState(null);
   const [calendarTxs, setCalendarTxs] = useState([]);
-  const user = JSON.parse(localStorage.getItem("user"));
+  const [user] = useState(getSessionUser);
+
+const [sessionToken] = useState(getToken);
+
+const [sessionId] = useState(getSessionId);
   const [openForm, setOpenForm] = useState(false);
   const [reload, setReload] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -40,23 +54,64 @@ function Dashboard() {
   const [showCalendarPopup, setShowCalendarPopup] = useState(false);
   const navigate = useNavigate();
 
-  const fetchData = async () => {
-    try {
-      const dashboardRes = await API.get("/dashboard");
+  const fetchData = useCallback(async (signal) => {
+  if (
+    signal?.aborted ||
+    !isCurrentSession(sessionToken, sessionId)
+  ) {
+    return;
+  }
 
-      setData(dashboardRes.data);
+  try {
+    const dashboardRes = await API.get("/dashboard", {
+      signal,
+    });
 
-      const txRes = await API.get("/");
-
-      setCalendarTxs(txRes.data);
-    } catch (err) {
-      console.log(err);
+    if (
+      signal?.aborted ||
+      !isCurrentSession(sessionToken, sessionId)
+    ) {
+      return;
     }
-  };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+    setData(dashboardRes.data);
+
+    const txRes = await API.get("/", {
+      signal,
+    });
+
+    if (
+      signal?.aborted ||
+      !isCurrentSession(sessionToken, sessionId)
+    ) {
+      return;
+    }
+
+    setCalendarTxs(txRes.data);
+
+  } catch (err) {
+    if (
+      signal?.aborted ||
+      !isCurrentSession(sessionToken, sessionId)
+    ) {
+      return;
+    }
+
+    console.error("Failed to load dashboard data");
+  }
+}, [sessionToken, sessionId]);
+
+useEffect(() => {
+  const controller = new AbortController();
+
+  fetchData(controller.signal);
+
+  return () => controller.abort();
+}, [fetchData]);
+
+if (!isCurrentSession(sessionToken, sessionId)) {
+  return null;
+}
 
   if (!data)
     return (
@@ -911,7 +966,15 @@ function Dashboard() {
               <div
                 onClick={async () => {
                   try {
-                    const res = await API.get("/");
+                    if (!isCurrentSession(sessionToken, sessionId)) {
+  return;
+}
+
+const res = await API.get("/");
+
+if (!isCurrentSession(sessionToken, sessionId)) {
+  return;
+}
 
                     const data = res.data.filter(
                       (tx) => tx.transaction_type !== "loan",
@@ -920,7 +983,11 @@ function Dashboard() {
                     const { exportTransactionsCSV } =
                       await import("../utils/exportTransactions");
 
-                    exportTransactionsCSV(data, "all");
+                    if (!isCurrentSession(sessionToken, sessionId)) {
+  return;
+}
+
+exportTransactionsCSV(data, "all");
 
                     setShowExportPopup(false);
                   } catch (err) {
@@ -957,17 +1024,29 @@ function Dashboard() {
               {/* PDF */}
               <div
                 onClick={async () => {
-                  try {
-                    const res = await API.get("/");
+  try {
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
 
-                    const data = res.data.filter(
-                      (tx) => tx.transaction_type !== "loan",
-                    );
+    const res = await API.get("/");
+
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    const data = res.data.filter(
+      (tx) => tx.transaction_type !== "loan",
+    );
 
                     const { exportTransactionsPDF } =
                       await import("../utils/exportTransactions");
 
-                    exportTransactionsPDF(data, "all");
+                    if (!isCurrentSession(sessionToken, sessionId)) {
+  return;
+}
+
+exportTransactionsPDF(data, "all");
 
                     setShowExportPopup(false);
                   } catch (err) {
@@ -1004,17 +1083,29 @@ function Dashboard() {
               {/* LOAN */}
               <div
                 onClick={async () => {
-                  try {
-                    const res = await API.get("/");
+  try {
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
 
-                    const loans = res.data.filter(
-                      (tx) => tx.transaction_type === "loan",
-                    );
+    const res = await API.get("/");
+
+    if (!isCurrentSession(sessionToken, sessionId)) {
+      return;
+    }
+
+    const loans = res.data.filter(
+      (tx) => tx.transaction_type === "loan",
+    );
 
                     const { exportLoanPDF } =
                       await import("../utils/exportTransactions");
 
-                    exportLoanPDF(loans);
+                    if (!isCurrentSession(sessionToken, sessionId)) {
+  return;
+}
+
+exportLoanPDF(loans);
 
                     setShowExportPopup(false);
                   } catch (err) {

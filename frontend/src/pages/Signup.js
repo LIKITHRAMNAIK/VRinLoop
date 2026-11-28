@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import authAPI from "../services/authApi";
 
@@ -16,7 +16,33 @@ export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
 
   const [image, setImage] = useState(null);
-  const [successModal, setSuccessModal] = useState(false);
+const [successModal, setSuccessModal] = useState(false);
+
+const [imagePreview, setImagePreview] = useState(null);
+
+useEffect(() => {
+  setImagePreview(null);
+
+  if (!image || successModal) {
+    return;
+  }
+
+  const previewUrl = URL.createObjectURL(image);
+
+  setImagePreview({
+    file: image,
+    url: previewUrl,
+  });
+
+  return () => {
+    URL.revokeObjectURL(previewUrl);
+  };
+}, [image, successModal]);
+
+const selectedImagePreview =
+  !successModal && imagePreview?.file === image
+    ? imagePreview?.url || null
+    : null;
 
   const handleChange = (e) => {
     setForm({
@@ -238,16 +264,16 @@ export default function Signup() {
           />
         </label>
 
-        {image && (
-          <div
-            style={{
-              textAlign: "center",
-              marginTop: 15,
-            }}
-          >
-            <img
-              src={URL.createObjectURL(image)}
-              alt="preview"
+        {selectedImagePreview && (
+  <div
+    style={{
+      textAlign: "center",
+      marginTop: 15,
+    }}
+  >
+    <img
+      src={selectedImagePreview}
+      alt="preview"
               style={{
                 width: 90,
                 height: 90,

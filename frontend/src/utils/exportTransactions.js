@@ -1,6 +1,32 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+const downloadCSVBlob = (blob, filename) => {
+  const url = window.URL.createObjectURL(blob);
+
+  let link = null;
+
+  try {
+    link = document.createElement("a");
+
+    link.href = url;
+    link.download = filename;
+    link.style.display = "none";
+
+    document.body.appendChild(link);
+
+    link.click();
+  } finally {
+    if (link) {
+      link.remove();
+    }
+
+    window.setTimeout(() => {
+      window.URL.revokeObjectURL(url);
+    }, 1000);
+  }
+};
+
 export const exportLoanCSV = (loans) => {
   let csv =
     "Name,EMI Info,Stage,Type,Amount,Penalty,Balance,Due Date,Paid Date\n";
@@ -73,15 +99,7 @@ export const exportLoanCSV = (loans) => {
     type: "text/csv;charset=utf-8;",
   });
 
-  const url = window.URL.createObjectURL(blob);
-
-  const link = document.createElement("a");
-
-  link.href = url;
-
-  link.download = "loan-statements.csv";
-
-  link.click();
+  downloadCSVBlob(blob, "loan-statements.csv");
 };
 
 export const exportLoanPDF = (loans) => {
@@ -421,15 +439,7 @@ export const exportTransactionsCSV = (transactions, type = "all") => {
     type: "text/csv;charset=utf-8;",
   });
 
-  const url = window.URL.createObjectURL(blob);
-
-  const link = document.createElement("a");
-
-  link.href = url;
-
-  link.download = `${type}-transactions.csv`;
-
-  link.click();
+  downloadCSVBlob(blob, `${type}-transactions.csv`);
 };
 
 export const exportTransactionsPDF = (transactions, type = "all") => {
@@ -817,15 +827,7 @@ export const exportProfileCSV = (stats) => {
     type: "text/csv;charset=utf-8;",
   });
 
-  const url = window.URL.createObjectURL(blob);
-
-  const link = document.createElement("a");
-
-  link.href = url;
-
-  link.download = "MMS-Financial-Analytics.csv";
-
-  link.click();
+  downloadCSVBlob(blob, "MMS-Financial-Analytics.csv");
 };
 
 export const exportProfilePDF = ({

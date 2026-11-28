@@ -3,36 +3,125 @@ const Feedback = require("../models/Feedback");
 const User = require("../models/User");
 
 const sendMail = require("../utils/sendMail");
+const fs = require("fs/promises");
 
-exports.submitFeedback = async (req, res) => {
+// Escape user-provided values before inserting into email HTML
+const escapeHtml = (value) => {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => {
+    const entities = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+
+    return entities[char];
+  });
+};
+// Remove unused uploaded screenshots
+const cleanupUploadedFile = async (file) => {
+  if (!file?.path) {
+    return;
+  }
+
   try {
-    if (!req.body.subject || !req.body.type || !req.body.message) {
-      return res.status(400).json({
-        success: false,
-
-        message: "Please fill all required fields",
-      });
+    await fs.unlink(file.path);
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      console.error("Feedback upload cleanup failed:", error.code);
     }
+  }
+};
+exports.submitFeedback = async (req, res) => {
+  let feedbackSaved = false;
+let databaseWriteStarted = false;
 
-    const user = await User.findById(req.user.id);
+  try {
+    const { subject, type, message, rating } = req.body || {};
 
-    const feedback = await Feedback.create({
-      user: user._id,
+const allowedTypes = [
+  "Bug Report",
+  "Feature Request",
+  "UI Improvement",
+  "Performance Issue",
+  "Other",
+];
 
-      name: user.name,
+// Validate subject
+if (
+  typeof subject !== "string" ||
+  !subject.trim() ||
+  subject.trim().length > 200
+) {
+  return res.status(400).json({
+    success: false,
+    message: "Subject must contain 1 to 200 characters",
+  });
+}
 
-      email: user.email,
+// Validate feedback category
+if (!allowedTypes.includes(type)) {
+  return res.status(400).json({
+    success: false,
+    message: "Invalid feedback type",
+  });
+}
 
-      subject: req.body.subject,
+// Validate message
+if (
+  typeof message !== "string" ||
+  !message.trim() ||
+  message.trim().length > 5000
+) {
+  return res.status(400).json({
+    success: false,
+    message: "Message must contain 1 to 5000 characters",
+  });
+}
 
-      type: req.body.type,
+// Validate rating
+const cleanRating = rating === undefined ? 5 : Number(rating);
 
-      message: req.body.message,
+if (
+  (rating !== undefined &&
+    typeof rating !== "string" &&
+    typeof rating !== "number") ||
+  (typeof rating === "string" && !/^[0-5]$/.test(rating)) ||
+  !Number.isInteger(cleanRating) ||
+  cleanRating < 0 ||
+  cleanRating > 5
+) {
+  return res.status(400).json({
+    success: false,
+    message: "Rating must be a whole number between 0 and 5",
+  });
+}
 
-      rating: req.body.rating,
+    const user = await User.findById(req.user.id)
+  .select("_id name email");
 
-      image: req.file ? req.file.filename : "",
-    });
+if (!user) {
+  return res.status(401).json({
+    success: false,
+    message: "User account not found. Please log in again.",
+  });
+}
+
+    databaseWriteStarted = true;
+
+const feedback = await Feedback.create({
+  user: user._id,
+  name: user.name,
+  email: user.email,
+  subject: subject.trim(),
+  type: type,
+  message: message.trim(),
+  rating: cleanRating,
+  image: req.file ? req.file.filename : "",
+});
+
+feedbackSaved = true;
 
     const html = `
 <div
@@ -64,27 +153,27 @@ exports.submitFeedback = async (req, res) => {
 
     <tr>
       <td><b>Name</b></td>
-      <td>${user.name}</td>
+      <td>${escapeHtml(user.name)}</td>
     </tr>
 
     <tr>
       <td><b>Email</b></td>
-      <td>${user.email}</td>
+      <td>${escapeHtml(user.email)}</td>
     </tr>
 
     <tr>
       <td><b>Subject</b></td>
-      <td>${req.body.subject}</td>
+      <td>${escapeHtml(feedback.subject)}</td>
     </tr>
 
     <tr>
       <td><b>Type</b></td>
-      <td>${req.body.type}</td>
+      <td>${escapeHtml(feedback.type)}</td>
     </tr>
 
     <tr>
       <td><b>Rating</b></td>
-      <td>${"⭐".repeat(Number(req.body.rating || 0))}</td>
+      <td>${"⭐".repeat(feedback.rating)}</td>
     </tr>
 
   </table>
@@ -103,7 +192,7 @@ exports.submitFeedback = async (req, res) => {
     <b>Message</b>
 
     <p>
-      ${req.body.message}
+      ${escapeHtml(feedback.message)}
     </p>
 
   </div>
@@ -138,7 +227,7 @@ exports.submitFeedback = async (req, res) => {
       const emailSent = await sendMail(
         "likithramnaik123@gmail.com",
 
-        `💡 VRinLoop Feedback - ${req.body.type}`,
+        `💡 VRinLoop Feedback - ${feedback.type}`,
 
         html,
 
@@ -164,10 +253,15 @@ exports.submitFeedback = async (req, res) => {
       message: "Feedback submitted successfully",
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
+  console.error("Feedback submission failed:", error.name);
 
-      message: error.message,
-    });
+  return res.status(500).json({
+    success: false,
+    message: "Unable to submit feedback. Please try again later.",
+  });
+} finally {
+  if (!feedbackSaved && !databaseWriteStarted) {
+    await cleanupUploadedFile(req.file);
   }
+}
 };

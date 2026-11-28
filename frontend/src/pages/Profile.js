@@ -19,12 +19,10 @@ function Profile() {
   const [loanFilter, setLoanFilter] = useState("pending");
 
   const fetchData = useCallback(() => {
-  API.get(`/person/${name}`)
+  API.get(`/person/${encodeURIComponent(name)}`)
     .then((res) => {
       const list = res.data.transactions || [];
       setData(list);
-
-      localStorage.setItem("profileData", JSON.stringify(list));
     })
     .catch((err) => console.log(err));
 }, [name]);
